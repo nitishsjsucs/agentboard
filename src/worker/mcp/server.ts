@@ -87,6 +87,7 @@ export async function runTool(
   if (!isWritePlan(plan)) return plan;
   const applied = fault === "silent_noop" ? await completeWithoutEffect(call, plan.result) : await applyEffects(call, plan);
   if (applied.outcome === "lost") return failure("in_progress", "ownership_lost", "the ledger lock was taken over; nothing was applied");
+  if (applied.outcome === "logical_replay") return success(applied.result, true, true);
   return success(applied.result, false);
 }
 
