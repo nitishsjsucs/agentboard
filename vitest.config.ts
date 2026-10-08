@@ -77,6 +77,11 @@ function workerPool(bindings: Record<string, unknown> = workerBindings()) {
       durableObjects: {
         ToolchainProbe: { className: "ToolchainProbe", useSQLite: true },
       },
+      // Fast local queues for tests (SPEC section 5.4).
+      queueConsumers: {
+        "agentboard-tasks": { maxBatchSize: 10, maxBatchTimeout: 0.05, maxRetries: 2, deadLetterQueue: "agentboard-tasks-dlq" },
+        "agentboard-tasks-dlq": { maxBatchSize: 10, maxBatchTimeout: 0.05, maxRetries: 2 },
+      },
     },
   });
 }

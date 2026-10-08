@@ -62,3 +62,40 @@ export function verifyChain(events: readonly ChainedEvent[]): { valid: boolean; 
   }
   return { valid: true, brokenAtSeq: null };
 }
+
+export interface AuditRow {
+  stream: string;
+  seq: number;
+  ts: string;
+  actor_type: string;
+  actor_id: string;
+  action: string;
+  run_id: string | null;
+  task_id: string | null;
+  detail_json: string;
+  prev_hash: string;
+  hash: string;
+}
+
+export function chainedFromRow(row: AuditRow): ChainedEvent {
+  return {
+    stream: row.stream,
+    seq: row.seq,
+    ts: row.ts,
+    actorType: row.actor_type as ActorType,
+    actorId: row.actor_id,
+    action: row.action,
+    runId: row.run_id,
+    taskId: row.task_id,
+    detail: JSON.parse(row.detail_json) as unknown,
+    prevHash: row.prev_hash,
+    hash: row.hash,
+  };
+}
+
+/** Reads a run's audit stream from D1 and re-verifies it. */
+export async function verifyRunAudit(db: D1Database, runId: string): Promise<{ events: ChainedEvent[]; valid: boolean; brokenAtSeq: number | null }> {
+  const { results } = await db.prepare("SELECT * FROM audit_events WHERE stream = ? ORDER BY seq").bind(`run:${runId}`).all<AuditRow>();
+  const events = results.map(chainedFromRow);
+  return { events, ...verifyChain(events) };
+}
