@@ -31,8 +31,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 23 | feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction | done |
 | 24 | feat(search): FTS5 search documents and ranked search API | done |
 | 25 | feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist | done |
+| 26 | feat(web): app shell, role-aware navigation, dev login and design tokens | done |
 
-Next: commit 26 (`feat(web): app shell, role-aware navigation, dev login and design tokens`).
+Next: commit 27 (`feat(web): dashboard with agent-role and DLQ panels, and runs list with search`).
 
 ## Check status (last run)
 
