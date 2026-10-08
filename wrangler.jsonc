@@ -3,7 +3,169 @@
   "name": "agentboard",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-30",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat"], // agents imports node:async_hooks; the audit chain uses node:crypto
+  // The top level is the LOCAL configuration: no `ai` binding, so it runs without a login.
+  // An accidental top-level deploy is unreachable.
   "workers_dev": false,
-  "preview_urls": false
+  "preview_urls": false,
+  // No `directory`: @cloudflare/vite-plugin supplies it at build time. This is why a bare
+  // `wrangler dev` against this file is unsupported (see README).
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/agents/*", "/mcp"]
+  },
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [
+      { "name": "RunCoordinator", "class_name": "RunCoordinator" },
+      { "name": "PlannerAgent", "class_name": "PlannerAgent" },
+      { "name": "ExecutorAgent", "class_name": "ExecutorAgent" },
+      { "name": "VerifierAgent", "class_name": "VerifierAgent" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RunCoordinator", "PlannerAgent", "ExecutorAgent", "VerifierAgent"] }
+  ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "agentboard", "database_id": "00000000-0000-0000-0000-000000000001", "migrations_dir": "migrations/console" },
+    { "binding": "PEOPLE_DB", "database_name": "agentboard-people", "database_id": "00000000-0000-0000-0000-000000000002", "migrations_dir": "migrations/people" }
+  ],
+  "queues": {
+    "producers": [{ "binding": "TASK_QUEUE", "queue": "agentboard-tasks" }],
+    "consumers": [
+      { "queue": "agentboard-tasks", "max_batch_size": 10, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-tasks-dlq" },
+      { "queue": "agentboard-tasks-dlq", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 10 }
+    ]
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "AUTH_MODE": "dev",
+    "ACCESS_TEAM_DOMAIN": "https://agentboard-dev.local",
+    "ACCESS_AUD": "agentboard-dev",
+    "LLM_PROVIDER": "stub",
+    "LLM_BASE_URL": "http://127.0.0.1:8080",
+    "LLM_MODEL": "qwen3-1.7b-q4_0",
+    "WORKERS_AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "AI_GATEWAY_ID": "",
+    "FAULT_INJECTION": "on",
+    "MCP_EXTERNAL": "off",
+    "DLQ_QUEUE_NAME": "agentboard-tasks-dlq",
+    "AGENT_SHARDS": "2",
+    "CONSUMER_CONCURRENCY": "4",
+    "LEASE_TTL_MS": "30000",
+    "PLANNER_LEASE_TTL_MS": "120000",
+    "TOOL_TIMEOUT_MS": "5000",
+    "LLM_TIMEOUT_MS": "45000",
+    "LEDGER_LOCK_MS": "15000",
+    "RETRY_BASE_DELAY_S": "2",
+    "RETRY_MAX_DELAY_S": "300",
+    "APPROVAL_TTL_MS": "259200000",
+    "AGENT_CONTROLS_CACHE_MS": "5000",
+    "HOLD_RECHECK_MS": "30000",
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8784"
+  },
+  "env": {
+    "production": {
+      "workers_dev": true,
+      "ai": { "binding": "AI" },
+      "durable_objects": {
+        "bindings": [
+          { "name": "RunCoordinator", "class_name": "RunCoordinator" },
+          { "name": "PlannerAgent", "class_name": "PlannerAgent" },
+          { "name": "ExecutorAgent", "class_name": "ExecutorAgent" },
+          { "name": "VerifierAgent", "class_name": "VerifierAgent" }
+        ]
+      },
+      // Replace the database ids with the output of `wrangler d1 create` (README, deploy step 2).
+      "d1_databases": [
+        { "binding": "DB", "database_name": "agentboard", "database_id": "00000000-0000-0000-0000-00000000a001", "migrations_dir": "migrations/console" },
+        { "binding": "PEOPLE_DB", "database_name": "agentboard-people", "database_id": "00000000-0000-0000-0000-00000000a002", "migrations_dir": "migrations/people" }
+      ],
+      "queues": {
+        "producers": [{ "binding": "TASK_QUEUE", "queue": "agentboard-tasks" }],
+        "consumers": [
+          { "queue": "agentboard-tasks", "max_batch_size": 10, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-tasks-dlq" },
+          { "queue": "agentboard-tasks-dlq", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 10 }
+        ]
+      },
+      "vars": {
+        "ENVIRONMENT": "production",
+        "AUTH_MODE": "access",
+        "ACCESS_TEAM_DOMAIN": "https://<team>.cloudflareaccess.com",
+        "ACCESS_AUD": "<application AUD tag>",
+        "LLM_PROVIDER": "workers-ai",
+        "LLM_BASE_URL": "http://127.0.0.1:8080",
+        "LLM_MODEL": "qwen3-1.7b-q4_0",
+        "WORKERS_AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "AI_GATEWAY_ID": "agentboard",
+        "FAULT_INJECTION": "off",
+        "MCP_EXTERNAL": "off",
+        "DLQ_QUEUE_NAME": "agentboard-tasks-dlq",
+        "AGENT_SHARDS": "2",
+        "CONSUMER_CONCURRENCY": "4",
+        "LEASE_TTL_MS": "30000",
+        "PLANNER_LEASE_TTL_MS": "120000",
+        "TOOL_TIMEOUT_MS": "5000",
+        "LLM_TIMEOUT_MS": "45000",
+        "LEDGER_LOCK_MS": "15000",
+        "RETRY_BASE_DELAY_S": "2",
+        "RETRY_MAX_DELAY_S": "300",
+        "APPROVAL_TTL_MS": "259200000",
+        "AGENT_CONTROLS_CACHE_MS": "5000",
+        "HOLD_RECHECK_MS": "30000",
+        "ALLOWED_ORIGINS": "https://agentboard-production.<subdomain>.workers.dev"
+      }
+    },
+    "preview": {
+      "name": "agentboard-preview",
+      "workers_dev": true,
+      "ai": { "binding": "AI" },
+      "durable_objects": {
+        "bindings": [
+          { "name": "RunCoordinator", "class_name": "RunCoordinator" },
+          { "name": "PlannerAgent", "class_name": "PlannerAgent" },
+          { "name": "ExecutorAgent", "class_name": "ExecutorAgent" },
+          { "name": "VerifierAgent", "class_name": "VerifierAgent" }
+        ]
+      },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "agentboard-preview", "database_id": "00000000-0000-0000-0000-00000000b001", "migrations_dir": "migrations/console" },
+        { "binding": "PEOPLE_DB", "database_name": "agentboard-people-preview", "database_id": "00000000-0000-0000-0000-00000000b002", "migrations_dir": "migrations/people" }
+      ],
+      "queues": {
+        "producers": [{ "binding": "TASK_QUEUE", "queue": "agentboard-preview-tasks" }],
+        "consumers": [
+          { "queue": "agentboard-preview-tasks", "max_batch_size": 10, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-preview-tasks-dlq" },
+          { "queue": "agentboard-preview-tasks-dlq", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 10 }
+        ]
+      },
+      "vars": {
+        "ENVIRONMENT": "preview",
+        "AUTH_MODE": "access",
+        "ACCESS_TEAM_DOMAIN": "https://<team>.cloudflareaccess.com",
+        "ACCESS_AUD": "<preview application AUD tag>",
+        "LLM_PROVIDER": "workers-ai",
+        "LLM_BASE_URL": "http://127.0.0.1:8080",
+        "LLM_MODEL": "qwen3-1.7b-q4_0",
+        "WORKERS_AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "AI_GATEWAY_ID": "agentboard",
+        "FAULT_INJECTION": "off",
+        "MCP_EXTERNAL": "off",
+        "DLQ_QUEUE_NAME": "agentboard-preview-tasks-dlq",
+        "AGENT_SHARDS": "2",
+        "CONSUMER_CONCURRENCY": "4",
+        "LEASE_TTL_MS": "30000",
+        "PLANNER_LEASE_TTL_MS": "120000",
+        "TOOL_TIMEOUT_MS": "5000",
+        "LLM_TIMEOUT_MS": "45000",
+        "LEDGER_LOCK_MS": "15000",
+        "RETRY_BASE_DELAY_S": "2",
+        "RETRY_MAX_DELAY_S": "300",
+        "APPROVAL_TTL_MS": "259200000",
+        "AGENT_CONTROLS_CACHE_MS": "5000",
+        "HOLD_RECHECK_MS": "30000",
+        "ALLOWED_ORIGINS": "https://agentboard-preview.<subdomain>.workers.dev"
+      }
+    }
+  }
 }

@@ -1,0 +1,7 @@
+# Written by `npm run dev:keys`. Never commit the real .dev.vars.
+# HS256 key for call-bound integration tokens (at least 32 bytes, base64).
+INTEGRATION_SIGNING_KEY=
+# Public JWKS (JSON) used to verify dev Access JWTs.
+ACCESS_DEV_JWKS=
+# Private JWK (JSON) used only by /api/dev/login on loopback hosts.
+DEV_ACCESS_PRIVATE_JWK=
