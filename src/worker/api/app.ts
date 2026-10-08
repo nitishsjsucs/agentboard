@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import type { Config } from "../config.ts";
+import { csrfGuard } from "./middleware/csrf.ts";
 import { apiError } from "./middleware/errors.ts";
 import { identityMiddleware } from "./middleware/identity.ts";
 import { devRoutes } from "./routes/dev.ts";
+import { healthRoutes } from "./routes/health.ts";
 import { meRoutes } from "./routes/me.ts";
 import type { AppEnv } from "./types.ts";
 
@@ -14,6 +16,9 @@ export function buildApp(config: Config): Hono<AppEnv> {
     c.set("requestId", c.req.header("cf-ray") ?? crypto.randomUUID());
     await next();
   });
+
+  app.use("/api/*", csrfGuard);
+  app.route("/", healthRoutes);
 
   // Public routes (no identity). Dev routes exist only in dev auth mode; in
   // access mode every /api/dev/* path is a plain 404, before identity runs.

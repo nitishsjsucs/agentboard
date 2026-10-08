@@ -59,6 +59,9 @@ function accessBindings() {
   return {
     ...rest,
     AUTH_MODE: "access",
+    // Empty means absent; this also masks a developer's local .dev.vars, which the plugin loads.
+    ACCESS_DEV_JWKS: "",
+    DEV_ACCESS_PRIVATE_JWK: "",
     ACCESS_TEAM_DOMAIN: "https://agentboard-test.cloudflareaccess.com",
     ACCESS_AUD: "agentboard-test-aud",
   };

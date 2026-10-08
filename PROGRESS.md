@@ -12,13 +12,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 4 | feat(synth): seeded generator for 100 runs, 60 employees and 9 principals with checksum | done |
 | 5 | feat(config): fail-closed config loader with timing invariants | done |
 | 6 | feat(auth): Access JWT verification with local RS256 dev keys and loopback-only dev login | done |
+| 7 | feat(auth): permissions, CSRF guard, /api/me and /api/health | done |
 
-Next: commit 7 (`feat(auth): permissions, CSRF guard, /api/me and /api/health`).
+Next: commit 8 (`docs: README skeleton, CONTEXT.md and milestone 1 demo script`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 6 files, 21 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 7 files, 23 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -36,3 +37,4 @@ Next: commit 7 (`feat(auth): permissions, CSRF guard, /api/me and /api/health`).
 9. **Config bounds.** Section 5.2 says numeric vars are positive integers, but the test project itself sets `RETRY_BASE_DELAY_S=0` and `AGENT_CONTROLS_CACHE_MS=0`, so those two accept 0. `INTEGRATION_SIGNING_KEY` (at least 32 bytes) is required in every environment, not only production, because tokens are minted everywhere. `MCP_EXTERNAL=on` is refused outside `development` (section 3.1).
 10. **`access-jwt.test.ts` #7 lands with commit 23.** "A valid token for an unbound email gets 403 everywhere except `/api/me`" needs the permission-gated run, approval, search, agent and DLQ routes, which arrive in commit 23. Until then the file has the other 7 tests. `/api/me` is implemented in commit 6 (not 7) because the Access and dev-login tests assert through it.
 11. **Small helper files not in the layout:** `src/worker/api/types.ts` (Hono env and `Identity` types) and `scripts/lib/dev-vars.ts` (reads `.dev.vars` for `dev:token`).
+12. **Empty dev secrets count as absent.** The vitest plugin loads a developer's local `.dev.vars`; the `worker-access` project sets `ACCESS_DEV_JWKS` and `DEV_ACCESS_PRIVATE_JWK` to empty strings so its tests are hermetic, and `parseConfig` treats an empty secret as absent.

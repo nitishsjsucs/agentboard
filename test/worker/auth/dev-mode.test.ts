@@ -70,7 +70,7 @@ describe("dev routes", { tags: ["authz"] }, () => {
     const app = buildApp(parsed.config);
     for (const [method, path] of [["GET", "/api/dev/users"], ["POST", "/api/dev/login"], ["GET", "/api/dev/people/side-effects"]] as const) {
       const response = await app.fetch(
-        new Request(`http://127.0.0.1${path}`, { method, headers: { "Content-Type": "application/json" }, ...(method === "POST" ? { body: JSON.stringify({ principal: P.admin }) } : {}) }),
+        new Request(`http://127.0.0.1${path}`, { method, headers: { "Content-Type": "application/json", "X-AgentBoard-Client": "web" }, ...(method === "POST" ? { body: JSON.stringify({ principal: P.admin }) } : {}) }),
         productionEnv(),
         createExecutionContext(),
       );

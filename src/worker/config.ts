@@ -107,6 +107,9 @@ export function parseConfig(vars: Record<string, unknown>, hasAiBinding: boolean
     return { ok: false, errors: parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`) };
   }
   const v = parsed.data;
+  // An empty secret counts as absent (lets tests override a developer's local .dev.vars).
+  if (v.ACCESS_DEV_JWKS === "") delete v.ACCESS_DEV_JWKS;
+  if (v.DEV_ACCESS_PRIVATE_JWK === "") delete v.DEV_ACCESS_PRIVATE_JWK;
   const errors: string[] = [];
   const deployed = v.ENVIRONMENT === "production" || v.ENVIRONMENT === "preview";
 
