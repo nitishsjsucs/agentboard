@@ -23,7 +23,11 @@
     "db:seed:local": "wrangler d1 execute agentboard --local --file seed/console.sql && wrangler d1 execute agentboard-people --local --file seed/people.sql",
     "dev:keys": "node scripts/dev-keys.ts",
     "dev:token": "node scripts/dev-token.ts",
-    "test:sim": "vitest run --project sim"
+    "test:sim": "vitest run --project sim",
+    "serve:built": "node scripts/serve-built.ts",
+    "eval:sim": "node scripts/eval-sim.ts",
+    "eval:planner": "node scripts/eval-planner.ts",
+    "llm:serve": "llama-server -m ${AGENTBOARD_GGUF:-$HOME/Developer/projects/_models/Qwen3-1.7B-Q4_0-rtn.gguf} --host 127.0.0.1 --port ${AGENTBOARD_LLM_PORT:-8080} -np 1 -c 8192 --reasoning off --jinja"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.1",

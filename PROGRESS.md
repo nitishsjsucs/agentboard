@@ -37,8 +37,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 29 | feat(web): approval queue and launch form | done |
 | 30 | docs: milestone 3 demo script | done (local tag v0.3.0) |
 | 31 | feat(sim): shared simulation driver and 100-run workerd simulation test | done |
+| 32 | feat(eval): eval-sim against wrangler dev on the built worker, and eval-planner against llama-server | done |
 
-Next: commit 32 (`feat(eval): eval-sim against wrangler dev on the built worker, and eval-planner against llama-server`).
+Next: commit 33 (`feat(eval): tagged test counter and README results renderer with staleness check`).
 
 ## Check status (last run)
 
@@ -90,3 +91,5 @@ Next: commit 32 (`feat(eval): eval-sim against wrangler dev on the built worker,
 36. **Search response shape.** `GET /api/search` returns `{ items: SearchHit[], nextCursor }` (the spec's table says `SearchHit[]`) because `search.test.ts` requires cursor paging; the cursor is an opaque offset. Queries are reduced to letter and digit runs, each quoted and ANDed, so no FTS5 syntax reaches SQLite. Search documents are upserted by the coordinator's outbox in the same D1 batch as the mirrors.
 37. **`ApprovalCard` and its test landed with commit 28**, because the run detail page uses the card; commit 29 adds the approval queue and launch pages. The launch form offers dev-only sample requests from the synthetic dataset (`GET /api/dev/samples`, dev mode and loopback only), because the local stub planner only knows the dataset's prompts.
 38. **UI checked by hand** on 2026-10-08 against `wrangler dev` on the built worker (port 8784): dev login, launching a dataset sample, the live run detail reaching `succeeded`, tool-call traces, the verified audit chain, the dashboard and search highlights all rendered and worked.
+39. **Eval provenance helper.** `scripts/lib/meta.ts` (not in the layout) writes `{ gitSha, dirty, generatedAt, node, wrangler, seed, provider, model }` into every result. "Dirty" means a tracked or untracked change under the measured paths (`src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc`, `package-lock.json`), the same set `results:check` diffs. `eval:sim` writes its own `.dev.vars.eval` with a fresh dev keypair (no dependency on `npm run dev:keys`), runs wrangler dev on port 8784 with inspector port 9234, and kills the process group when done. `npm run llm:serve` takes `AGENTBOARD_LLM_PORT` (default 8080); on this machine the eval used port 8140.
+40. **`eval:planner` scoring choices.** Exact match, F1 and argument accuracy score the last plan the model produced (the repair when there was one). The plan output schema has no approval field, so `policy_overrides` counts every policy-gated step in the final valid plans (the model never sets approval).
