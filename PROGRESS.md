@@ -33,13 +33,15 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 25 | feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist | done |
 | 26 | feat(web): app shell, role-aware navigation, dev login and design tokens | done |
 | 27 | feat(web): dashboard with agent-role and DLQ panels, and runs list with search | done |
+| 28 | feat(web): live run detail with timeline, tool-call traces and recovery controls | done (includes ApprovalCard and its test) |
+| 29 | feat(web): approval queue and launch form | done |
 
-Next: commit 28 (`feat(web): live run detail with timeline, tool-call traces and recovery controls`).
+Next: commit 30 (`docs: milestone 3 demo script`), then milestone 4 (simulation and evals).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 30 files, 130 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 33 files, 136 tests)
 - Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
@@ -83,3 +85,5 @@ Next: commit 28 (`feat(web): live run detail with timeline, tool-call traces and
 34. **`rbac-matrix.test.ts` #7** covers the audit read now; the search half joins in commit 24 with the search route. `dev-mode.test.ts` #1 shows the `sim` refusal on an app built with `FAULT_INJECTION=off` and dev auth, because an Access-mode token cannot be verified in the `worker` project; `access-jwt.test.ts` #7 (unbound principal) landed here.
 35. **Control responses.** A refused recovery command answers 409 with `{ accepted: false, reason, snapshot }`; an accepted one answers 200.
 36. **Search response shape.** `GET /api/search` returns `{ items: SearchHit[], nextCursor }` (the spec's table says `SearchHit[]`) because `search.test.ts` requires cursor paging; the cursor is an opaque offset. Queries are reduced to letter and digit runs, each quoted and ANDed, so no FTS5 syntax reaches SQLite. Search documents are upserted by the coordinator's outbox in the same D1 batch as the mirrors.
+37. **`ApprovalCard` and its test landed with commit 28**, because the run detail page uses the card; commit 29 adds the approval queue and launch pages. The launch form offers dev-only sample requests from the synthetic dataset (`GET /api/dev/samples`, dev mode and loopback only), because the local stub planner only knows the dataset's prompts.
+38. **UI checked by hand** on 2026-10-08 against `wrangler dev` on the built worker (port 8784): dev login, launching a dataset sample, the live run detail reaching `succeeded`, tool-call traces, the verified audit chain, the dashboard and search highlights all rendered and worked.
