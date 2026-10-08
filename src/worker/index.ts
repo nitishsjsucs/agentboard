@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { buildApp } from "./api/app.ts";
 import type { AppEnv } from "./api/types.ts";
 import { loadConfig, misconfiguredResponse, type Config } from "./config.ts";
+import { handleQueueBatch } from "./queue/consumer.ts";
 
 export { RunCoordinator } from "./agents/run-coordinator.ts";
 export { PlannerAgent } from "./agents/planner-agent.ts";
@@ -37,7 +38,6 @@ export default {
       batch.retryAll();
       return;
     }
-    // Fail closed until the consumer exists (SPEC section 19, commit 13).
-    batch.retryAll();
+    await handleQueueBatch(batch, env, loaded.config);
   },
 } satisfies ExportedHandler<Env>;
