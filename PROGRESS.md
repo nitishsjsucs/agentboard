@@ -42,18 +42,27 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 33a | fix(eval): record the llama.cpp build and separate transport errors in the planner eval | done (extra commit, see deviation 42) |
 | 34 | chore(results): measured simulation, planner and test results | done (measured at 83f4c08) |
 | 35 | docs: architecture, setup, deploy steps, local versus production and rendered results | done (CI adds count:tests --check and results:check) |
+| 36 | chore(release): v0.4.0 changelog and milestone 4 demo script | done (local tag v0.4.0) |
 
-Next: commit 36 (`chore(release): v0.4.0 changelog and milestone 4 demo script`).
+All 36 planned commits are done, plus the extra fix commit 33a. Every item on the section 1.1 "must ship" list exists and is tested.
 
-## Check status (last run)
+## What is left (stretch items, cut first per SPEC section 1.1, and human steps)
 
-- `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 33 files, 136 tests)
-- Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
-- `npm run synth:check`: pass
-- `npm run test:sim`: pass (6 tests; all 100 runs reach their expected status; 3 consecutive runs of 22 to 30 s)
+- Stretch, not built: `.github/workflows/preview.yml`, `.github/workflows/release.yml`, UI component tests beyond the 8, dark-mode tokens, ADRs beyond 0001 and 0002, the external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`; the worker answers 404 on `/mcp`, and `dev:token --integration` is not implemented).
+- Not done by the builders (needs Nitish, SPEC section 18): pushing, opening the 8 PRs, GitHub releases for the local tags `v0.1.0` to `v0.4.0`, any deployment, Access setup, Workers AI planner quality.
+- If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until `npm run count:tests`, `npm run eval:sim` and `npm run eval:planner` (with `AGENTBOARD_LLM_PORT=8140 npm run llm:serve` running and `LLM_BASE_URL=http://127.0.0.1:8140`) are re-run on a clean, committed tree and `npm run results:render` is re-run.
+
+## Check status (last run, 2026-10-08, at the release commit)
+
 - `npm run types:check`: pass
+- `npm run typecheck`: pass
+- `npm run synth:check`: pass
+- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 34 files, 140 tests)
+- `npm run test:sim`: pass (6 tests; all 100 runs reach their expected status; several consecutive runs of 22 to 34 s)
+- `npm run count:tests -- --check`: pass (61 orchestration + 39 authz = 100)
+- `npm run results:check`: pass (results measured at `83f4c08`, clean tree)
 - `npm run build`: pass
+- Measured (in `eval/results/`, rendered in the README): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 100/100 valid chains; eval:planner (Qwen3-1.7B Q4_0, llama-server 0.5.0 build 11146) 84/100 valid plans, 9/100 exact tool sequences; count:tests 100/100 passing.
 
 ## Deviations from SPEC.md
 
@@ -99,3 +108,4 @@ Next: commit 36 (`chore(release): v0.4.0 changelog and milestone 4 demo script`)
 40. **`eval:planner` scoring choices.** Exact match, F1 and argument accuracy score the last plan the model produced (the repair when there was one). The plan output schema has no approval field, so `policy_overrides` counts every policy-gated step in the final valid plans (the model never sets approval).
 41. **`count:tests -- --check` and `results:check` join CI in commit 35**, where the README with the rendered counts lands. The check compares the suite with `eval/results/tests.json` and the README's reported counts, and neither exists until the measured results are committed, so adding it at commit 33 would break CI there. `scripts/bootstrap-admin.ts` (SQL for a production admin binding) also lands here.
 42. **Extra commit 33a.** The first full planner measurement showed two defects in the scripts: `llama-server --version` prints to stderr, so the recorded build was empty, and two requests that failed at the transport (one timeout, one connection failure) were indistinguishable from invalid plans. Fixing them changed `scripts/`, which made every earlier measurement stale by the `results:check` rule, so all three measurements were taken again at the fixed commit.
+43. **Foreign README edits in history.** Another session edited `README.md` in this working tree while commits 12 to 14 were being built. Commit 12 (`cfde7d4`, outbox and audit) swept that session's uncommitted 445-line README into its diff, and that session then committed `6ffb555` ("docs: README with status, architecture, design decisions, local setup and roadmap", no Co-Authored-By trailer) between plan commits 13 and 14. Neither changed any other file. Commit 35 replaced the README entirely, so the current README is this build's. The history was not rewritten; whoever opens the PRs can decide whether to drop `6ffb555` and the README hunk of `cfde7d4`.

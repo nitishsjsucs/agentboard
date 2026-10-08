@@ -4,7 +4,7 @@ AgentBoard is an operations console for launching, monitoring and controlling ag
 
 **Everything People-related is simulated.** The HRIS, ITSM, access-management and notification systems are tables in a separate D1 database, filled with 60 fictional employees by a seeded generator. There are no real users, employees or HR systems behind it in any environment, production included.
 
-**Nothing is deployed.** Every number in this README was produced locally by this repository's own scripts. Deploy steps are below; production behavior has not been measured.
+**Nothing is deployed.** Every measured number in this README was produced locally by this repository's own scripts. Deploy steps are below; production behavior has not been measured.
 
 The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the two main decisions in [`docs/adr/`](docs/adr), and the milestone demo scripts in [`demos/`](demos).
 
