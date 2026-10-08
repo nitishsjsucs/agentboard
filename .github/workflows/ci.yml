@@ -21,4 +21,6 @@ jobs:
       - run: npm run synth:check
       - run: npm test
       - run: npm run test:sim
+      - run: npm run count:tests -- --check
+      - run: npm run results:check
       - run: npm run build
