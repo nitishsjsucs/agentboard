@@ -7,7 +7,9 @@ import { createTicket } from "../../../src/worker/mcp/tools/itsm.ts";
 import { isWritePlan } from "../../../src/worker/mcp/tools/types.ts";
 import { createExecutionContext, createMessageBatch, getQueueResult } from "cloudflare:test";
 import { handleQueueBatch } from "../../../src/worker/queue/consumer.ts";
-import { datasetRun, inputFromDataset, runExecutor, runPlanner } from "../../helpers/agents.ts";
+import { datasetRun, distinctRuns, driveAgents, inputFromDataset, runExecutor, runPlanner } from "../../helpers/agents.ts";
+import { apiPost } from "../../helpers/api.ts";
+import { P } from "../../helpers/auth.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { batchMessage, testConfig } from "../../helpers/queue.ts";
 import { binding, call, executorToken, writeMeta } from "../../helpers/mcp.ts";
@@ -81,6 +83,25 @@ describe("duplicate-action prevention: delivery, crash and reports", { tags: ["o
     const state = await readState(stub);
     expect(state.tasks.get(s2.message.taskId)?.status).toBe("succeeded");
     expect(state.run.usage.replays).toBe(1);
+  });
+
+  it("a double approval decision yields one dispatch and one approval.decided event", async () => {
+    const [run] = distinctRuns("manager_change", 1);
+    if (!run) throw new Error("no dataset run");
+    const { stub } = await startManualRun(inputFromDataset(run, { requester: P.operator }));
+    await driveAgents(stub);
+    const approval = [...(await readState(stub)).approvals.values()][0];
+    if (!approval) throw new Error("no approval");
+    const responses = await Promise.all([
+      apiPost(P.approver, `/api/approvals/${approval.id}/decision`, { decision: "approve", note: "approve once" }),
+      apiPost(P.approver2, `/api/approvals/${approval.id}/decision`, { decision: "approve", note: "approve twice" }),
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    const dispatched = await takeDispatches(stub);
+    expect(dispatched.map((d) => d.message.taskId)).toEqual([approval.taskId]);
+    const all = await events(stub);
+    expect(all.filter((e) => e.action === "approval.decided")).toHaveLength(1);
+    expect(all.filter((e) => e.action === "task.dispatched" && e.task_id === approval.taskId)).toHaveLength(1);
   });
 
   it("duplicate completion reports for the same lease are ignored", async () => {

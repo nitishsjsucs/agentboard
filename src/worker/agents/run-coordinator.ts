@@ -25,6 +25,8 @@ import {
   runFromRow,
   SCHEMA_VERSION,
   taskFromRow,
+  type ApprovalDecision,
+  type ApprovalView,
   type ClaimRequest,
   type ClaimResult,
   type CompletionReport,
@@ -38,7 +40,7 @@ import {
   type TaskRecord,
   type ToolCallTrace,
 } from "./coordinator/schema.ts";
-import { buildSnapshot, emptySnapshot } from "./coordinator/snapshot.ts";
+import { approvalView, buildSnapshot, emptySnapshot } from "./coordinator/snapshot.ts";
 import {
   appendTrace,
   applyDerivedStatus,
@@ -48,6 +50,7 @@ import {
   initRun,
   newRunState,
   promote,
+  resolveApproval,
   RunTx,
   SYSTEM,
   type TxConfig,
@@ -182,6 +185,26 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     const { result, state } = this.transact(now, (tx) => control(tx, cmd, raiseBudget));
     await this.finish(state, now);
     return { ...result, snapshot: this.snapshot() };
+  }
+
+  /** The only writer of approval state: SoD, state and expiry are decided here, in one transaction. */
+  async resolveApproval(decision: ApprovalDecision): Promise<{
+    accepted: boolean;
+    reason?: "self_approval" | "already_decided" | "expired" | "not_found";
+    approval: ApprovalView | null;
+    snapshot: RunSnapshot;
+  }> {
+    this.ensureSchema();
+    if (!this.loadState()) return { accepted: false, reason: "not_found", approval: null, snapshot: emptySnapshot(this.name) };
+    const now = this.clock.now();
+    const { result, state } = this.transact(now, (tx) => resolveApproval(tx, decision));
+    await this.finish(state, now);
+    const approval = state.approvals.get(decision.approvalId);
+    return {
+      ...result,
+      approval: approval ? approvalView(approval, state.run.id, state.run.request.requester) : null,
+      snapshot: this.snapshot(),
+    };
   }
 
   async getSnapshot(): Promise<RunSnapshot> {

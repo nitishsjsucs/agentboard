@@ -1,7 +1,7 @@
 // Dev-only routes (SPEC section 10.3): registered only when AUTH_MODE=dev, and
 // each answers 404 unless the request hostname is loopback.
 
-import { zValidator } from "@hono/zod-validator";
+import { validate } from "../middleware/validate.ts";
 import { Hono } from "hono";
 import { importJWK, SignJWT } from "jose";
 import { z } from "zod";
@@ -25,7 +25,7 @@ export function devRoutes(): Hono<AppEnv> {
     return c.json({ users: bindings.map((b) => ({ principal: b.principal, role: b.role, displayName: b.display_name })) });
   });
 
-  app.post("/api/dev/login", zValidator("json", z.object({ principal: z.string().min(3).max(200) })), async (c) => {
+  app.post("/api/dev/login", validate("json", z.object({ principal: z.string().min(3).max(200) })), async (c) => {
     const config = c.get("config");
     const principal = c.req.valid("json").principal.toLowerCase();
     const binding = await getRoleBinding(c.env.DB, principal);

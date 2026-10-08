@@ -19,6 +19,7 @@ import {
   SYSTEM,
   TERMINAL_TASK_STATUSES,
   type Actor,
+  type ApprovalDecision,
   type ApprovalRecord,
   type CompletionReport,
   type ControlCommand,
@@ -729,6 +730,45 @@ function skipTask(tx: RunTx, taskId: string, actor: Actor, reason: string): Cont
   task.status = "skipped";
   tx.touchTask(task);
   tx.emit("task.skipped", actor, task.id, { reason, stepId: task.stepId, unverified: true });
+  return { accepted: true };
+}
+
+// ---------------------------------------------------------------------------
+// Approvals (SPEC section 9.2): the coordinator is the only writer.
+
+export type ApprovalRefusal = "self_approval" | "already_decided" | "expired" | "not_found";
+
+export function resolveApproval(tx: RunTx, decision: ApprovalDecision): { accepted: boolean; reason?: ApprovalRefusal } {
+  const approval = tx.state.approvals.get(decision.approvalId);
+  if (!approval) return { accepted: false, reason: "not_found" };
+  // The sweep already ran in this transaction, so an approval past its expiry is expired here.
+  if (approval.status === "expired") return { accepted: false, reason: "expired" };
+  if (approval.status !== "pending") return { accepted: false, reason: "already_decided" };
+  if (decision.actor.id.toLowerCase() === tx.run.request.requester.toLowerCase()) return { accepted: false, reason: "self_approval" };
+  const task = tx.task(approval.taskId);
+  if (!task || task.status !== "awaiting_approval") return { accepted: false, reason: "already_decided" };
+
+  approval.status = decision.decision === "approve" ? "approved" : "rejected";
+  approval.decidedBy = decision.actor.id;
+  approval.decidedAt = tx.now;
+  approval.note = decision.note;
+  tx.touchApproval(approval);
+  tx.emit("approval.decided", decision.actor, task.id, { approvalId: approval.id, decision: decision.decision, note: decision.note, tool: approval.tool });
+  if (decision.decision === "approve") {
+    makeReady(tx, task);
+    return { accepted: true };
+  }
+  // Reject: the gated task is rejected and every other open task is cancelled; the run is rejected.
+  task.status = "rejected";
+  task.lastError = "approval_rejected";
+  tx.touchTask(task);
+  for (const other of tx.tasks()) {
+    if (other.id === task.id || !OPEN_FOR_CANCEL.has(other.status)) continue;
+    if (other.status === "leased") releaseReservation(tx, other);
+    other.status = "cancelled";
+    other.holdReason = null;
+    tx.touchTask(other);
+  }
   return { accepted: true };
 }
 

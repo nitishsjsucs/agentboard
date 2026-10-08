@@ -3,6 +3,7 @@ import type { Config } from "../config.ts";
 import { csrfGuard } from "./middleware/csrf.ts";
 import { apiError } from "./middleware/errors.ts";
 import { identityMiddleware } from "./middleware/identity.ts";
+import { approvalRoutes } from "./routes/approvals.ts";
 import { devRoutes } from "./routes/dev.ts";
 import { healthRoutes } from "./routes/health.ts";
 import { meRoutes } from "./routes/me.ts";
@@ -28,6 +29,7 @@ export function buildApp(config: Config): Hono<AppEnv> {
   // Everything below requires a verified identity.
   app.use("/api/*", identityMiddleware);
   app.route("/", meRoutes);
+  app.route("/", approvalRoutes);
 
   app.notFound((c) => apiError(c, 404, "not_found", "no such route"));
   app.onError((error, c) => {
