@@ -8,8 +8,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 |---|---|---|
 | 1 | chore: pin toolchain and gate it with strict tsc and workerd smoke tests | done |
 | 2 | chore: Vite 8 React 19 app with the Cloudflare Vite plugin, Hono worker, wrangler environments and generated types | done |
+| 3 | feat(db): console and people D1 migrations | done |
 
-Next: commit 3 (`feat(db): console and people D1 migrations`).
+Next: commit 4 (`feat(synth): seeded generator for 100 runs, 60 employees and 9 principals with checksum`).
 
 ## Check status (last run)
 

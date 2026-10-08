@@ -1,4 +1,4 @@
-import { cloudflareTest } from "@cloudflare/vitest-plugin";
+import { cloudflareTest, readD1Migrations, type D1Migration } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 const TAGS = [
@@ -14,10 +14,15 @@ const TAGS = [
   { name: "tooling", description: "toolchain and launcher gates" },
 ];
 
+const consoleMigrations: D1Migration[] = await readD1Migrations("./migrations/console");
+const peopleMigrations: D1Migration[] = await readD1Migrations("./migrations/people");
+
 /** Bindings shared by every workerd project (test values only). */
-function workerBindings(): Record<string, string> {
+function workerBindings() {
   return {
     ENVIRONMENT: "test",
+    TEST_CONSOLE_MIGRATIONS: consoleMigrations,
+    TEST_PEOPLE_MIGRATIONS: peopleMigrations,
   };
 }
 
@@ -45,6 +50,7 @@ export default defineConfig({
         plugins: [workerPool()],
         test: {
           name: "worker",
+          setupFiles: ["./test/helpers/setup.ts"],
           include: ["test/worker/**/*.test.ts"],
           exclude: ["test/worker/auth/access-jwt.test.ts"],
         },
@@ -54,6 +60,7 @@ export default defineConfig({
         plugins: [workerPool()],
         test: {
           name: "worker-ws",
+          setupFiles: ["./test/helpers/setup.ts"],
           include: ["test/worker-ws/**/*.test.ts"],
           isolate: false,
           fileParallelism: false,
