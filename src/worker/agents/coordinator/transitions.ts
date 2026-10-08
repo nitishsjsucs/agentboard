@@ -428,11 +428,11 @@ export function complete(tx: RunTx, report: CompletionReport): { accepted: boole
   if (task.kind === "verify" && code === "postcondition_failed") {
     tx.emit("verify.failed", agent, task.id, { stepId: task.stepId, tool: task.tool, evidence: report.evidence ?? null });
   }
-  failOrRetry(tx, task, code, report.retryable === true, agent);
+  failOrRetry(tx, task, code, report.retryable === true, agent, report.evidence);
   return { accepted: true };
 }
 
-function failOrRetry(tx: RunTx, task: TaskRecord, code: string, retryable: boolean, actor: Actor): void {
+function failOrRetry(tx: RunTx, task: TaskRecord, code: string, retryable: boolean, actor: Actor, evidence?: unknown): void {
   const willRetry = retryable && task.attempts < task.maxAttempts;
   task.lastError = code;
   if (willRetry) {
@@ -450,7 +450,9 @@ function failOrRetry(tx: RunTx, task: TaskRecord, code: string, retryable: boole
     attempt: task.attempts,
     ...(willRetry ? { delaySeconds: tx.retryDelays.get(task.id) } : {}),
     ...(!willRetry && retryable ? { reason: "attempts_exhausted" } : {}),
+    ...(evidence !== undefined && evidence !== null ? { evidence } : {}),
   });
+  if (evidence !== undefined && evidence !== null && task.kind === "plan") task.result = evidence;
 }
 
 function acceptPlan(tx: RunTx, task: TaskRecord, report: CompletionReport, agent: Actor): { accepted: boolean; reason?: string } {

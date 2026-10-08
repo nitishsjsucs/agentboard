@@ -22,13 +22,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 14 | feat(mcp): People Ops MCP server with 12 tools and call-bound token checks | done |
 | 15 | feat(mcp): integration ledger with lock takeover and logical dedupe, and dev-only fault directives | done (fault directives landed in 14) |
 | 16 | feat(llm): provider interface with Workers AI, OpenAI-compatible and stub providers | done |
+| 17 | feat(agents): PlannerAgent with allowlists, subject pinning, one repair and gating edges | done |
 
-Next: commit 17 (`feat(agents): PlannerAgent with allowlists, subject pinning, one repair and gating edges`).
+Next: commit 18 (`feat(agents): ExecutorAgent with call journal and in-process MCP client`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 17 files, 76 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 19 files, 81 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -59,3 +60,6 @@ Next: commit 17 (`feat(agents): PlannerAgent with allowlists, subject pinning, o
 22. **`retries.test.ts` #3 uses a real role agent.** Until commit 17 the role work is a skeleton that throws; from commit 17 the same test makes the stub planner throw `StubMiss` (a request text with no fixture). Either way the exception happens inside role work after a granted claim.
 23. **Ledger basics and fault directives landed with the tools (commit 14).** `tools.test.ts` (planned for commit 14) covers ledger replay, the args-hash conflict, `silent_noop` and faults being ignored when off, so the basic ledger (claim, replay, conflict, owner-guarded effect batch) and `mcp/faults.ts` are in commit 14. Commit 15 adds lock takeover and the cross-generation correlation guard (logical dedupe).
 24. **MCP endpoint details.** The MCP SDK v2 client sends `initialize`, `notifications/initialized`, an SSE `GET` and then the call; the endpoint answers non-POST requests with 405 (stateless server, no standalone stream) and gates POSTs by method per token kind (`server/discover` is allowed alongside `initialize` for the 2026 protocol era). The ledger owner is `<agent instance>:<task id>:<epoch>` from the token claims (the token carries no lease id), and the generation used for `side_effects.generation` travels in `_meta["agentboard/generation"]`. Tool names keep their dots (`hris.get_employee`).
+25. **Stub fixtures are built from the live catalog.** `llm/fixtures.ts` renders the planner prompt for every dataset request with the catalog the agent actually fetched over MCP (memoized per catalog) and maps its hash to the gold plan, so a prompt or schema change can never desync the stub. The dataset JSON is loaded with a dynamic import (a separate chunk). The plan output schema enumerates the request type's allowed tools, so schema-constrained decoding cannot name another tool; the validator and the coordinator still check everything.
+26. **Prompt conventions.** The planner prompt states the notification template for the request type, the ticket-summary wording, the system/role split and the date format. These are console conventions, not policy decisions, and they make the gold arguments reachable for a model; `eval:planner` measures whatever the model then produces.
+27. **Planner tests inject providers.** `PlannerAgent.providerOverride` (set through `runInDurableObject`) lets `planner.test.ts` and `plan-guard.test.ts` script model outputs; production code never sets it.
