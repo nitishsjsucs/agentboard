@@ -29,13 +29,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 21 | feat(controls): role hold and release, DLQ replay | done |
 | 22 | docs: ADR 0001 and 0002 and milestone 2 demo script | done (local tag v0.2.0) |
 | 23 | feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction | done |
+| 24 | feat(search): FTS5 search documents and ranked search API | done |
 
-Next: commit 24 (`feat(search): FTS5 search documents and ranked search API`).
+Next: commit 25 (`feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 26 files, 117 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 27 files, 122 tests)
 - Tagged so far (`vitest list --tags-filter`): orchestration 59 of 61, authz 35 of 39 (the 6 WebSocket tests land with commit 25)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
@@ -78,3 +79,4 @@ Next: commit 24 (`feat(search): FTS5 search documents and ranked search API`).
 33. **Launch details.** The API checks the subject against a read-only directory lookup in `PEOPLE_DB` (to reject unknown employees and to build the run title with the employee's name, which feeds search). Section 8.5 says no production path other than the People Ops tools touches `PEOPLE_DB`; this read-only directory (`db/people.ts` `directoryEntry` and `GET /api/people/directory` for the launch picker, permission `runs:launch`) is the one exception. `LaunchRunRequest` also accepts `syntheticRef` and `requestedAt`, gated by `FAULT_INJECTION=on` exactly like `sim`, so the simulator can record its dataset references and business timestamps.
 34. **`rbac-matrix.test.ts` #7** covers the audit read now; the search half joins in commit 24 with the search route. `dev-mode.test.ts` #1 shows the `sim` refusal on an app built with `FAULT_INJECTION=off` and dev auth, because an Access-mode token cannot be verified in the `worker` project; `access-jwt.test.ts` #7 (unbound principal) landed here.
 35. **Control responses.** A refused recovery command answers 409 with `{ accepted: false, reason, snapshot }`; an accepted one answers 200.
+36. **Search response shape.** `GET /api/search` returns `{ items: SearchHit[], nextCursor }` (the spec's table says `SearchHit[]`) because `search.test.ts` requires cursor paging; the cursor is an opaque offset. Queries are reduced to letter and digit runs, each quoted and ANDed, so no FTS5 syntax reaches SQLite. Search documents are upserted by the coordinator's outbox in the same D1 batch as the mirrors.

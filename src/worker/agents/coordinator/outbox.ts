@@ -7,6 +7,7 @@
 // re-flush never regresses or duplicates anything.
 
 import type { PersistedEvent } from "../run-coordinator.ts";
+import { approvalDoc, runDoc, taskDoc, toolCallDoc } from "../../search/index-docs.ts";
 import type { RunTx } from "./transitions.ts";
 
 export interface D1Statement {
@@ -140,6 +141,17 @@ export function mirrorStatements(tx: RunTx, events: PersistedEvent[]): D1Stateme
       ],
     });
   }
+  // Search documents (PII-free bodies), refreshed with every mirror write.
+  statements.push(runDoc(run));
+  for (const id of tx.dirtyTasks) {
+    const t = tx.state.tasks.get(id);
+    if (t) statements.push(taskDoc(run, t));
+  }
+  for (const id of tx.dirtyApprovals) {
+    const a = tx.state.approvals.get(id);
+    if (a) statements.push(approvalDoc(run, a));
+  }
+  for (const trace of tx.traces) statements.push(toolCallDoc(run, trace));
   for (const event of events) {
     statements.push({
       sql: `INSERT INTO audit_events (stream, seq, ts, actor_type, actor_id, action, run_id, task_id, detail_json, prev_hash, hash)

@@ -80,6 +80,7 @@ describe("RBAC matrix", { tags: ["authz"] }, () => {
 
   it("search and run audit read", async () => {
     const { runId } = await startManualRun();
+    await matrix("GET /api/search", READ_ROLES, (p) => apiGet(p, "/api/search?q=address%20change"));
     await matrix("GET /api/runs/:id/audit", READ_ROLES, (p) => apiGet(p, `/api/runs/${runId}/audit`));
   });
 
