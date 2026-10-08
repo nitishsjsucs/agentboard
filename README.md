@@ -1,23 +1,25 @@
 # AgentBoard
 
-An operations console on Cloudflare Workers for launching, monitoring and controlling AI agent runs that carry out People-operations requests. A coordinator per run owns the task state, leases, approvals and a hash-chained audit trail.
+[![ci](https://github.com/nitishsjsucs/agentboard/actions/workflows/ci.yml/badge.svg)](https://github.com/nitishsjsucs/agentboard/actions/workflows/ci.yml)
+
+An operations console on Cloudflare Workers for launching, monitoring and controlling AI agent runs that carry out People-operations requests. A coordinator per run owns the task state, leases, budgets, approvals and a hash-chained audit trail.
 
 **All People data and systems are simulated.** The HRIS, ITSM, access-management and notification systems are tables in a separate D1 database, filled by a seeded generator with 60 fictional employees. No real person, employee record or HR system sits behind AgentBoard in any environment. Nothing is deployed yet.
 
 ## Status
 
-> **v1 is in active development.** Milestone 1 of 4 is done. The orchestration core is being built one commit at a time from [`SPEC.md`](SPEC.md). [`PROGRESS.md`](PROGRESS.md) is the live position: which commit of the plan is done, the last check results, and every deviation from the spec with its reason.
+> **v1 is in active development.** The build follows the 36-commit plan in [`SPEC.md`](SPEC.md) section 19, one commit at a time. This README describes the repository through **plan commit 13**. [`PROGRESS.md`](PROGRESS.md) is the live position: which commit of the plan is done, the last check results, and every deviation from the spec with its reason.
 
 | Milestone | Commits | State |
 |---|---|---|
 | 1. Foundations: toolchain, schemas, synthetic data, config, identity | 1 to 8 | Done, tagged `v0.1.0` |
-| 2. Orchestration core: coordinator, dispatch, MCP, LLM providers, agents, approvals | 9 to 22 | In progress: commits 9 to 11 done |
+| 2. Orchestration core: coordinator, dispatch, MCP, LLM providers, agents, approvals | 9 to 22 | In progress: commits 9 to 13 done |
 | 3. Console: HTTP API, search, realtime, web pages | 23 to 30 | Not started |
 | 4. Simulation, evaluation and release | 31 to 36 | Not started |
 
-**Works today** (commit `ee135f9`):
+**Works today** (through plan commit 13):
 
-- The Worker runs in workerd under Vite and serves `/api/health`, `/api/me` and loopback-only dev routes. Requests pass through a fail-closed config loader, Access JWT verification, a default-deny role matrix and a CSRF guard.
+- The Worker runs in workerd under Vite and serves `/api/health`, `/api/me` and loopback-only dev routes. Requests pass through a fail-closed config loader, Access JWT verification and a CSRF guard, and the caller's role comes from a D1 role binding.
 - Both D1 schemas migrate and seed locally, and the synthetic dataset regenerates byte for byte.
 - `RunCoordinator` implements:
   - the run and task state machines, with derived run status
@@ -27,11 +29,12 @@ An operations console on Cloudflare Workers for launching, monitoring and contro
   - call-bound integration tokens minted after each lease grant
   - per-run execution budgets
   - recovery commands with cascades
+  - a transactional outbox that mirrors runs, tasks, approvals, tool calls and the hash-chained audit stream to D1, and enqueues dispatches
+- The queue consumer validates each message, audits and acks poison messages, holds messages for a disabled role, and hands the rest to a sharded role agent with bounded concurrency. The DLQ consumer dead-letters a task only for its current dispatch.
+- The three role agents share a skeleton that claims a task, runs the role work and reports once. **The role work itself is not written yet.** It throws, and the skeleton reports that as a retryable `agent_exception`, so no run can finish outside the tests, which act as the agents through the coordinator's RPCs. No API route launches a run yet.
+- **Tests: 55 passing in 13 files** (32 tagged `orchestration`, 12 `authz`, 6 `data`, 5 `tooling`), measured by running `npm test` on plan commit 13 on 2026-10-08 (about 18 seconds locally, Node 25.9). `typecheck`, `types:check`, `synth:check`, `build` and `build:prod` also pass on that commit.
 
-  Every RPC is one synchronous transaction that writes hash-chained events and queue outbox rows. Tests drive the coordinator directly; no API route or queue consumer calls it yet.
-- **Tests: 45 passing in 10 files** (22 tagged `orchestration`, 12 `authz`, 6 `data`, 5 `tooling`), measured by running `npm test` on commit `ee135f9` on 2026-10-08 (about 9 seconds locally). `typecheck`, `types:check`, `synth:check` and `build` also pass on that commit.
-
-**Still to come:** the outbox flush to Queues and D1, the queue consumer, the People Ops MCP server and integration ledger, LLM providers, the three role agents, approval decisions, the run, approval, search, agent and DLQ API, live WebSocket updates, the console pages, the 100-run simulation and the evals. Today the web app is a placeholder page. See the [Roadmap](#roadmap).
+**Still to come:** the People Ops MCP server and integration ledger, LLM providers, the planner, executor and verifier role work, approval decisions, the run, approval, search, agent and DLQ API, live WebSocket updates, the console pages, the 100-run simulation and the evals. Today the web app is a placeholder page. See the [Roadmap](#roadmap).
 
 ## Why
 
@@ -43,19 +46,19 @@ A People/Places organization handles a steady stream of requests that each touch
 - Is the audit trail tamper-evident?
 - Does each agent hold a credential for only the one call it is making?
 
-AgentBoard is that control plane. Agents plan, execute and verify. A coordinator per run owns the state and enforces leases, budgets and approval gates. People keep the decisions. Every transition lands in a hash-chained audit stream.
+AgentBoard is being built as that control plane. Agents plan, execute and verify. A coordinator per run owns the state and enforces leases, budgets and approval gates. People keep the decisions. Every coordinator transition lands in a hash-chained audit stream.
 
 ## Features
 
 ### Implemented
 
-- **Fail-closed configuration.** Every variable is parsed with zod. Production and preview must use Access auth, fault injection off, a non-stub LLM and `https://` origins. Lease timing invariants guarantee that no external call can outlive its lease (`LEASE_TTL_MS >= 2 * TOOL_TIMEOUT_MS + 1000`, and similar rules for the planner and the integration lock). A bad config answers `500 misconfigured` on every API path and retries every queue message.
-- **Identity.** The Cloudflare Access JWT is read from `Cf-Access-Jwt-Assertion` only and verified with RS256, issuer, audience, a 30-second clock tolerance and a memoized team JWKS. Dev and test run the same verifier against a locally generated JWKS. Access service tokens map to `svc:<name>` principals.
+- **Fail-closed configuration.** Every variable is parsed with zod. Production and preview must use Access auth, fault injection off, a non-stub LLM and `https://` origins. Lease timing invariants are checked at load (`LEASE_TTL_MS >= 2 * TOOL_TIMEOUT_MS + 1000`, and similar rules for the planner and the integration lock), so that by design no external call can outlive its lease. A bad config answers `500 misconfigured` on every request and retries every queue message.
+- **Identity.** In Access mode the JWT is read from `Cf-Access-Jwt-Assertion` only (a `CF_Authorization` cookie alone is refused) and verified with RS256, issuer, audience, a 30-second clock tolerance and a memoized team JWKS. Dev and test run the same verifier against a locally generated JWKS; dev mode also accepts the cookie so the browser works without Access. Access service tokens map to `svc:<name>` principals.
 - **Dev login, loopback only.** `POST /api/dev/login` and `GET /api/dev/users` exist only in dev auth mode and answer 404 to non-loopback hosts. The dev server refuses a non-loopback `--host`. `npm run dev:token` prints a JWT for curl.
-- **Authorization.** Four roles (viewer, operator, approver, admin), 15 permissions, default deny. A principal without a role binding can call only `/api/me`.
-- **CSRF guard.** Mutations need `Content-Type: application/json` and `X-AgentBoard-Client: web`. Together they force a CORS preflight, and `/api` never sends CORS headers. A foreign `Origin` is refused outright.
+- **Authorization model.** Four roles (viewer, operator, approver, admin), 15 permissions, default deny, and a `requirePermission` middleware. `/api/me` reports the caller's role and permissions; a principal without a role binding gets none. The permission-gated routes arrive with the API in commit 23.
+- **CSRF guard.** Mutations need `Content-Type: application/json` and `X-AgentBoard-Client: web`. Together they force a CORS preflight, `OPTIONS` is refused, and `/api` never sends CORS headers. A foreign `Origin` is refused outright.
 - **D1 schemas.** The console database holds runs, tasks, tool calls, approvals, DLQ messages, agent controls, role bindings, an append-only `audit_events` table (update and delete triggers abort) and an FTS5 search index. The People database holds employees, tickets, access grants, notifications, the integration's idempotency ledger and a side-effect log.
-- **Global audit stream.** D1 events are hash-chained, with `UNIQUE(stream, seq)` and a re-read and retry when another writer wins the race. Dev login writes to it today.
+- **Global audit stream.** D1 events are hash-chained, with `UNIQUE(stream, seq)` and a re-read and retry when another writer wins the race. Dev login and poison queue messages write to it today.
 - **Synthetic data generator.** It is seeded, pure and byte-stable, with a committed sha256. It writes the dataset and both seed SQL files. See [Data](#data).
 - **Plan validation and materialization.** Pure TypeScript with no Workers APIs:
   - a tool registry with 12 zod argument schemas
@@ -70,7 +73,7 @@ AgentBoard is that control plane. Agents plan, execute and verify. A coordinator
   - plan acceptance and materialization
   - readiness promotion and approval requests
   - run status derived with a fixed precedence
-  - the claim refusal ladder (`duplicate`, `stale_dispatch`, `held`, `budget_exhausted`, `not_ready`, `in_flight`)
+  - the claim refusal ladder: run-level `cancelled`, `paused` and `not_ready`, then `duplicate`, `stale_dispatch`, `held`, `budget_exhausted`, `not_ready` and `in_flight`
   - lease epochs, one accepted completion per lease and fenced traces
   - recovery commands: pause, resume, cancel, retry, skip, release lease, raise budget, role hold and release, dead-letter and replay. Retry and skip cascade to the verify task.
   - hash-chained per-run events in Durable Object SQLite
@@ -82,20 +85,21 @@ AgentBoard is that control plane. Agents plan, execute and verify. A coordinator
   - planner tokens can only read the catalog
 
   The MCP endpoint that checks these tokens is commit 14.
-- **Execution budgets.** Per-run limits: `maxSteps`, `maxToolCalls` (calls made plus outstanding reservations), `maxLlmTokens` (a planner claim needs 1500 left), `maxAttemptsPerTask` and `maxActiveMs` (queued, planning and running time only). A claim that would exceed a budget leaves the task `budget_blocked` and the run `needs_attention` until an admin `raise_budget`. Usage changes only inside fenced, deduplicated transactions, so a duplicate report or trace never double counts.
+- **Execution budgets.** Per-run limits: `maxSteps`, `maxToolCalls` (calls made plus outstanding reservations), `maxLlmTokens` (a planner claim needs 1500 left), `maxAttemptsPerTask` and `maxActiveMs` (queued, planning and running time only). A claim that would exceed a budget leaves the task `budget_blocked` and the run `needs_attention` until a `raise_budget` command (admin-only once the API exists). Usage changes only inside fenced, deduplicated transactions, so a duplicate report or trace never double counts.
+- **Transactional outbox and D1 audit mirror.** Every coordinator transaction writes, in the same `transactionSync`, one outbox row with its D1 mirror statements (run, changed tasks and approvals, tool calls, audit events) and one row per queue dispatch. After the commit the coordinator flushes the D1 and queue lanes in id order, one flush at a time. A failed delivery backs off from 1 second up to 60, holds back the rows behind it, and the wake retries it. Mirrors upsert only when the version increases and audit inserts ignore `(stream, seq)` conflicts, so a re-flush never regresses or duplicates. `verifyRunAudit` re-reads a run's stream from D1 and re-verifies the chain. Tests cover the D1 lane; the hop from the outbox to the real queue has no test yet, because coordinator tests take dispatches directly.
+- **Queue consumer and DLQ.** Each `TaskMessage` is validated with zod. Poison messages are recorded in `dlq_messages`, audited and acked. A message for a disabled role is held at the coordinator. Everything else goes to the role-agent shard `fnv1a32(runId:taskId:attempt) % AGENT_SHARDS`, with at most `CONSUMER_CONCURRENCY` in flight per batch. A thrown error retries the message with capped exponential backoff plus deterministic jitter, and consumes no task attempt unless a claim was granted. The DLQ consumer records each message and asks the coordinator to dead-letter the task, which it does only for the current `dispatchId`; otherwise the row is marked `ignored_stale`.
+- **Role-agent skeleton.** `PlannerAgent`, `ExecutorAgent` and `VerifierAgent` share `RoleAgent.handleTask`: claim, run the role work in a try/catch, report once per lease. A refused claim is acked, and an exception in the role work becomes a retryable `agent_exception` on the current lease. The role work is planned for commits 17 to 19.
 
 ### Planned
 
 | Feature | Commit |
 |---|---|
-| Transactional outbox flush to Queues, D1 mirrors of runs, tasks and approvals, per-run audit in D1 | 12 |
-| Queue consumer: sharded dispatch, role-agent skeleton, backoff, dispatch-fenced DLQ, bounded batch concurrency (until then the consumer retries every message) | 13 |
 | People Ops MCP server with 12 tools and call-bound token checks inside every handler | 14 |
 | Integration ledger with lock takeover and per-step logical dedupe, dev-only fault directives | 15 |
 | LLM providers: Workers AI through AI Gateway, OpenAI-compatible (local llama.cpp) and a deterministic stub | 16 |
-| `PlannerAgent`, `ExecutorAgent`, `VerifierAgent` (the classes exist today as empty skeletons) | 17 to 19 |
+| Role work: planner prompt, parse and one repair; executor call journal and in-process MCP client; verifier registry postconditions | 17 to 19 |
 | Approval decisions with separation of duties and expiry | 20 |
-| Agent-role disable and enable, and DLQ replay, end to end (the coordinator commands already exist) | 21 |
+| Agent-role disable and enable, and DLQ replay, end to end (the coordinator commands and the consumer's hold already exist) | 21 |
 | Launch reservation, and the run, tool-call, timeline, approval, agent and DLQ endpoints with redaction | 23 |
 | FTS5 search API with bm25 ranking and snippets (the index tables already exist) | 24 |
 | Live run snapshots over a read-only WebSocket with an Origin allowlist | 25 |
@@ -115,15 +119,13 @@ flowchart LR
     API["Hono API<br/>/api/health, /api/me, /api/dev/*"]
     APIP["Runs, approvals, search,<br/>agents and DLQ routes"]
     WS["Read-only WebSocket route"]
-    QC["Queue consumer"]
+    QC["Queue and DLQ consumers<br/>sharding, bounded concurrency"]
     MCP["People Ops MCP server<br/>12 tools, call-bound tokens"]
   end
 
   subgraph DOS["Durable Objects with SQLite (Agents SDK)"]
     RC["RunCoordinator, one per run<br/>task state, leases, budgets, approvals,<br/>hash-chained events, outbox"]
-    PA["PlannerAgent"]
-    EA["ExecutorAgent"]
-    VA["VerifierAgent"]
+    RA["PlannerAgent, ExecutorAgent, VerifierAgent<br/>shared claim and report skeleton<br/>(role work planned)"]
   end
 
   Q[("Queues<br/>agentboard-tasks and DLQ")]
@@ -137,28 +139,31 @@ flowchart LR
   ID -.-> APIP
   APIP -.->|RPC| RC
   OP -.-> WS -.-> RC
-  RC -.->|outbox flush| Q
-  RC -.->|outbox mirror| D1C
-  Q -.-> QC
-  QC -.-> PA & EA & VA
-  PA & EA & VA -.->|claim, trace, complete| RC
-  EA & VA -.->|tools/call| MCP
+  RC -->|outbox: dispatches| Q
+  RC -->|outbox: mirrors, run audit| D1C
+  Q --> QC
+  QC -->|handleTask on a shard| RA
+  QC -->|hold role, dead-letter| RC
+  QC -->|dlq_messages, poison audit| D1C
+  RA -->|claim, complete| RC
+  RA -.->|tools/call| MCP
   MCP -.-> D1P
-  PA -.-> LLM
+  RA -.->|planner only| LLM
 
   classDef planned stroke-dasharray: 5 5
-  class APIP,WS,QC,MCP,PA,EA,VA,LLM planned
+  class APIP,WS,MCP,LLM planned
 ```
 
-Solid boxes and arrows are in the code at commit `ee135f9`. Dashed ones are designed in [`SPEC.md`](SPEC.md) section 3 and not built yet. The queue bindings already exist in `wrangler.jsonc`. The four agent classes are declared from the start so the Durable Object migration never changes, but the three role agents are empty skeletons.
+Solid boxes and arrows exist in the code through plan commit 13. Dashed ones are designed in [`SPEC.md`](SPEC.md) section 3 and not built yet. The role agents are drawn solid because their shared skeleton exists; their role work does not, so today the work step throws and is reported as a retryable failure. The four Durable Object classes were declared from the start so the Durable Object migration never changes.
 
 How one run will flow once milestone 2 lands (SPEC section 3.2):
 
-1. `POST /api/runs` reserves `(requester, clientRequestId)` in D1, then `RunCoordinator.initRun` dispatches the plan task.
-2. `PlannerAgent` claims the plan task, reads the tool catalog over MCP and asks the LLM for a JSON plan. The coordinator re-validates the plan and materializes execute and verify tasks with gating edges (this step is implemented).
-3. `ExecutorAgent` claims each ready execute task and makes one MCP call with a token bound to that call. `VerifierAgent` checks the postcondition through read-only tools.
-4. An approval-gated step waits in `awaiting_approval` until an approver decides. The approver cannot be the person who requested the run.
-5. After every commit, the coordinator broadcasts a snapshot to read-only WebSocket clients.
+1. `POST /api/runs` reserves `(requester, clientRequestId)` in D1, then `RunCoordinator.initRun` creates the plan task. (`initRun` is implemented; the route is commit 23.)
+2. Each coordinator transaction commits its outbox rows with the state change. The flush sends dispatches to the queue and mirrors to D1, and the consumer hands each message to a role-agent shard, which claims the task. (Implemented.)
+3. `PlannerAgent` reads the tool catalog over MCP and asks the LLM for a JSON plan. The coordinator re-validates the plan and materializes execute and verify tasks with gating edges. (The coordinator side is implemented.)
+4. `ExecutorAgent` makes one MCP call per execute task with a token bound to that call. `VerifierAgent` checks the postcondition through read-only tools.
+5. An approval-gated step waits in `awaiting_approval` until an approver decides. The approver cannot be the person who requested the run.
+6. After every commit, the coordinator broadcasts a snapshot to read-only WebSocket clients. (The broadcast is implemented; the WebSocket route is commit 25.)
 
 Agents never call each other. They coordinate only through `claimTask`, `appendTrace` and `completeTask` on the run's coordinator.
 
@@ -171,20 +176,26 @@ Each run has its own `RunCoordinator` Durable Object. It is the only writer of t
 ```
 load run -> sweep -> derive status -> operation -> promote ready tasks
          -> derive status -> dispatch -> persist rows, hash-chained events, outbox rows
-after commit: setState(snapshot), arm the next wake   // broadcast only what committed
+after commit: setState(snapshot), flush the outbox, arm the next wake
 ```
 
-A Durable Object can deliver other requests while one is awaiting I/O. Keeping every read-modify-write of task state inside one synchronous transaction removes that class of race.
+A Durable Object can deliver other requests while one is awaiting I/O. Keeping every read-modify-write of task state inside one synchronous transaction removes that class of race, and broadcasting only after the commit means clients never see state that rolled back.
+
+### Outbox instead of awaited side effects (implemented)
+
+A synchronous transaction cannot await a D1 write or a queue send, so the coordinator records both as outbox rows in the same transaction as the state change. A crash between the commit and the delivery loses nothing: the next RPC, the wake or `onStart` flushes whatever is pending. D1 is a version-guarded mirror for the console's queries, never a second writer. The audit hash is computed with `node:crypto` (synchronous, unlike `crypto.subtle`) inside the transaction, so Durable Object SQLite and D1 hold the same chain and either copy can be re-verified.
 
 ### Run status is derived, never set (implemented)
 
 No command writes a run status. `deriveRunStatus()` recomputes it at the end of every transaction with a fixed precedence: terminal states stay terminal, then rejected, cancelled, paused, needs attention, queued or planning (until the plan succeeds), awaiting approval, succeeded, and otherwise running. `cancel` and `pause` set flags that the derivation reads. A retry or skip therefore moves the run forward without code that has to remember to update the status.
 
-### Fencing at every hop (implemented in the coordinator; queue side in commit 13)
+### Fencing at every hop (implemented)
 
 - Every dispatch carries a fresh `dispatchId`. A claim with a superseded id is `stale_dispatch`, and a redelivery of the live dispatch is `in_flight`.
 - Every lease grant increments an epoch. Traces and completions must carry the current lease id and epoch, so a zombie holder of an older lease is refused (`stale_lease`).
-- Each lease gets exactly one accepted completion (`ab_reports`).
+- Each lease gets exactly one accepted completion (`ab_reports`), and each trace id is counted once (`ab_traces`).
+- The DLQ consumer can dead-letter a task only for its current `dispatchId`, so a late DLQ copy of a superseded message is ignored.
+- Shards are picked by `fnv1a32(runId:taskId:attempt)`, so a redelivery reaches the same shard, but no decision depends on one instance's memory: the coordinator's fencing decides.
 
 ### A sweep, not timers, enforces expiry (implemented)
 
@@ -198,8 +209,8 @@ The tests cover three cases:
 
 ### Idempotency in layers (partly implemented)
 
-- **Implemented:** dispatch and lease fencing (above), one report per lease, and a deterministic idempotency key `ik_ + base64url(sha256(runId | stepId | generation | tool | canonicalJson(args)))`. The key is stable across attempts and epochs and changes only when an operator retry bumps the generation.
-- **Implemented in the schema, logic planned:** the launch key `UNIQUE(requester, client_request_id)` (commit 23), and the People DB `idempotency` ledger and `side_effects` log (commit 15). A write's effect is applied in one guarded D1 `batch()`, conditioned on still owning the ledger row and on no effect existing yet for `<runId>:<stepId>`. A step therefore applies at most once across all retry generations, even after a lock takeover.
+- **Implemented:** dispatch and lease fencing (above), one report per lease, trace dedupe, and a deterministic idempotency key `ik_` + base64url(sha256(`runId|stepId|generation|tool|canonicalJson(args)`)). The key is stable across attempts and epochs and changes only when an operator retry bumps the generation.
+- **In the schema, logic planned:** the launch key `UNIQUE(requester, client_request_id)` (commit 23), and the People DB `idempotency` ledger and `side_effects` log (commit 15). The design applies a write's effect in one guarded D1 `batch()`, conditioned on still owning the ledger row and on no effect existing yet for `<runId>:<stepId>`, so that a step applies at most once across all retry generations, even after a lock takeover.
 
 ### Approval gates are graph edges (implemented)
 
@@ -209,13 +220,13 @@ When any step needs approval, the materializer makes every other write step depe
 
 Production verifies Cloudflare Access JWTs against the team JWKS. Dev and test verify RS256 JWTs from a locally generated key with the same function. Production can never run dev mode, because the config loader refuses it. The top-level `wrangler.jsonc` has `workers_dev: false`, so an accidental deploy is unreachable. Dev routes refuse non-loopback hosts, and the dev server refuses to bind anywhere but loopback.
 
-### Call-bound integration tokens (minting implemented; checks at the MCP layer in commit 14)
+### Call-bound integration tokens (minting implemented; checks planned for commit 14)
 
-After granting a lease, the coordinator mints a short-lived HS256 token bound to one tool, the canonical args hash, the idempotency key, the run, step, task, lease epoch and lease expiry. The MCP endpoint and every tool handler will check those bindings. A token minted for `hris.update_address` cannot call `hris.set_employment_status`, change its arguments, or be replayed into another task or after its lease. The stated limit: every class runs in one Worker that holds the signing key. The binding defends against confused or buggy call paths, not against arbitrary code inside the Worker.
+After granting a lease, the coordinator mints a short-lived HS256 token bound to one tool, the canonical args hash, the idempotency key, the run, step, task, lease epoch and lease expiry. The MCP endpoint and every tool handler will check those bindings, so a token minted for `hris.update_address` will not be able to call `hris.set_employment_status`, change its arguments, or be replayed into another task or after its lease. The stated limit: every class runs in one Worker that holds the signing key. The binding defends against confused or buggy call paths, not against arbitrary code inside the Worker.
 
 ### Provider interfaces with local fallbacks (planned, commit 16)
 
-The planner talks to an `LlmProvider` interface (`generate(request, signal)` returning text, provider-reported usage, latency, provider and model). There are three implementations:
+The planner will talk to an `LlmProvider` interface (`generate(request, signal)` returning text, provider-reported usage, latency, provider and model). There are three planned implementations:
 
 - Workers AI through AI Gateway in production
 - an OpenAI-compatible client for a local llama.cpp server, used by the planner eval
@@ -238,11 +249,11 @@ Exact versions pinned in `package.json`.
 | Build | `vite` 8.3.4, `@vitejs/plugin-react` 6.1.2, `@cloudflare/vite-plugin` 1.63.1, `wrangler` 4.149.0 |
 | Language | `typescript` 6.0.3 (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`), `@types/node` 24.19.1, `@types/react` 19.3.0, `@types/react-dom` 19.3.0 |
 | Tests | `vitest` 4.1.11, `@cloudflare/vitest-plugin` 1.4.0, `happy-dom` 20.14.5, `@testing-library/react` 16.3.3, `@testing-library/dom` 10.4.2 |
-| Node | 24 (`.nvmrc`); `engines` allows `>=22.12`; Node 25.9 also verified |
+| Node | 24 (`.nvmrc`, used by CI); `engines` allows `>=22.12`; the local checks above ran on Node 25.9 |
 
 ## Getting started
 
-Everything runs offline. No Cloudflare account is needed.
+Everything runs locally. No Cloudflare account or login is needed.
 
 ```sh
 nvm use                     # Node 24 from .nvmrc
@@ -254,7 +265,7 @@ npm run db:migrate:local    # applies both D1 migration sets to local SQLite in 
 npm run db:seed:local       # 9 principals, 3 agent roles, 60 employees, 180 access grants
 npm run dev                 # Vite + workerd on http://127.0.0.1:5173
 
-npm test                    # in another terminal
+npm test                    # in another terminal; the tests do not need the dev server
 npm run build
 ```
 
@@ -305,7 +316,7 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `npm ci`, `type
 
 ## Local versus production
 
-**Nothing is deployed.** No Cloudflare account was used to build or test this repository. Every check runs offline in workerd and Miniflare. Deploying needs a Cloudflare login (`npx wrangler login`) and these steps:
+**Nothing is deployed.** No Cloudflare account was used to build or test this repository. Every check runs locally in workerd and Miniflare. Deploying needs a Cloudflare login (`npx wrangler login`) and these steps:
 
 - create the two D1 databases and two queues
 - create the AI Gateway
@@ -315,11 +326,11 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `npm ci`, `type
 
 The `deploy` script and the step-by-step deploy guide are part of the remaining plan (SPEC section 18).
 
-| Cloudflare service | Role in AgentBoard | Local stand-in | Production | State |
+| Cloudflare service | Role in AgentBoard | Local stand-in | Production target (not deployed) | State |
 |---|---|---|---|---|
 | Workers + static assets | Hono API and the React SPA | workerd through `@cloudflare/vite-plugin` (`npm run dev`, `npm run preview`) and Miniflare in vitest | Worker `agentboard-production` on `workers.dev` | Implemented locally |
-| Durable Objects (SQLite, Agents SDK) | `RunCoordinator` per run; sharded planner, executor and verifier agents | Miniflare Durable Objects with local SQLite | Durable Objects | Coordinator implemented; role agents planned |
-| Queues | Task dispatch and the dead-letter queue | Miniflare local queues | `agentboard-tasks`, `agentboard-tasks-dlq` | Bindings configured; consumer planned |
+| Durable Objects (SQLite, Agents SDK) | `RunCoordinator` per run; sharded planner, executor and verifier agents | Miniflare Durable Objects with local SQLite | Durable Objects | Coordinator implemented; role agents are skeletons, role work planned |
+| Queues | Task dispatch and the dead-letter queue | Miniflare local queues | `agentboard-tasks`, `agentboard-tasks-dlq` | Producer (outbox flush) and both consumers implemented; the outbox-to-queue hop has no test yet |
 | D1 | Console history and audit; simulated People systems | Local SQLite in `.wrangler/state` | Two D1 databases | Implemented |
 | Access | Operator identity | RS256 JWTs from a locally generated key, same verifier; dev login on loopback only | Access JWT verified against the team JWKS | Implemented; the remote JWKS path is tested only against an intercepted fetch |
 | Workers AI | Planner model | Stub provider in tests and the simulation; llama.cpp with Qwen3-1.7B Q4_0 for the planner eval | `@cf/qwen/qwen3-30b-a3b-fp8` | Planned (commit 16) |
@@ -352,14 +363,14 @@ Each request carries a gold plan that passes the same validator the planner will
 
 | Project | Environment | Covers today |
 |---|---|---|
-| `worker` | workerd through `@cloudflare/vitest-plugin`, isolated storage per file | toolchain gate, dev mode and fail-closed config, CSRF, synthetic generator, coordinator state machine, leases, budgets |
-| `worker-ws` | workerd with isolation off and one worker, as Durable Object WebSocket tests require | WebSocket state frames and the read-only refusal |
+| `worker` | workerd through `@cloudflare/vitest-plugin`, isolated storage per file | toolchain gate, dev mode and fail-closed config, CSRF, synthetic generator, coordinator state machine, leases, budgets, outbox and audit, retries, queue dispatch |
+| `worker-ws` | workerd with isolation off and one worker, as Durable Object WebSocket tests require | the toolchain gate's WebSocket check: state frames and the read-only refusal |
 | `worker-access` | workerd with `AUTH_MODE=access` and the JWKS fetch intercepted | production Access verification: audience, issuer, unknown key, expiry, cookie-only refusal, service tokens |
-| `node` | Node | the loopback guards on the dev and built-worker launchers |
+| `node` | Node | the loopback guard on the dev server's `--host`, and its `--ip` mode for the planned built-worker launcher |
 
-Current count: **45 tests in 10 files, all passing** (commit `ee135f9`, measured 2026-10-08). By tag: 22 `orchestration`, 12 `authz`, 6 `data`, 5 `tooling`. The v1 target is 100 tests tagged `orchestration` (61) or `authz` (39), counted by a script whose output CI checks against this README (planned, commit 33).
+Current count: **55 tests in 13 files, all passing** (plan commit 13, measured 2026-10-08). By tag: 32 `orchestration`, 12 `authz`, 6 `data`, 5 `tooling`. The v1 target is 100 tests tagged `orchestration` (61) or `authz` (39), counted by `npm run count:tests` with a CI check (planned, commit 33).
 
-Time-dependent paths use an injected coordinator clock rather than sleeping. Test keys are generated per run in `vitest.config.ts` and never written to disk. The toolchain gate re-runs the prototype checks on the exact pins:
+Time-dependent coordinator paths use an injected clock rather than sleeping; one lease test waits for a real alarm. Test keys are generated per run in `vitest.config.ts` and never written to disk. The toolchain gate re-runs the prototype checks on the exact pins:
 
 - 40 concurrent RPCs append to a `node:crypto` hash chain inside `transactionSync`, and the chain re-verifies
 - a `schedule()` wake fires at the ceiling second
@@ -370,9 +381,10 @@ Time-dependent paths use an injected coordinator clock rather than sleeping. Tes
 ```
 src/shared/          domain enums, canonical JSON, synthetic data generator
 src/worker/          Worker entry, config, Hono API, auth, audit, D1 queries
-  agents/            RunCoordinator (+ coordinator/: transitions, leases, sweep, budgets, credentials) and role-agent skeletons
+  agents/            RunCoordinator, the RoleAgent skeleton and the three role agents
+    coordinator/     transitions, leases, sweep, budgets, credentials, outbox, snapshot, schema
   planning/          tool registry, approval policy, plan validator, materializer
-  queue/             task message schema, backoff
+  queue/             message schema, consumer, sharding, role controls, backoff
 src/web/             React app (placeholder page today)
 migrations/          console and people D1 migrations
 seed/, fixtures/     generated seed SQL, dataset and checksum
@@ -389,8 +401,8 @@ The remaining commits of the plan in SPEC section 19. [`PROGRESS.md`](PROGRESS.m
 - [x] 9. RunCoordinator state machine with derived run status and recovery cascades
 - [x] 10. Leases with fencing epochs, idempotent sweep, scheduled wake and call-bound credentials
 - [x] 11. Execution budgets and active-time deadline
-- [ ] 12. Transactional outbox with synchronously hash-chained D1 audit events
-- [ ] 13. Sharded dispatch, role-agent skeleton, backoff, dispatch-fenced DLQ and bounded batch concurrency
+- [x] 12. Transactional outbox with synchronously hash-chained D1 audit events
+- [x] 13. Sharded dispatch, role-agent skeleton, backoff, dispatch-fenced DLQ and bounded batch concurrency
 - [ ] 14. People Ops MCP server with 12 tools and call-bound token checks
 - [ ] 15. Integration ledger with lock takeover and logical dedupe, and dev-only fault directives
 - [ ] 16. Provider interface with Workers AI, OpenAI-compatible and stub providers
@@ -428,6 +440,7 @@ Not measured yet. Every number that appears here will be written by this repo's 
 ## Limits
 
 - The People systems are simulated in every environment, production included. There is no real HRIS, ITSM or identity provider behind the integration layer.
+- Until commits 17 to 19 land, the role agents claim tasks but do no role work, so no run completes outside the tests.
 - Only the planner will call a model. The executor and verifier are deterministic workers built on the Agents SDK, by design.
 - A rejected approval does not compensate steps that already ran. The gating edges guarantee that only reads run before an approval gate.
 - Integration tokens defend against confused call paths inside one Worker, not against code running in that Worker (see above).
