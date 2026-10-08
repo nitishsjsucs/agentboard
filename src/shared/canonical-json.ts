@@ -30,3 +30,18 @@ function serialize(value: unknown): string {
       throw new TypeError(`canonicalJson: unsupported type ${typeof value}`);
   }
 }
+
+/**
+ * Removes object members whose value is undefined, recursively. zod's output
+ * types mark optional members `T | undefined`; this turns parsed input into
+ * the exact-optional domain types.
+ */
+export function compact<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => compact(item)) as T;
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+    if (inner !== undefined) out[key] = compact(inner);
+  }
+  return out as T;
+}

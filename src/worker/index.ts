@@ -3,6 +3,7 @@ import { buildApp } from "./api/app.ts";
 import type { AppEnv } from "./api/types.ts";
 import { loadConfig, misconfiguredResponse, type Config } from "./config.ts";
 import { handleQueueBatch } from "./queue/consumer.ts";
+import { handleAgentRoute } from "./realtime.ts";
 
 export { RunCoordinator } from "./agents/run-coordinator.ts";
 export { PlannerAgent } from "./agents/planner-agent.ts";
@@ -29,6 +30,7 @@ export default {
     }
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) return appFor(loaded.config).fetch(request, env, ctx);
+    if (url.pathname.startsWith("/agents/")) return handleAgentRoute(request, env, loaded.config);
     return new Response("not found", { status: 404 });
   },
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {

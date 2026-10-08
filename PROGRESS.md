@@ -19,13 +19,28 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 11 | feat(coordinator): execution budgets and active-time deadline | done |
 | 12 | feat(audit): transactional outbox with synchronously hash-chained D1 audit events | done |
 | 13 | feat(queue): sharded dispatch, role-agent skeleton, backoff, dispatch-fenced DLQ and bounded batch concurrency | done |
+| 14 | feat(mcp): People Ops MCP server with 12 tools and call-bound token checks | done |
+| 15 | feat(mcp): integration ledger with lock takeover and logical dedupe, and dev-only fault directives | done (fault directives landed in 14) |
+| 16 | feat(llm): provider interface with Workers AI, OpenAI-compatible and stub providers | done |
+| 17 | feat(agents): PlannerAgent with allowlists, subject pinning, one repair and gating edges | done |
+| 18 | feat(agents): ExecutorAgent with call journal and in-process MCP client | done (dispatch.test.ts #1 moved to commit 19) |
+| 19 | feat(agents): VerifierAgent with registry postconditions | done (includes dispatch.test.ts #1) |
+| 20 | feat(approvals): coordinator-owned approvals with separation of duties and expiry | done |
+| 21 | feat(controls): role hold and release, DLQ replay | done |
+| 22 | docs: ADR 0001 and 0002 and milestone 2 demo script | done (local tag v0.2.0) |
+| 23 | feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction | done |
+| 24 | feat(search): FTS5 search documents and ranked search API | done |
+| 25 | feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist | done |
+| 26 | feat(web): app shell, role-aware navigation, dev login and design tokens | done |
+| 27 | feat(web): dashboard with agent-role and DLQ panels, and runs list with search | done |
 
-Next: commit 14 (`feat(mcp): People Ops MCP server with 12 tools and call-bound token checks`).
+Next: commit 28 (`feat(web): live run detail with timeline, tool-call traces and recovery controls`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 13 files, 55 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 30 files, 130 tests)
+- Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -54,3 +69,17 @@ Next: commit 14 (`feat(mcp): People Ops MCP server with 12 tools and call-bound 
 20. **Outbox granularity.** Each coordinator transaction writes one `d1` outbox row holding all of its mirror statements (run, dirty tasks and approvals, tool calls, audit events) plus one `queue` row per dispatch. The flush delivers up to 25 rows per D1 `batch()` (atomic) and per `sendBatch`, in id order per lane; a failed row backs off (1 s doubling to 60 s) and holds back the rows after it. `tool_calls.result_json` stores `{ value, logical }` so the logical-replay flag survives without a schema change. Sent outbox rows are kept in DO storage.
 21. **Consumer dependencies are injectable.** `handleQueueBatch(batch, env, config, deps)` takes the coordinator, role-agent and role-control lookups as `ConsumerDeps`, so `retries.test.ts` #2 can make the role agent unreachable (a failure before the claim) and `dispatch.test.ts` #3 can count in-flight `handleTask` calls. `getQueueResult` in `@cloudflare/vitest-plugin` 1.4.0 records which messages were retried but not their `delaySeconds`, so the delay is asserted through a spy on `message.retry`.
 22. **`retries.test.ts` #3 uses a real role agent.** Until commit 17 the role work is a skeleton that throws; from commit 17 the same test makes the stub planner throw `StubMiss` (a request text with no fixture). Either way the exception happens inside role work after a granted claim.
+23. **Ledger basics and fault directives landed with the tools (commit 14).** `tools.test.ts` (planned for commit 14) covers ledger replay, the args-hash conflict, `silent_noop` and faults being ignored when off, so the basic ledger (claim, replay, conflict, owner-guarded effect batch) and `mcp/faults.ts` are in commit 14. Commit 15 adds lock takeover and the cross-generation correlation guard (logical dedupe).
+24. **MCP endpoint details.** The MCP SDK v2 client sends `initialize`, `notifications/initialized`, an SSE `GET` and then the call; the endpoint answers non-POST requests with 405 (stateless server, no standalone stream) and gates POSTs by method per token kind (`server/discover` is allowed alongside `initialize` for the 2026 protocol era). The ledger owner is `<agent instance>:<task id>:<epoch>` from the token claims (the token carries no lease id), and the generation used for `side_effects.generation` travels in `_meta["agentboard/generation"]`. Tool names keep their dots (`hris.get_employee`).
+25. **Stub fixtures are built from the live catalog.** `llm/fixtures.ts` renders the planner prompt for every dataset request with the catalog the agent actually fetched over MCP (memoized per catalog) and maps its hash to the gold plan, so a prompt or schema change can never desync the stub. The dataset JSON is loaded with a dynamic import (a separate chunk). The plan output schema enumerates the request type's allowed tools, so schema-constrained decoding cannot name another tool; the validator and the coordinator still check everything.
+26. **Prompt conventions.** The planner prompt states the notification template for the request type, the ticket-summary wording, the system/role split and the date format. These are console conventions, not policy decisions, and they make the gold arguments reachable for a model; `eval:planner` measures whatever the model then produces.
+27. **Planner tests inject providers.** `PlannerAgent.providerOverride` (set through `runInDurableObject`) lets `planner.test.ts` and `plan-guard.test.ts` script model outputs; production code never sets it.
+28. **`dispatch.test.ts` #1 lands with commit 19.** "Through the real queue, a launched address_change run reaches succeeded" needs the verifier, which commit 19 implements; at commit 18 every verify task would fail.
+29. **Executor test hooks.** `ExecutorAgent.callOverride` (set through `runInDurableObject`) replaces the MCP call so `executor.test.ts` #3 can simulate a call that never returns; production code never sets it. Tests choose the executor instance explicitly (for example attempt 2 on `executor-1`) so the crash-after-call test exercises the integration ledger's replay rather than one shard's journal.
+30. **Tests within one file share D1 state** (the plugin isolates storage per test file), so tests that change People data use dataset runs with distinct subjects (`distinctRuns` in `test/helpers/agents.ts`) and count side effects per run or as deltas.
+31. **Approval routes arrive with commit 20.** `GET /api/approvals` and `POST /api/approvals/:id/decision` land with the approvals feature (not commit 23) because `approvals-sod.test.ts` asserts the 403 and 409 mappings and `dispatch.test.ts` #2 approves through the API. Shared request schemas and response types now live in `src/shared/api-types.ts`; validation failures answer 400 `invalid_request` in the ApiError shape. A cancelled run's pending approvals are marked `expired` with the note "run cancelled", so they can no longer be decided.
+32. **Agent and DLQ routes arrive with commit 21.** `GET /api/agents`, `POST /api/agents/:role/disable|enable`, `GET /api/dlq` and `POST /api/dlq/:id/replay` land with the controls they drive. DLQ replays are audited on the run stream (coordinator) and on the global stream (API).
+33. **Launch details.** The API checks the subject against a read-only directory lookup in `PEOPLE_DB` (to reject unknown employees and to build the run title with the employee's name, which feeds search). Section 8.5 says no production path other than the People Ops tools touches `PEOPLE_DB`; this read-only directory (`db/people.ts` `directoryEntry` and `GET /api/people/directory` for the launch picker, permission `runs:launch`) is the one exception. `LaunchRunRequest` also accepts `syntheticRef` and `requestedAt`, gated by `FAULT_INJECTION=on` exactly like `sim`, so the simulator can record its dataset references and business timestamps.
+34. **`rbac-matrix.test.ts` #7** covers the audit read now; the search half joins in commit 24 with the search route. `dev-mode.test.ts` #1 shows the `sim` refusal on an app built with `FAULT_INJECTION=off` and dev auth, because an Access-mode token cannot be verified in the `worker` project; `access-jwt.test.ts` #7 (unbound principal) landed here.
+35. **Control responses.** A refused recovery command answers 409 with `{ accepted: false, reason, snapshot }`; an accepted one answers 200.
+36. **Search response shape.** `GET /api/search` returns `{ items: SearchHit[], nextCursor }` (the spec's table says `SearchHit[]`) because `search.test.ts` requires cursor paging; the cursor is an opaque offset. Queries are reduced to letter and digit runs, each quoted and ANDed, so no FTS5 syntax reaches SQLite. Search documents are upserted by the coordinator's outbox in the same D1 batch as the mirrors.

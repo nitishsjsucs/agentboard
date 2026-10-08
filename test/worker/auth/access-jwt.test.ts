@@ -89,6 +89,33 @@ describe("Access JWT verification (access mode)", { tags: ["authz"] }, () => {
     expect((await me({ "Cf-Access-Jwt-Assertion": token })).status).toBe(200);
   });
 
+  it("a valid token for an unbound email gets 403 everywhere except /api/me", async () => {
+    const token = await accessJwt({ email: "stranger@agentboard.test", sub: "u9" });
+    const headers = { "Cf-Access-Jwt-Assertion": token };
+    const mutation = { ...headers, "Content-Type": "application/json", "X-AgentBoard-Client": "web" };
+    const meResponse = await me(headers);
+    expect(meResponse.status).toBe(200);
+    expect(await meResponse.json()).toMatchObject({ principal: { id: "stranger@agentboard.test" }, role: null, permissions: [] });
+    const reads = ["/api/runs", "/api/runs/run_01J00000000000000000000000", "/api/runs/run_01J00000000000000000000000/tool-calls", "/api/approvals", "/api/agents", "/api/dlq", "/api/metrics/summary", "/api/people/directory"];
+    for (const path of reads) {
+      const response = await exports.default.fetch(`http://agentboard.test${path}`, { headers });
+      expect(response.status, path).toBe(403);
+    }
+    const writes: [string, string, unknown][] = [
+      ["POST", "/api/runs", { clientRequestId: "stranger-0001", requestType: "address_change", requestText: "Please update the address on file.", subjectEmployeeId: "E-1014" }],
+      ["POST", "/api/runs/run_01J00000000000000000000000/cancel", { reason: "stranger" }],
+      ["POST", "/api/approvals/apr_01J00000000000000000000000/decision", { decision: "approve", note: "stranger" }],
+      ["POST", "/api/agents/executor/disable", { reason: "stranger" }],
+      ["POST", "/api/dlq/msg-1/replay", { reason: "stranger" }],
+      ["PATCH", "/api/runs/run_01J00000000000000000000000/budget", { maxToolCalls: 99, reason: "stranger" }],
+    ];
+    for (const [method, path, body] of writes) {
+      const response = await exports.default.fetch(`http://agentboard.test${path}`, { method, headers: mutation, body: JSON.stringify(body) });
+      expect(response.status, `${method} ${path}`).toBe(403);
+      expect(await response.json()).toMatchObject({ error: { code: "forbidden", reason: "no_role_binding" } });
+    }
+  });
+
   it("maps an Access service token (common_name) to its svc: binding", async () => {
     const token = await accessJwt({ common_name: "AgentBoard-Eval", sub: "" });
     const response = await me({ "Cf-Access-Jwt-Assertion": token });

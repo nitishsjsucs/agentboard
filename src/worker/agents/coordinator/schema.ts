@@ -159,50 +159,8 @@ export interface ControlResult {
   reason?: string;
 }
 
-export interface TaskView {
-  id: string;
-  kind: TaskKind;
-  stepId: string | null;
-  tool: string | null;
-  args: Record<string, unknown> | null;
-  dependsOn: string[];
-  status: TaskStatus;
-  holdReason: "role_disabled" | "checkpoint" | null;
-  attempts: number;
-  generation: number;
-  requiresApproval: boolean;
-  lease: { owner: string; epoch: number; expiresAt: string } | null;
-  lastError: string | null;
-  updatedAt: string;
-}
-
-export interface RunSnapshot {
-  runId: string;
-  status: RunStatus;
-  statusReason: string | null;
-  budget: Budget;
-  usage: Usage;
-  tasks: TaskView[];
-  recentEvents: { seq: number; ts: string; action: string; actorId: string; taskId: string | null }[];
-  pendingApprovalIds: string[];
-  version: number;
-}
-
-export interface ApprovalView {
-  id: string;
-  runId: string;
-  taskId: string;
-  tool: string;
-  summary: string;
-  risk: "medium" | "high";
-  requester: string;
-  status: "pending" | "approved" | "rejected" | "expired";
-  requestedAt: string;
-  expiresAt: string;
-  decidedBy: string | null;
-  decidedAt: string | null;
-  decisionNote: string | null;
-}
+export type { ApprovalView, RunSnapshot, TaskView } from "../../../shared/api-types.ts";
+import type { ApprovalView, RunSnapshot } from "../../../shared/api-types.ts";
 
 // ---------------------------------------------------------------------------
 // In-memory records (one transaction loads the whole run)
@@ -375,4 +333,10 @@ export interface RunCoordinatorRpc {
   control(cmd: ControlCommand): Promise<ControlResult & { snapshot: RunSnapshot }>;
   getSnapshot(): Promise<RunSnapshot>;
   getTaskContext(taskId: string, leaseId: string): Promise<TaskContext | null>;
+  resolveApproval(decision: ApprovalDecision): Promise<{
+    accepted: boolean;
+    reason?: "self_approval" | "already_decided" | "expired" | "not_found";
+    approval: ApprovalView | null;
+    snapshot: RunSnapshot;
+  }>;
 }
