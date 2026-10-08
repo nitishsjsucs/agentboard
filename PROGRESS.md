@@ -13,8 +13,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 5 | feat(config): fail-closed config loader with timing invariants | done |
 | 6 | feat(auth): Access JWT verification with local RS256 dev keys and loopback-only dev login | done |
 | 7 | feat(auth): permissions, CSRF guard, /api/me and /api/health | done |
+| 8 | docs: README skeleton, CONTEXT.md and milestone 1 demo script | done (local tag v0.1.0) |
 
-Next: commit 8 (`docs: README skeleton, CONTEXT.md and milestone 1 demo script`).
+Next: commit 9 (`feat(coordinator): RunCoordinator state machine with derived run status and recovery cascades`).
 
 ## Check status (last run)
 
@@ -38,3 +39,4 @@ Next: commit 8 (`docs: README skeleton, CONTEXT.md and milestone 1 demo script`)
 10. **`access-jwt.test.ts` #7 lands with commit 23.** "A valid token for an unbound email gets 403 everywhere except `/api/me`" needs the permission-gated run, approval, search, agent and DLQ routes, which arrive in commit 23. Until then the file has the other 7 tests. `/api/me` is implemented in commit 6 (not 7) because the Access and dev-login tests assert through it.
 11. **Small helper files not in the layout:** `src/worker/api/types.ts` (Hono env and `Identity` types) and `scripts/lib/dev-vars.ts` (reads `.dev.vars` for `dev:token`).
 12. **Empty dev secrets count as absent.** The vitest plugin loads a developer's local `.dev.vars`; the `worker-access` project sets `ACCESS_DEV_JWKS` and `DEV_ACCESS_PRIVATE_JWK` to empty strings so its tests are hermetic, and `parseConfig` treats an empty secret as absent.
+13. **Commits are on local `main`; tags are local.** No branches, PRs or pushes are made by the builders (pushing happens after verification). The PR boundaries of section 19 map to commit ranges: PR 1 = commits 1 to 4, PR 2 = 5 to 8, PR 3 = 9 to 12, PR 4 = 13 to 16, PR 5 = 17 to 22, PR 6 = 23 to 25, PR 7 = 26 to 30, PR 8 = 31 to 36. Milestone tags (`v0.1.0` ...) are created locally on the last commit of each milestone; GitHub releases need a push.
