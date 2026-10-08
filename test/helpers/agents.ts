@@ -1,6 +1,7 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { getAgentByName } from "agents";
+import type { ExecutorAgent, ToolCaller } from "../../src/worker/agents/executor-agent.ts";
 import type { PlannerAgent } from "../../src/worker/agents/planner-agent.ts";
 import type { HandleOutcome, RoleAgentRpc } from "../../src/worker/agents/role-agent.ts";
 import type { LlmProvider } from "../../src/worker/llm/provider.ts";
@@ -52,5 +53,26 @@ export async function planningLog(name = "planner-0"): Promise<{ task_id: string
   return runInDurableObject(agent as unknown as DurableObjectStub<PlannerAgent>, (instance: PlannerAgent) =>
     instance.sql<{ task_id: string; valid_first_pass: number; repaired: number; error: string | null; provider: string }>`
       SELECT task_id, valid_first_pass, repaired, error, provider FROM ab_planning_log ORDER BY rowid`,
+  );
+}
+
+
+export async function executorAgent(name = "executor-0"): Promise<RoleAgentRpc> {
+  return (await getAgentByName(env.ExecutorAgent, name)) as unknown as RoleAgentRpc;
+}
+
+/** Runs one execute dispatch on an executor instance, optionally with a replacement MCP call. */
+export async function runExecutor(message: TaskMessage, name = "executor-0", override: ToolCaller | null = null): Promise<HandleOutcome> {
+  const agent = await executorAgent(name);
+  await runInDurableObject(agent as unknown as DurableObjectStub<ExecutorAgent>, (instance: ExecutorAgent) => {
+    instance.callOverride = override;
+  });
+  return agent.handleTask(message);
+}
+
+export async function journal(name = "executor-0"): Promise<{ idempotency_key: string; state: string; task_id: string }[]> {
+  const agent = await executorAgent(name);
+  return runInDurableObject(agent as unknown as DurableObjectStub<ExecutorAgent>, (instance: ExecutorAgent) =>
+    instance.sql<{ idempotency_key: string; state: string; task_id: string }>`SELECT idempotency_key, state, task_id FROM ab_call_journal`,
   );
 }

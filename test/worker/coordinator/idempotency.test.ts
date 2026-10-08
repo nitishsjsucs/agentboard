@@ -1,17 +1,111 @@
 import { env } from "cloudflare:workers";
+import type { SimDirectives } from "../../../src/shared/domain.ts";
 import { describe, expect, it } from "vitest";
 import { argsHash, idempotencyKey } from "../../../src/worker/agents/coordinator/credentials.ts";
 import { applyEffects, claimKey, type LedgerCall } from "../../../src/worker/mcp/ledger.ts";
 import { createTicket } from "../../../src/worker/mcp/tools/itsm.ts";
 import { isWritePlan } from "../../../src/worker/mcp/tools/types.ts";
+import { createExecutionContext, createMessageBatch, getQueueResult } from "cloudflare:test";
+import { handleQueueBatch } from "../../../src/worker/queue/consumer.ts";
+import { datasetRun, inputFromDataset, runExecutor, runPlanner } from "../../helpers/agents.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
+import { batchMessage, testConfig } from "../../helpers/queue.ts";
 import { binding, call, executorToken, writeMeta } from "../../helpers/mcp.ts";
-import { claimMessage, completePlan, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { claimMessage, completePlan, events, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+
+async function plannedDatasetRun(sim: SimDirectives | null = null) {
+  const run = datasetRun("syn-0006");
+  const started = await startManualRun(inputFromDataset(run, { sim }));
+  const [plan] = await takeDispatches(started.stub);
+  if (!plan) throw new Error("no plan dispatch");
+  await runPlanner(plan.message);
+  const [s1] = await takeDispatches(started.stub);
+  if (!s1) throw new Error("no s1");
+  await runExecutor(s1.message);
+  return started;
+}
+
+async function callsFor(runId: string, taskId: string): Promise<{ outcome: string; agent: string }[]> {
+  const rows = await env.DB.prepare("SELECT outcome, agent FROM tool_calls WHERE run_id = ? AND task_id = ? ORDER BY started_at").bind(runId, taskId).all<{ outcome: string; agent: string }>();
+  return rows.results;
+}
 
 async function effectsFor(correlationId: string): Promise<number> {
   const row = await env.PEOPLE_DB.prepare("SELECT COUNT(*) AS n FROM side_effects WHERE correlation_id = ?").bind(correlationId).first<{ n: number }>();
   return row?.n ?? 0;
 }
+
+describe("duplicate-action prevention: delivery, crash and reports", { tags: ["orchestration"] }, () => {
+  it("duplicate delivery of one dispatch produces exactly one side_effects row and one tool call", async () => {
+    const { stub, runId } = await plannedDatasetRun({ duplicateDeliveryStep: "s2" });
+    const dispatches = await takeDispatches(stub);
+    expect(dispatches).toHaveLength(2);
+    expect(dispatches[0]?.message).toEqual(dispatches[1]?.message);
+    const messages = dispatches.map((d) => batchMessage(d.message));
+    const batch = createMessageBatch("agentboard-tasks", messages);
+    const ctx = createExecutionContext();
+    await handleQueueBatch(batch, env, testConfig());
+    const result = await getQueueResult(batch, ctx);
+    expect([...result.explicitAcks].sort()).toEqual(messages.map((m) => m.id).sort());
+    const taskId = dispatches[0]?.message.taskId ?? "";
+    expect(await callsFor(runId, taskId)).toHaveLength(1);
+    expect(await effectsFor(`${runId}:s2`)).toBe(1);
+    const all = await events(stub);
+    expect(all.filter((e) => e.action === "task.leased" && e.task_id === taskId)).toHaveLength(1);
+    expect(all.filter((e) => e.action === "task.claim_refused" && e.task_id === taskId).map((e) => e.detail["reason"])).toEqual([expect.stringMatching(/^(in_flight|duplicate)$/)]);
+    expect((await readState(stub)).tasks.get(taskId)?.status).toBe("succeeded");
+  });
+
+  it("crash after a successful MCP call: the sweep redispatches, the integration replays the stored result and side_effects keeps one row", async () => {
+    const { stub, runId } = await plannedDatasetRun({ faults: [{ stepId: "s2", generation: 0, attempt: 1, kind: "crash_after_call" }] });
+    const [s2] = await takeDispatches(stub);
+    if (!s2) throw new Error("no s2");
+    await runExecutor(s2.message, "executor-0");
+    // The call happened and was traced, but nothing was reported: the task is still leased.
+    expect((await readState(stub)).tasks.get(s2.message.taskId)?.status).toBe("leased");
+    expect(await callsFor(runId, s2.message.taskId)).toEqual([{ outcome: "ok", agent: "executor-0" }]);
+    expect(await effectsFor(`${runId}:s2`)).toBe(1);
+    await setCoordinatorClock(stub, 3500);
+    await stub.getSnapshot();
+    const [redispatch] = await takeDispatches(stub);
+    expect(redispatch?.message).toMatchObject({ taskId: s2.message.taskId, attempt: 2 });
+    if (!redispatch) throw new Error("no redispatch");
+    // Another shard (no journal entry) takes attempt 2: the ledger replays the stored result.
+    await runExecutor(redispatch.message, "executor-1");
+    const calls = await callsFor(runId, s2.message.taskId);
+    expect(calls).toEqual([
+      { outcome: "ok", agent: "executor-0" },
+      { outcome: "replayed", agent: "executor-1" },
+    ]);
+    expect(await effectsFor(`${runId}:s2`)).toBe(1);
+    const state = await readState(stub);
+    expect(state.tasks.get(s2.message.taskId)?.status).toBe("succeeded");
+    expect(state.run.usage.replays).toBe(1);
+  });
+
+  it("duplicate completion reports for the same lease are ignored", async () => {
+    const { stub } = await startManualRun();
+    await completePlan(stub, planFor("address_change"));
+    const [s1] = await takeDispatches(stub);
+    if (!s1) throw new Error("no s1");
+    const lease = await claimMessage(stub, s1.message);
+    const success = { outcome: "succeeded" as const, output: { first: true }, usage: { llmTokens: 5 } };
+    expect(await report(stub, lease, success)).toEqual({ accepted: true });
+    const after = await readState(stub);
+    const results = await Promise.all([
+      report(stub, lease, success),
+      report(stub, lease, { outcome: "failed", retryable: false, code: "late_duplicate", usage: { llmTokens: 5 } }),
+    ]);
+    expect(results).toEqual([
+      { accepted: false, reason: "duplicate_report" },
+      { accepted: false, reason: "duplicate_report" },
+    ]);
+    const final = await readState(stub);
+    expect(final.tasks.get(s1.message.taskId)).toEqual(after.tasks.get(s1.message.taskId));
+    expect(final.run.usage.llmTokens).toBe(after.run.usage.llmTokens);
+    expect((await events(stub)).filter((e) => e.action === "task.succeeded" && e.task_id === s1.message.taskId)).toHaveLength(1);
+  });
+});
 
 describe("duplicate-action prevention: integration ledger", { tags: ["orchestration"] }, () => {
   it("concurrent calls with the same key: one applies, the other gets in_progress (or the replay); never two effects", async () => {
