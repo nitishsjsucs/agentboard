@@ -38,8 +38,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 30 | docs: milestone 3 demo script | done (local tag v0.3.0) |
 | 31 | feat(sim): shared simulation driver and 100-run workerd simulation test | done |
 | 32 | feat(eval): eval-sim against wrangler dev on the built worker, and eval-planner against llama-server | done |
+| 33 | feat(eval): tagged test counter and README results renderer with staleness check | done (CI step moved to 34) |
 
-Next: commit 33 (`feat(eval): tagged test counter and README results renderer with staleness check`).
+Next: commit 34 (`chore(results): measured simulation, planner and test results`): run eval:sim, eval:planner and count:tests on a clean tree at commit 33, commit the JSON.
 
 ## Check status (last run)
 
@@ -93,3 +94,4 @@ Next: commit 33 (`feat(eval): tagged test counter and README results renderer wi
 38. **UI checked by hand** on 2026-10-08 against `wrangler dev` on the built worker (port 8784): dev login, launching a dataset sample, the live run detail reaching `succeeded`, tool-call traces, the verified audit chain, the dashboard and search highlights all rendered and worked.
 39. **Eval provenance helper.** `scripts/lib/meta.ts` (not in the layout) writes `{ gitSha, dirty, generatedAt, node, wrangler, seed, provider, model }` into every result. "Dirty" means a tracked or untracked change under the measured paths (`src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc`, `package-lock.json`), the same set `results:check` diffs. `eval:sim` writes its own `.dev.vars.eval` with a fresh dev keypair (no dependency on `npm run dev:keys`), runs wrangler dev on port 8784 with inspector port 9234, and kills the process group when done. `npm run llm:serve` takes `AGENTBOARD_LLM_PORT` (default 8080); on this machine the eval used port 8140.
 40. **`eval:planner` scoring choices.** Exact match, F1 and argument accuracy score the last plan the model produced (the repair when there was one). The plan output schema has no approval field, so `policy_overrides` counts every policy-gated step in the final valid plans (the model never sets approval).
+41. **`count:tests -- --check` joins CI in commit 34, with `results:check`.** The check compares the suite with `eval/results/tests.json` and the README's reported counts, and neither exists until the measured results are committed, so adding it at commit 33 would break CI there. `scripts/bootstrap-admin.ts` (SQL for a production admin binding) also lands here.
