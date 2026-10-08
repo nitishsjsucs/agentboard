@@ -24,13 +24,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 16 | feat(llm): provider interface with Workers AI, OpenAI-compatible and stub providers | done |
 | 17 | feat(agents): PlannerAgent with allowlists, subject pinning, one repair and gating edges | done |
 | 18 | feat(agents): ExecutorAgent with call journal and in-process MCP client | done (dispatch.test.ts #1 moved to commit 19) |
+| 19 | feat(agents): VerifierAgent with registry postconditions | done (includes dispatch.test.ts #1) |
 
-Next: commit 19 (`feat(agents): VerifierAgent with registry postconditions`).
+Next: commit 20 (`feat(approvals): coordinator-owned approvals with separation of duties and expiry`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 20 files, 87 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 21 files, 91 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -66,3 +67,4 @@ Next: commit 19 (`feat(agents): VerifierAgent with registry postconditions`).
 27. **Planner tests inject providers.** `PlannerAgent.providerOverride` (set through `runInDurableObject`) lets `planner.test.ts` and `plan-guard.test.ts` script model outputs; production code never sets it.
 28. **`dispatch.test.ts` #1 lands with commit 19.** "Through the real queue, a launched address_change run reaches succeeded" needs the verifier, which commit 19 implements; at commit 18 every verify task would fail.
 29. **Executor test hooks.** `ExecutorAgent.callOverride` (set through `runInDurableObject`) replaces the MCP call so `executor.test.ts` #3 can simulate a call that never returns; production code never sets it. Tests choose the executor instance explicitly (for example attempt 2 on `executor-1`) so the crash-after-call test exercises the integration ledger's replay rather than one shard's journal.
+30. **Tests within one file share D1 state** (the plugin isolates storage per test file), so tests that change People data use dataset runs with distinct subjects (`distinctRuns` in `test/helpers/agents.ts`) and count side effects per run or as deltas.

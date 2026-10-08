@@ -7,7 +7,7 @@ import type { HandleOutcome, RoleAgentRpc } from "../../src/worker/agents/role-a
 import type { LlmProvider } from "../../src/worker/llm/provider.ts";
 import type { TaskMessage } from "../../src/worker/queue/messages.ts";
 import { generateDataset, type SyntheticRun } from "../../src/shared/synth/generator.ts";
-import { runInput } from "./runs.ts";
+import { runInput, takeDispatches, type CoordinatorStub } from "./runs.ts";
 import type { InitRunInput } from "../../src/worker/agents/coordinator/schema.ts";
 
 const dataset = generateDataset();
@@ -75,4 +75,47 @@ export async function journal(name = "executor-0"): Promise<{ idempotency_key: s
   return runInDurableObject(agent as unknown as DurableObjectStub<ExecutorAgent>, (instance: ExecutorAgent) =>
     instance.sql<{ idempotency_key: string; state: string; task_id: string }>`SELECT idempotency_key, state, task_id FROM ab_call_journal`,
   );
+}
+
+export async function verifierAgent(name = "verifier-0"): Promise<RoleAgentRpc> {
+  return (await getAgentByName(env.VerifierAgent, name)) as unknown as RoleAgentRpc;
+}
+
+export async function agentFor(message: TaskMessage, shard = 0): Promise<RoleAgentRpc> {
+  if (message.role === "planner") return plannerAgent(`planner-${shard}`);
+  if (message.role === "executor") return executorAgent(`executor-${shard}`);
+  return verifierAgent(`verifier-${shard}`);
+}
+
+/**
+ * Delivers every dispatch of a manual run to the real role agents (shard 0)
+ * until none remain or `stop` returns true for a message (which is returned, undelivered).
+ */
+export async function driveAgents(stub: CoordinatorStub, stop?: (message: TaskMessage) => boolean): Promise<TaskMessage[]> {
+  const held: TaskMessage[] = [];
+  for (let round = 0; round < 60; round++) {
+    const dispatches = await takeDispatches(stub);
+    if (dispatches.length === 0) return held;
+    for (const { message } of dispatches) {
+      if (stop?.(message)) {
+        held.push(message);
+        continue;
+      }
+      await (await agentFor(message)).handleTask(message);
+    }
+  }
+  throw new Error("driveAgents did not settle");
+}
+
+/** Dataset runs of one type with pairwise distinct subjects (tests in one file share PEOPLE_DB). */
+export function distinctRuns(type: SyntheticRun["requestType"], count: number): SyntheticRun[] {
+  const seen = new Set<string>();
+  const out: SyntheticRun[] = [];
+  for (const run of dataset.runs) {
+    if (run.requestType !== type || seen.has(run.subjectEmployeeId)) continue;
+    seen.add(run.subjectEmployeeId);
+    out.push(run);
+    if (out.length === count) return out;
+  }
+  throw new Error(`only ${out.length} distinct ${type} runs`);
 }

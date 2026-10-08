@@ -18,4 +18,7 @@ export default {
     }
     return worker.fetch(request, env, ctx);
   },
+  async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+    return worker.queue(batch, env);
+  },
 } satisfies ExportedHandler<Env>;
