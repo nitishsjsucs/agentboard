@@ -2,6 +2,10 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
 import agents from "agents/vite";
 import { defineConfig } from "vite";
+import { assertLoopbackArgs } from "./scripts/lib/loopback.ts";
+
+// Dev login trusts loopback hostnames, so the dev server may never listen elsewhere.
+assertLoopbackArgs(process.argv, ["--host"]);
 
 export default defineConfig({
   plugins: [
@@ -13,7 +17,6 @@ export default defineConfig({
       remoteBindings: false,
     }),
   ],
-  // Loopback only: dev login trusts loopback hostnames (SPEC section 10.3).
   server: { host: "127.0.0.1", strictPort: true },
   preview: { host: "127.0.0.1", strictPort: true },
 });

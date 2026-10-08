@@ -45,6 +45,7 @@ function workerBindings() {
     INTEGRATION_SIGNING_KEY: testIntegrationKey,
     ACCESS_DEV_JWKS: JSON.stringify({ keys: [testPublicJwk] }),
     TEST_ACCESS_PRIVATE_JWK: JSON.stringify(testPrivateJwk),
+    DEV_ACCESS_PRIVATE_JWK: JSON.stringify(testPrivateJwk),
     TEST_CONSOLE_MIGRATIONS: consoleMigrations,
     TEST_PEOPLE_MIGRATIONS: peopleMigrations,
     TEST_CONSOLE_SEED: consoleSeed,
@@ -52,13 +53,24 @@ function workerBindings() {
   };
 }
 
-function workerPool() {
+/** The worker-access project: Access mode against an intercepted remote JWKS, no dev keys. */
+function accessBindings() {
+  const { ACCESS_DEV_JWKS: _jwks, DEV_ACCESS_PRIVATE_JWK: _private, TEST_ACCESS_PRIVATE_JWK: _test, ...rest } = workerBindings();
+  return {
+    ...rest,
+    AUTH_MODE: "access",
+    ACCESS_TEAM_DOMAIN: "https://agentboard-test.cloudflareaccess.com",
+    ACCESS_AUD: "agentboard-test-aud",
+  };
+}
+
+function workerPool(bindings: Record<string, unknown> = workerBindings()) {
   return cloudflareTest({
     main: "./test/helpers/test-worker.ts",
     wrangler: { configPath: "./wrangler.jsonc" },
     remoteBindings: false,
     miniflare: {
-      bindings: workerBindings(),
+      bindings: bindings as ReturnType<typeof workerBindings>,
       durableObjects: {
         ToolchainProbe: { className: "ToolchainProbe", useSQLite: true },
       },
@@ -92,6 +104,24 @@ export default defineConfig({
           fileParallelism: false,
           maxWorkers: 1,
           sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        extends: true,
+        plugins: [workerPool(accessBindings())],
+        test: {
+          name: "worker-access",
+          setupFiles: ["./test/helpers/setup.ts"],
+          include: ["test/worker/auth/access-jwt.test.ts"],
+          sequence: { groupOrder: 2 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          include: ["scripts/**/*.test.ts"],
         },
       },
     ],

@@ -13,14 +13,16 @@
     "types": "wrangler types --strict-vars=false --env-file .dev.vars.example",
     "types:check": "wrangler types --strict-vars=false --env-file .dev.vars.example --check",
     "typecheck": "tsc -b",
-    "test": "vitest run --project worker --project worker-ws",
+    "test": "vitest run --project worker --project worker-ws --project worker-access --project node",
     "build": "vite build",
     "build:prod": "CLOUDFLARE_ENV=production vite build",
     "preview": "vite preview",
     "synth": "node scripts/generate-synthetic.ts",
     "synth:check": "node scripts/generate-synthetic.ts --check",
     "db:migrate:local": "wrangler d1 migrations apply agentboard --local && wrangler d1 migrations apply agentboard-people --local",
-    "db:seed:local": "wrangler d1 execute agentboard --local --file seed/console.sql && wrangler d1 execute agentboard-people --local --file seed/people.sql"
+    "db:seed:local": "wrangler d1 execute agentboard --local --file seed/console.sql && wrangler d1 execute agentboard-people --local --file seed/people.sql",
+    "dev:keys": "node scripts/dev-keys.ts",
+    "dev:token": "node scripts/dev-token.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.1",

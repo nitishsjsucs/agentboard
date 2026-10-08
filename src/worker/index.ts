@@ -1,12 +1,23 @@
+import type { Hono } from "hono";
 import { buildApp } from "./api/app.ts";
-import { loadConfig, misconfiguredResponse } from "./config.ts";
+import type { AppEnv } from "./api/types.ts";
+import { loadConfig, misconfiguredResponse, type Config } from "./config.ts";
 
 export { RunCoordinator } from "./agents/run-coordinator.ts";
 export { PlannerAgent } from "./agents/planner-agent.ts";
 export { ExecutorAgent } from "./agents/executor-agent.ts";
 export { VerifierAgent } from "./agents/verifier-agent.ts";
 
-const app = buildApp();
+const apps = new WeakMap<Config, Hono<AppEnv>>();
+
+function appFor(config: Config): Hono<AppEnv> {
+  let app = apps.get(config);
+  if (!app) {
+    app = buildApp(config);
+    apps.set(config, app);
+  }
+  return app;
+}
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -16,7 +27,7 @@ export default {
       return misconfiguredResponse();
     }
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/")) return app.fetch(request, env, ctx);
+    if (url.pathname.startsWith("/api/")) return appFor(loaded.config).fetch(request, env, ctx);
     return new Response("not found", { status: 404 });
   },
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {

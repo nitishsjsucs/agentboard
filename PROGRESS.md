@@ -11,13 +11,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 3 | feat(db): console and people D1 migrations | done |
 | 4 | feat(synth): seeded generator for 100 runs, 60 employees and 9 principals with checksum | done |
 | 5 | feat(config): fail-closed config loader with timing invariants | done |
+| 6 | feat(auth): Access JWT verification with local RS256 dev keys and loopback-only dev login | done |
 
-Next: commit 6 (`feat(auth): Access JWT verification with local RS256 dev keys and loopback-only dev login`).
+Next: commit 7 (`feat(auth): permissions, CSRF guard, /api/me and /api/health`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (4 files, 10 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 6 files, 21 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -33,3 +34,5 @@ Next: commit 6 (`feat(auth): Access JWT verification with local RS256 dev keys a
 7. **Synthetic dataset design choices the spec leaves open** (all within section 12.1): onboarding and offboarding subjects come from exclusive pools (an offboarded subject never reappears; onboarding subjects are `pending_start`), the 15 access-revocation subjects are distinct and revoke a seeded baseline role, `budget_exhausted` and `silent_noop` go only to approval-free runs, and the gold plans are linear chains whose first write is always `s2` (so `checkpointStep = "s2"` parks every pause/cancel run before any write).
 8. **`wrangler types` reads `.dev.vars.example`.** `npm run types` and `types:check` pass `--env-file .dev.vars.example`, so the generated `Env` declares the three secrets (`INTEGRATION_SIGNING_KEY`, `ACCESS_DEV_JWKS`, `DEV_ACCESS_PRIVATE_JWK`) and never depends on a developer's local `.dev.vars` (which would make CI's check fail).
 9. **Config bounds.** Section 5.2 says numeric vars are positive integers, but the test project itself sets `RETRY_BASE_DELAY_S=0` and `AGENT_CONTROLS_CACHE_MS=0`, so those two accept 0. `INTEGRATION_SIGNING_KEY` (at least 32 bytes) is required in every environment, not only production, because tokens are minted everywhere. `MCP_EXTERNAL=on` is refused outside `development` (section 3.1).
+10. **`access-jwt.test.ts` #7 lands with commit 23.** "A valid token for an unbound email gets 403 everywhere except `/api/me`" needs the permission-gated run, approval, search, agent and DLQ routes, which arrive in commit 23. Until then the file has the other 7 tests. `/api/me` is implemented in commit 6 (not 7) because the Access and dev-login tests assert through it.
+11. **Small helper files not in the layout:** `src/worker/api/types.ts` (Hono env and `Identity` types) and `scripts/lib/dev-vars.ts` (reads `.dev.vars` for `dev:token`).
