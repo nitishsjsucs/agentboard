@@ -7,6 +7,7 @@ interface TestOnlyBindings {
   TEST_PEOPLE_MIGRATIONS: import("cloudflare:test").D1Migration[];
   TEST_CONSOLE_SEED: import("cloudflare:test").D1Migration[];
   TEST_PEOPLE_SEED: import("cloudflare:test").D1Migration[];
+  TEST_ACCESS_PRIVATE_JWK: string;
 }
 interface Env extends TestOnlyBindings {}
 declare namespace Cloudflare {

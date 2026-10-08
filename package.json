@@ -10,8 +10,8 @@
   },
   "scripts": {
     "dev": "vite dev",
-    "types": "wrangler types --strict-vars=false",
-    "types:check": "wrangler types --strict-vars=false --check",
+    "types": "wrangler types --strict-vars=false --env-file .dev.vars.example",
+    "types:check": "wrangler types --strict-vars=false --env-file .dev.vars.example --check",
     "typecheck": "tsc -b",
     "test": "vitest run --project worker --project worker-ws",
     "build": "vite build",
