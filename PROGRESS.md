@@ -27,8 +27,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 19 | feat(agents): VerifierAgent with registry postconditions | done (includes dispatch.test.ts #1) |
 | 20 | feat(approvals): coordinator-owned approvals with separation of duties and expiry | done |
 | 21 | feat(controls): role hold and release, DLQ replay | done |
+| 22 | docs: ADR 0001 and 0002 and milestone 2 demo script | done (local tag v0.2.0) |
 
-Next: commit 22 (`docs: ADR 0001 and 0002 and milestone 2 demo script`).
+Next: commit 23 (`feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction`).
 
 ## Check status (last run)
 
