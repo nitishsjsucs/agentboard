@@ -96,6 +96,7 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
       "|---|---|",
       `| Valid plans, first pass | ${pct(Number(m["valid_first_pass"]), n)} |`,
       `| Valid plans after one repair | ${pct(Number(m["valid_after_repair"]), n)} |`,
+      `| Invalid after the repair; requests that failed at the transport (timeout or connection) | ${m["plan_invalid"]}; ${m["request_errors"]} |`,
       `| Plans rejected for policy violations | ${m["policy_violations"]} |`,
       `| Tool sequence exactly equal to gold | ${pct(Number(m["tool_sequence_exact"]), n)} |`,
       `| Tool-set F1 (macro) | ${Number(m["tool_set_f1_macro"]).toFixed(3)} |`,

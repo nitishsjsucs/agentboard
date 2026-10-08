@@ -5,7 +5,7 @@
 //   LLM_BASE_URL=http://127.0.0.1:8080 npm run eval:planner
 //   npm run eval:planner -- --provider stub   (sanity file; must score 100%)
 
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
@@ -41,14 +41,12 @@ if (values.provider === "stub") provider = new StubProvider(await goldFixtures(c
 else provider = new OpenAiCompatibleProvider({ baseUrl, model: modelLabel, disableThinking: true });
 const label = values.label ?? (values.provider === "stub" ? "stub" : modelLabel);
 
+/** The "version: ..." line of `llama-server --version` (it prints to stderr). */
 function llamaBuild(): string {
   if (values.provider === "stub") return "n/a";
-  try {
-    return execFileSync("llama-server", ["--version"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).join(" ");
-  } catch (error) {
-    const output = (error as { stderr?: string; stdout?: string }).stderr ?? "";
-    return output.trim().split("\n").filter(Boolean).join(" ") || "unknown";
-  }
+  const result = spawnSync("llama-server", ["--version"], { encoding: "utf8" });
+  const lines = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.split("\n").map((l) => l.trim());
+  return lines.find((l) => l.startsWith("version:"))?.replace(/^version:\s*/, "") ?? "unknown";
 }
 
 interface PerRequest {
@@ -164,7 +162,10 @@ const metrics = {
   prompt_tokens_p50: percentile(allPrompts, 50),
   prompt_tokens_max: allPrompts.length ? Math.max(...allPrompts) : null,
   tokens_out_total: sum((r) => r.tokensOut),
-  errors: perRequest.filter((r) => r.error && !r.validAfterRepair).length,
+  /** Requests the model answered, whose plan failed validation even after the repair. */
+  plan_invalid: perRequest.filter((r) => r.error === "plan_invalid").length,
+  /** Requests that never got a usable answer (timeout or connection failure), counted as invalid above. */
+  request_errors: perRequest.filter((r) => r.error && r.error !== "plan_invalid" && r.error !== "llm_budget_exhausted").length,
 };
 const output = {
   meta: {
