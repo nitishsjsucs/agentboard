@@ -14,13 +14,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 6 | feat(auth): Access JWT verification with local RS256 dev keys and loopback-only dev login | done |
 | 7 | feat(auth): permissions, CSRF guard, /api/me and /api/health | done |
 | 8 | docs: README skeleton, CONTEXT.md and milestone 1 demo script | done (local tag v0.1.0) |
+| 9 | feat(coordinator): RunCoordinator state machine with derived run status and recovery cascades | done |
 
-Next: commit 9 (`feat(coordinator): RunCoordinator state machine with derived run status and recovery cascades`).
+Next: commit 10 (`feat(coordinator): leases with fencing epochs, idempotent sweep, scheduled wake and call-bound credentials`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 7 files, 23 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 8 files, 32 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -40,3 +41,7 @@ Next: commit 9 (`feat(coordinator): RunCoordinator state machine with derived ru
 11. **Small helper files not in the layout:** `src/worker/api/types.ts` (Hono env and `Identity` types) and `scripts/lib/dev-vars.ts` (reads `.dev.vars` for `dev:token`).
 12. **Empty dev secrets count as absent.** The vitest plugin loads a developer's local `.dev.vars`; the `worker-access` project sets `ACCESS_DEV_JWKS` and `DEV_ACCESS_PRIVATE_JWK` to empty strings so its tests are hermetic, and `parseConfig` treats an empty secret as absent.
 13. **Commits are on local `main`; tags are local.** No branches, PRs or pushes are made by the builders (pushing happens after verification). The PR boundaries of section 19 map to commit ranges: PR 1 = commits 1 to 4, PR 2 = 5 to 8, PR 3 = 9 to 12, PR 4 = 13 to 16, PR 5 = 17 to 22, PR 6 = 23 to 25, PR 7 = 26 to 30, PR 8 = 31 to 36. Milestone tags (`v0.1.0` ...) are created locally on the last commit of each milestone; GitHub releases need a push.
+14. **Coordinator internals.** Each RPC loads the whole run into an in-memory `RunTx` (`agents/coordinator/transitions.ts`, pure), applies the operation and re-derives status there, then persists dirty rows, hash-chained events and outbox rows inside the same `transactionSync`. DO SQLite columns added beyond section 6.3: `ab_run.cancelled` and `ab_run.finished_at` (cancel is a flag that `deriveRunStatus` reads, so status is still never set by a command), `ab_tasks.checkpoint_done` (a checkpoint parks a step only the first time it becomes ready) and `ab_tasks.created_at` (for the D1 mirror). A run is `rejected` when any approval was rejected by an approver.
+15. **Dispatch rule.** A task that becomes ready is dispatched once when the run allows dispatch (queued, planning, running, awaiting approval). When a transaction moves the run out of `paused` or `needs_attention`, every ready task is redispatched once with a new `dispatchId`, which is how `resume` and the recovery commands satisfy "dispatches each ready task exactly once".
+16. **Typed RPC interface.** Workers' generated `Rpc` types turn members that carry `unknown` (tool arguments and results) into `never`, so callers type coordinator stubs with the explicit `RunCoordinatorRpc` interface in `agents/coordinator/schema.ts`, which the class `implements`.
+17. **Test-only manual dispatch.** Coordinator unit tests act as the role agents. `test/helpers/runs.ts` sets `test:manualDispatch` in the coordinator's KV storage before `initRun`; from commit 12 the outbox flush leaves queue rows local for such runs, and only when `ENVIRONMENT=test`. Tests read them with `takeDispatches`.
