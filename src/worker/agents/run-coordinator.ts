@@ -13,7 +13,9 @@ import { redactForViewer } from "../audit/redaction.ts";
 import { loadConfig, type Config } from "../config.ts";
 import type { TaskMessage } from "../queue/messages.ts";
 import { Clock } from "../util/clock.ts";
-import { idempotencyKey } from "./coordinator/credentials.ts";
+import { idempotencyKey, mintCredential } from "./coordinator/credentials.ts";
+import { claim } from "./coordinator/leases.ts";
+import { nextDeadline, reapExpired } from "./coordinator/sweep.ts";
 import {
   approvalFromRow,
   DDL,
@@ -38,7 +40,6 @@ import { buildSnapshot, emptySnapshot } from "./coordinator/snapshot.ts";
 import {
   appendTrace,
   applyDerivedStatus,
-  claim,
   complete,
   control,
   dispatchReady,
@@ -73,8 +74,23 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
   private schemaReady = false;
   private broadcastVersion = -1;
 
-  override onStart(): void {
+  /** Runs on every wake of the object, including after eviction: sweep, flush, re-arm. */
+  override async onStart(): Promise<void> {
     this.ensureSchema();
+    if (!this.loadState()) return;
+    const now = this.clock.now();
+    const { state } = this.transact(now, () => null);
+    await this.finish(state, now);
+  }
+
+  /** The scheduled wake: a sweep transaction, then flush and re-arm (SPEC section 7.3). */
+  async onWake(_payload: { at: number }): Promise<void> {
+    this.ensureSchema();
+    if (!this.loadState()) return;
+    this.sql`UPDATE ab_run SET wake_at = NULL`;
+    const now = this.clock.now();
+    const { state } = this.transact(now, () => null);
+    await this.finish(state, now);
   }
 
   // Browser connections are read-only; every mutation goes through the audited HTTP API.
@@ -104,20 +120,26 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
       return this.getSnapshot();
     }
     const now = this.clock.now();
-    this.transact(now, (tx) => initRun(tx, { kind: input.requester.startsWith("svc:") ? "service" : "user", id: input.requester }), newRunState(input, now));
+    const outcome = this.transact(now, (tx) => initRun(tx, { kind: input.requester.startsWith("svc:") ? "service" : "user", id: input.requester }), newRunState(input, now));
+    await this.finish(outcome.state, now);
     return this.snapshot();
   }
 
   async claimTask(req: ClaimRequest): Promise<ClaimResult> {
     this.ensureSchema();
     const now = this.clock.now();
-    const { result, state } = this.transact(now, (tx) => claim(tx, req, null, null));
+    const { result, state } = this.transact(now, (tx) => claim(tx, req, null));
+    await this.finish(state, now);
     if (!result.ok) return { ok: false, reason: result.reason };
     const task = state.tasks.get(req.taskId) as TaskRecord;
+    // The lease is committed; the credential is signed after the transaction (jose is async).
+    // If signing throws, the RPC throws, the message is retried, the redelivery is refused
+    // in_flight, and the sweep recovers the lease at expiry.
+    const credential = await mintCredential(state, task, this.config().integrationSigningKey, now);
     return {
       ok: true,
       lease: { leaseId: task.leaseId ?? "", epoch: task.leaseEpoch, expiresAt: task.leaseExpiresAt ?? now },
-      credential: null,
+      credential,
       context: this.buildContext(state, task),
     };
   }
@@ -127,24 +149,26 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     const seen = this.sql<{ id: string }>`SELECT id FROM ab_traces WHERE id = ${trace.id}`;
     if (seen.length > 0) return { accepted: true, reason: "duplicate_trace" };
     const now = this.clock.now();
-    const { result } = this.transact(now, (tx) => {
+    const { result, state } = this.transact(now, (tx) => {
       const out = appendTrace(tx, trace);
       if (out.accepted) this.sql`INSERT INTO ab_traces (id, received_at) VALUES (${trace.id}, ${now})`;
       return out;
     });
+    await this.finish(state, now);
     return result;
   }
 
   async completeTask(report: CompletionReport): Promise<{ accepted: boolean; reason?: string }> {
     this.ensureSchema();
     const now = this.clock.now();
-    const { result } = this.transact(now, (tx) => {
+    const { result, state } = this.transact(now, (tx) => {
       const seen = this.sql<{ lease_id: string }>`SELECT lease_id FROM ab_reports WHERE lease_id = ${report.leaseId}`;
       if (seen.length > 0) return { accepted: false, reason: "duplicate_report" };
       const out = complete(tx, report);
       if (tx.acceptedReport) this.sql`INSERT INTO ab_reports (lease_id, received_at) VALUES (${tx.acceptedReport}, ${now})`;
       return out;
     });
+    await this.finish(state, now);
     return result;
   }
 
@@ -152,14 +176,17 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     this.ensureSchema();
     if (!this.loadState()) return { accepted: false, reason: "not_found", snapshot: emptySnapshot(this.name) };
     const now = this.clock.now();
-    const { result } = this.transact(now, (tx) => control(tx, cmd, null));
+    const { result, state } = this.transact(now, (tx) => control(tx, cmd, null));
+    await this.finish(state, now);
     return { ...result, snapshot: this.snapshot() };
   }
 
   async getSnapshot(): Promise<RunSnapshot> {
     this.ensureSchema();
     if (!this.loadState()) return emptySnapshot(this.name);
-    this.transact(this.clock.now(), () => null);
+    const now = this.clock.now();
+    const { state } = this.transact(now, () => null);
+    await this.finish(state, now);
     return this.snapshot();
   }
 
@@ -210,18 +237,56 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
       const events = tx.changed || fresh ? this.persist(tx) : [];
       return { result, state, events };
     });
-    this.afterCommit(outcome.state);
+    this.publishSnapshot(outcome.state);
     return outcome;
   }
 
-  /** Hook for the sweep (commit 10). */
-  protected beforeOperation(_tx: RunTx): void {}
+  /** The sweep runs first in every transaction. */
+  protected beforeOperation(tx: RunTx): void {
+    reapExpired(tx);
+  }
 
-  protected afterCommit(state: RunState): void {
+  /** After the commit, and only then: broadcast the snapshot (once per version). */
+  protected publishSnapshot(state: RunState): void {
     if (state.run.version !== this.broadcastVersion) {
       this.broadcastVersion = state.run.version;
       this.setState(this.snapshotOf(state));
     }
+  }
+
+  /** Every RPC ends here: flush the outbox, then arm the next wake. */
+  protected async finish(state: RunState, now: number): Promise<void> {
+    await this.flushOutbox();
+    await this.armWake(state, now);
+  }
+
+  /** Outbox delivery (commit 12). */
+  protected async flushOutbox(): Promise<void> {}
+
+  protected outboxNextAttemptAt(): number | null {
+    return null;
+  }
+
+  /** Hold recheck deadline (commit 21). */
+  protected holdRecheckAt(_state: RunState): number | null {
+    return null;
+  }
+
+  /**
+   * Arms one wake at the ceiling second of the next deadline. The scheduler
+   * floors a Date to whole seconds, so the ceiling avoids an early no-op wake
+   * loop; identical { at } payloads dedupe through `idempotent: true`.
+   */
+  protected async armWake(state: RunState, now: number): Promise<void> {
+    const next = nextDeadline({ state }, { outboxNextAttemptAt: this.outboxNextAttemptAt(), holdRecheckAt: this.holdRecheckAt(state) });
+    if (next === null) return;
+    // Deadlines live on the coordinator clock; the alarm runs on the real one.
+    const realNow = now - this.clock.offsetMs;
+    const at = Math.ceil((next - this.clock.offsetMs) / 1000) * 1000;
+    const armed = this.sql<{ wake_at: number | null }>`SELECT wake_at FROM ab_run LIMIT 1`[0]?.wake_at ?? null;
+    if (armed !== null && armed > realNow && armed <= at) return;
+    await this.schedule(new Date(at), "onWake", { at }, { idempotent: true });
+    this.sql`UPDATE ab_run SET wake_at = ${at}`;
   }
 
   protected ensureSchema(): void {

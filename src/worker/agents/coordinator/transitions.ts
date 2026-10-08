@@ -12,14 +12,14 @@ import { validatePlan } from "../../planning/planner.ts";
 import { approvalFor } from "../../planning/policy.ts";
 import { taskBackoff } from "../../queue/backoff.ts";
 import { newApprovalId, newTaskId } from "../../util/ids.ts";
+import { releaseReservation } from "./leases.ts";
 import {
   KIND_FOR_ROLE,
   ROLE_FOR_KIND,
+  SYSTEM,
   TERMINAL_TASK_STATUSES,
   type Actor,
   type ApprovalRecord,
-  type ClaimRefusal,
-  type ClaimRequest,
   type CompletionReport,
   type ControlCommand,
   type ControlResult,
@@ -57,7 +57,7 @@ export interface PendingDispatch {
   duplicate: boolean;
 }
 
-export const SYSTEM: Actor = { kind: "system", id: "coordinator" };
+export { SYSTEM };
 
 const ACTIVE: ReadonlySet<RunStatus> = new Set(["queued", "planning", "running"]);
 const DISPATCHING: ReadonlySet<RunStatus> = new Set(["queued", "planning", "running", "awaiting_approval"]);
@@ -363,78 +363,6 @@ export function dispatchReady(tx: RunTx): void {
   for (const task of tx.tasks()) {
     if (task.status !== "ready") continue;
     if (task.dispatchId === null || redispatchAll) dispatchTask(tx, task);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Claims and leases (SPEC section 7.3)
-
-export function leaseTtl(tx: RunTx, task: TaskRecord): number {
-  return task.kind === "plan" ? tx.cfg.plannerLeaseTtlMs : tx.cfg.leaseTtlMs;
-}
-
-export type ClaimDecision =
-  | { ok: true; task: TaskRecord }
-  | { ok: false; reason: ClaimRefusal };
-
-/** Optional budget hook (commit 11): returns a refusal reason, or null to grant. */
-export type BudgetGate = (tx: RunTx, task: TaskRecord) => { budget: string } | null;
-
-export function claim(tx: RunTx, req: ClaimRequest, budgetGate: BudgetGate | null, reserveFor: ((task: TaskRecord) => number) | null): ClaimDecision {
-  const run = tx.run;
-  if (run.status === "cancelled" || run.status === "rejected") return { ok: false, reason: "cancelled" };
-  if (run.status === "paused") return { ok: false, reason: "paused" };
-  if (run.status === "needs_attention") return { ok: false, reason: "not_ready" };
-
-  const task = tx.task(req.taskId);
-  if (!task) return { ok: false, reason: "duplicate" };
-  const refuse = (reason: ClaimRefusal): ClaimDecision => {
-    tx.emit("task.claim_refused", { kind: "agent", id: req.owner }, task.id, { reason, dispatchId: req.dispatchId });
-    return { ok: false, reason };
-  };
-  if (TERMINAL_TASK_STATUSES.has(task.status)) return refuse("duplicate");
-  if (task.dispatchId !== req.dispatchId) return refuse("stale_dispatch");
-  if (task.status === "held") return refuse("held");
-  if (task.status === "budget_blocked") return refuse("budget_exhausted");
-  if (task.status === "pending" || task.status === "awaiting_approval" || task.status === "dead_lettered") return refuse("not_ready");
-  if (task.status === "leased") return refuse("in_flight");
-  if (!req.owner.startsWith(`${ROLE_FOR_KIND[task.kind]}-`)) return refuse("not_ready");
-
-  const blocked = budgetGate ? budgetGate(tx, task) : null;
-  if (blocked) {
-    task.status = "budget_blocked";
-    tx.touchTask(task);
-    tx.emit("budget.exhausted", SYSTEM, task.id, { budget: blocked.budget });
-    return { ok: false, reason: "budget_exhausted" };
-  }
-
-  const reserve = reserveFor ? reserveFor(task) : 0;
-  task.status = "leased";
-  task.leaseId = crypto.randomUUID();
-  task.leaseEpoch += 1;
-  task.attempts += 1;
-  task.leaseOwner = req.owner;
-  task.leaseExpiresAt = tx.now + leaseTtl(tx, task);
-  task.reservedCalls = reserve;
-  run.usage.toolCallsReserved += reserve;
-  run.usage.attempts += 1;
-  tx.touchRun();
-  tx.touchTask(task);
-  tx.emit("task.leased", { kind: "agent", id: req.owner }, task.id, {
-    epoch: task.leaseEpoch,
-    attempt: task.attempts,
-    expiresAt: new Date(task.leaseExpiresAt).toISOString(),
-    reservedCalls: reserve,
-  });
-  return { ok: true, task };
-}
-
-export function releaseReservation(tx: RunTx, task: TaskRecord): void {
-  if (task.reservedCalls > 0) {
-    tx.run.usage.toolCallsReserved = Math.max(0, tx.run.usage.toolCallsReserved - task.reservedCalls);
-    task.reservedCalls = 0;
-    tx.touchRun();
-    tx.touchTask(task);
   }
 }
 

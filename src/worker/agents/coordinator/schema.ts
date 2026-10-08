@@ -355,6 +355,8 @@ export function approvalFromRow(row: Row): ApprovalRecord {
   };
 }
 
+export const SYSTEM: Actor = { kind: "system", id: "coordinator" };
+
 export const ROLE_FOR_KIND: Record<TaskKind, AgentRole> = { plan: "planner", execute: "executor", verify: "verifier" };
 export const KIND_FOR_ROLE: Record<AgentRole, TaskKind> = { planner: "plan", executor: "execute", verifier: "verify" };
 

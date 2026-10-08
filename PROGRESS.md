@@ -15,13 +15,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 7 | feat(auth): permissions, CSRF guard, /api/me and /api/health | done |
 | 8 | docs: README skeleton, CONTEXT.md and milestone 1 demo script | done (local tag v0.1.0) |
 | 9 | feat(coordinator): RunCoordinator state machine with derived run status and recovery cascades | done |
+| 10 | feat(coordinator): leases with fencing epochs, idempotent sweep, scheduled wake and call-bound credentials | done |
 
-Next: commit 10 (`feat(coordinator): leases with fencing epochs, idempotent sweep, scheduled wake and call-bound credentials`).
+Next: commit 11 (`feat(coordinator): execution budgets and active-time deadline`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 8 files, 32 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 9 files, 40 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -45,3 +46,5 @@ Next: commit 10 (`feat(coordinator): leases with fencing epochs, idempotent swee
 15. **Dispatch rule.** A task that becomes ready is dispatched once when the run allows dispatch (queued, planning, running, awaiting approval). When a transaction moves the run out of `paused` or `needs_attention`, every ready task is redispatched once with a new `dispatchId`, which is how `resume` and the recovery commands satisfy "dispatches each ready task exactly once".
 16. **Typed RPC interface.** Workers' generated `Rpc` types turn members that carry `unknown` (tool arguments and results) into `never`, so callers type coordinator stubs with the explicit `RunCoordinatorRpc` interface in `agents/coordinator/schema.ts`, which the class `implements`.
 17. **Test-only manual dispatch.** Coordinator unit tests act as the role agents. `test/helpers/runs.ts` sets `test:manualDispatch` in the coordinator's KV storage before `initRun`; from commit 12 the outbox flush leaves queue rows local for such runs, and only when `ENVIRONMENT=test`. Tests read them with `takeDispatches`.
+18. **Tool-call reservations land with leases (commit 10).** A grant reserves calls (execute 1, verify the registry's read count, planner 1) and the sweep releases them, so `leases.test.ts` #4 can assert the release. Commit 11 adds the budget gate that refuses claims.
+19. **Wake on the real clock.** Deadlines are kept on the coordinator clock (which tests can offset); `armWake` converts to the real clock before scheduling, and stores `ab_run.wake_at` in real time.
