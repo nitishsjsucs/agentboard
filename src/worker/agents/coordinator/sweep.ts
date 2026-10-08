@@ -3,6 +3,7 @@
 // and deadline expiry never depend on a timer firing. The wake (an Agent
 // schedule()) only triggers a sweep.
 
+import { activeDeadline, checkActiveDeadline } from "./budgets.ts";
 import { SYSTEM } from "./schema.ts";
 import { releaseReservation } from "./leases.ts";
 import type { RunTx } from "./transitions.ts";
@@ -41,6 +42,8 @@ export function reapExpired(tx: RunTx): void {
     }
     tx.emit("approval.expired", SYSTEM, approval.taskId, { approvalId: approval.id, reason: "ttl" });
   }
+  // 3. Active-time deadline: only queued, planning and running time counts.
+  checkActiveDeadline(tx);
 }
 
 /** Extra deadlines the coordinator tracks outside the run record. */
@@ -58,6 +61,8 @@ export function nextDeadline(tx: Pick<RunTx, "state">, extras: ExtraDeadlines): 
   for (const approval of tx.state.approvals.values()) {
     if (approval.status === "pending") candidates.push(approval.expiresAt);
   }
+  const deadline = activeDeadline(tx);
+  if (deadline !== null) candidates.push(deadline);
   if (extras.outboxNextAttemptAt !== null) candidates.push(extras.outboxNextAttemptAt);
   if (extras.holdRecheckAt !== null) candidates.push(extras.holdRecheckAt);
   return candidates.length === 0 ? null : Math.min(...candidates);

@@ -16,13 +16,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 8 | docs: README skeleton, CONTEXT.md and milestone 1 demo script | done (local tag v0.1.0) |
 | 9 | feat(coordinator): RunCoordinator state machine with derived run status and recovery cascades | done |
 | 10 | feat(coordinator): leases with fencing epochs, idempotent sweep, scheduled wake and call-bound credentials | done |
+| 11 | feat(coordinator): execution budgets and active-time deadline | done |
 
-Next: commit 11 (`feat(coordinator): execution budgets and active-time deadline`).
+Next: commit 12 (`feat(audit): transactional outbox with synchronously hash-chained D1 audit events`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 9 files, 40 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 10 files, 45 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass

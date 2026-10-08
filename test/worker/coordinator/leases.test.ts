@@ -23,6 +23,7 @@ describe("leases, fencing, sweep and wake", { tags: ["orchestration"] }, () => {
     const { stub, runId } = await startManualRun();
     const [plan] = await takeDispatches(stub);
     if (!plan) throw new Error("no plan dispatch");
+    const schedulesBefore = (await wakeInfo(stub)).schedules;
     const before = Date.now();
     const claimResult = granted(await claimMessage(stub, plan.message));
     expect(claimResult.lease.epoch).toBe(1);
@@ -34,7 +35,11 @@ describe("leases, fencing, sweep and wake", { tags: ["orchestration"] }, () => {
     expect(planClaims.exp).toBe(Math.ceil(claimResult.lease.expiresAt / 1000));
     const wake = await wakeInfo(stub);
     expect(wake.wakeAt).toBe(Math.ceil(claimResult.lease.expiresAt / 1000) * 1000);
-    expect(wake.schedules).toEqual([{ callback: "onWake", payload: { at: wake.wakeAt } }]);
+    // Exactly one new wake, at the ceiling second of the lease expiry (an earlier run-level
+    // wake for the active-time deadline may already exist).
+    expect(wake.schedules).toHaveLength(schedulesBefore.length + 1);
+    expect(wake.schedules.filter((s) => (s.payload as { at: number }).at === wake.wakeAt)).toEqual([{ callback: "onWake", payload: { at: wake.wakeAt } }]);
+    expect(schedulesBefore.every((s) => (s.payload as { at: number }).at > (wake.wakeAt ?? 0))).toBe(true);
 
     // An executor credential for a write binds the tool, the canonical args hash and the idempotency key.
     await report(stub, claimResult, { outcome: "succeeded", output: { plan: planFor("address_change") }, usage: {} });

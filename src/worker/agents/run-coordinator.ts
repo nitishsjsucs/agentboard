@@ -14,6 +14,7 @@ import { loadConfig, type Config } from "../config.ts";
 import type { TaskMessage } from "../queue/messages.ts";
 import { Clock } from "../util/clock.ts";
 import { idempotencyKey, mintCredential } from "./coordinator/credentials.ts";
+import { budgetGate, raiseBudget } from "./coordinator/budgets.ts";
 import { claim } from "./coordinator/leases.ts";
 import { nextDeadline, reapExpired } from "./coordinator/sweep.ts";
 import {
@@ -128,7 +129,7 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
   async claimTask(req: ClaimRequest): Promise<ClaimResult> {
     this.ensureSchema();
     const now = this.clock.now();
-    const { result, state } = this.transact(now, (tx) => claim(tx, req, null));
+    const { result, state } = this.transact(now, (tx) => claim(tx, req, budgetGate));
     await this.finish(state, now);
     if (!result.ok) return { ok: false, reason: result.reason };
     const task = state.tasks.get(req.taskId) as TaskRecord;
@@ -176,7 +177,7 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     this.ensureSchema();
     if (!this.loadState()) return { accepted: false, reason: "not_found", snapshot: emptySnapshot(this.name) };
     const now = this.clock.now();
-    const { result, state } = this.transact(now, (tx) => control(tx, cmd, null));
+    const { result, state } = this.transact(now, (tx) => control(tx, cmd, raiseBudget));
     await this.finish(state, now);
     return { ...result, snapshot: this.snapshot() };
   }
