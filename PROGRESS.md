@@ -36,8 +36,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 28 | feat(web): live run detail with timeline, tool-call traces and recovery controls | done (includes ApprovalCard and its test) |
 | 29 | feat(web): approval queue and launch form | done |
 | 30 | docs: milestone 3 demo script | done (local tag v0.3.0) |
+| 31 | feat(sim): shared simulation driver and 100-run workerd simulation test | done |
 
-Next: commit 31 (`feat(sim): shared simulation driver and 100-run workerd simulation test`).
+Next: commit 32 (`feat(eval): eval-sim against wrangler dev on the built worker, and eval-planner against llama-server`).
 
 ## Check status (last run)
 
@@ -45,6 +46,7 @@ Next: commit 31 (`feat(sim): shared simulation driver and 100-run workerd simula
 - `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 33 files, 136 tests)
 - Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
 - `npm run synth:check`: pass
+- `npm run test:sim`: pass (6 tests; all 100 runs reach their expected status; 3 consecutive runs of 22 to 30 s)
 - `npm run types:check`: pass
 - `npm run build`: pass
 

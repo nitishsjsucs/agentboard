@@ -20,4 +20,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run synth:check
       - run: npm test
+      - run: npm run test:sim
       - run: npm run build

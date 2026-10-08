@@ -127,6 +127,19 @@ export default defineConfig({
       },
       {
         extends: true,
+        plugins: [workerPool({ ...workerBindings(), RETRY_BASE_DELAY_S: "1", APPROVAL_TTL_MS: "3600000" })],
+        test: {
+          name: "sim",
+          setupFiles: ["./test/helpers/setup.ts"],
+          include: ["test/sim/**/*.test.ts"],
+          maxWorkers: 1,
+          sequence: { groupOrder: 3 },
+          testTimeout: 900_000,
+          hookTimeout: 900_000,
+        },
+      },
+      {
+        extends: true,
         plugins: [react()],
         test: {
           name: "web",
