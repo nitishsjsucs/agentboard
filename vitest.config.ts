@@ -16,6 +16,9 @@ const TAGS = [
 
 const consoleMigrations: D1Migration[] = await readD1Migrations("./migrations/console");
 const peopleMigrations: D1Migration[] = await readD1Migrations("./migrations/people");
+// Generated seeds, applied as one-entry migration lists tracked in `seed_migrations`.
+const consoleSeed: D1Migration[] = await readD1Migrations({ projectPath: ".", migrationsDir: "seed", migrationsPattern: "seed/console.sql" });
+const peopleSeed: D1Migration[] = await readD1Migrations({ projectPath: ".", migrationsDir: "seed", migrationsPattern: "seed/people.sql" });
 
 /** Bindings shared by every workerd project (test values only). */
 function workerBindings() {
@@ -23,6 +26,8 @@ function workerBindings() {
     ENVIRONMENT: "test",
     TEST_CONSOLE_MIGRATIONS: consoleMigrations,
     TEST_PEOPLE_MIGRATIONS: peopleMigrations,
+    TEST_CONSOLE_SEED: consoleSeed,
+    TEST_PEOPLE_SEED: peopleSeed,
   };
 }
 

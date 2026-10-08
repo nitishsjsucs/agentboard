@@ -9,13 +9,15 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 1 | chore: pin toolchain and gate it with strict tsc and workerd smoke tests | done |
 | 2 | chore: Vite 8 React 19 app with the Cloudflare Vite plugin, Hono worker, wrangler environments and generated types | done |
 | 3 | feat(db): console and people D1 migrations | done |
+| 4 | feat(synth): seeded generator for 100 runs, 60 employees and 9 principals with checksum | done |
 
-Next: commit 4 (`feat(synth): seeded generator for 100 runs, 60 employees and 9 principals with checksum`).
+Next: commit 5 (`feat(config): fail-closed config loader with timing invariants`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (2 files, 3 tests: toolchain gate in `worker` and `worker-ws`)
+- `npm test`: pass (3 files, 9 tests)
+- `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
 
@@ -26,3 +28,5 @@ Next: commit 4 (`feat(synth): seeded generator for 100 runs, 60 employees and 9 
 3. **Port 8784 instead of 8788.** This machine shares ports with other builds, so the built worker (`serve:built`, `eval:sim`) listens on `127.0.0.1:8784`, and the dev `ALLOWED_ORIGINS` lists `http://127.0.0.1:8784`. The Vite plugin's inspector is pinned to 9234 for the same reason.
 4. **Skeleton agent classes in commit 2.** `wrangler.jsonc` declares all four Durable Object classes from commit 2 so its shape (one `v1` migration tag) never changes; the classes are empty `Agent` subclasses until their commits. The queue handler retries every message (fails closed) until the consumer lands in commit 13.
 5. **Production worker name.** Wrangler names the `production` environment's worker `agentboard-production` (it appends the environment name), so the production `ALLOWED_ORIGINS` placeholder is `https://agentboard-production.<subdomain>.workers.dev`. Keeping the suffix means an accidental top-level deploy can never overwrite the production script.
+6. **Plan validator, tool registry, policy and materializer landed in commit 4.** `generator.test.ts` #4 must check the gold plans against the section 11.3 validator, so the pure modules `src/worker/planning/tool-registry.ts`, `policy.ts`, `materialize.ts` and the `validatePlan` part of `planner.ts` were written with the generator. Commit 9 wires `materialize.ts` into the coordinator and commit 17 adds the prompt, parse and repair loop to `planner.ts`.
+7. **Synthetic dataset design choices the spec leaves open** (all within section 12.1): onboarding and offboarding subjects come from exclusive pools (an offboarded subject never reappears; onboarding subjects are `pending_start`), the 15 access-revocation subjects are distinct and revoke a seeded baseline role, `budget_exhausted` and `silent_noop` go only to approval-free runs, and the gold plans are linear chains whose first write is always `s2` (so `checkpointStep = "s2"` parks every pause/cancel run before any write).
