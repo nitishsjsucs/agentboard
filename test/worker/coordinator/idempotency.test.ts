@@ -13,7 +13,7 @@ import { P } from "../../helpers/auth.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { batchMessage, testConfig } from "../../helpers/queue.ts";
 import { binding, call, executorToken, writeMeta } from "../../helpers/mcp.ts";
-import { claimMessage, completePlan, events, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { claimMessage, completePlan, coordinator, events, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
 
 async function plannedDatasetRun(sim: SimDirectives | null = null) {
   const run = datasetRun("syn-0006");
@@ -102,6 +102,23 @@ describe("duplicate-action prevention: delivery, crash and reports", { tags: ["o
     const all = await events(stub);
     expect(all.filter((e) => e.action === "approval.decided")).toHaveLength(1);
     expect(all.filter((e) => e.action === "task.dispatched" && e.task_id === approval.taskId)).toHaveLength(1);
+  });
+
+  it("concurrent POST /api/runs with the same (requester, clientRequestId) create one run and one coordinator; the same key with a different body returns 409", async () => {
+    const body = { clientRequestId: "concurrent-launch-0001", requestType: "address_change", requestText: "Please update the address on file for this employee.", subjectEmployeeId: "E-1027" };
+    const responses = await Promise.all([apiPost(P.operator, "/api/runs", body), apiPost(P.operator, "/api/runs", body), apiPost(P.operator, "/api/runs", body)]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 200, 201]);
+    const launched = (await Promise.all(responses.map((r) => r.json()))) as { runId: string; deduplicated: boolean }[];
+    expect(new Set(launched.map((l) => l.runId)).size).toBe(1);
+    expect(launched.filter((l) => l.deduplicated)).toHaveLength(2);
+    const rows = await env.DB.prepare("SELECT id FROM runs WHERE requester = ? AND client_request_id = ?").bind(P.operator, body.clientRequestId).all<{ id: string }>();
+    expect(rows.results).toHaveLength(1);
+    const runId = launched[0]?.runId ?? "";
+    const coordinatorEvents = await events(await coordinator(runId));
+    expect(coordinatorEvents.filter((e) => e.action === "run.created")).toHaveLength(1);
+    const conflict = await apiPost(P.operator, "/api/runs", { ...body, requestText: "A different request entirely, same key." });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ error: { code: "conflict", reason: "idempotency_conflict" } });
   });
 
   it("duplicate completion reports for the same lease are ignored", async () => {

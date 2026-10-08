@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { parseConfig } from "../../../src/worker/config.ts";
 import worker from "../../../src/worker/index.ts";
 import { buildApp } from "../../../src/worker/api/app.ts";
-import { P } from "../../helpers/auth.ts";
+import { mutationHeaders, P } from "../../helpers/auth.ts";
 
 /** A production env that passes every rule; each case below breaks exactly one. */
 function productionEnv(overrides: Record<string, unknown> = {}): Env {
@@ -77,6 +77,29 @@ describe("dev routes", { tags: ["authz"] }, () => {
       expect(response.status, `${method} ${path}`).toBe(404);
       expect(response.headers.get("Set-Cookie")).toBeNull();
     }
+    // A launch `sim` block is refused unless FAULT_INJECTION=on (which production forbids).
+    // An Access-mode token cannot be verified in this project, so the refusal is shown on an
+    // otherwise identical app whose only difference is FAULT_INJECTION=off.
+    const local = parseConfig(env as unknown as Record<string, unknown>, false);
+    if (!local.ok) throw new Error(local.errors.join("; "));
+    const noFaults = buildApp({ ...local.config, faultInjection: false });
+    const launch = await noFaults.fetch(
+      new Request("http://127.0.0.1/api/runs", {
+        method: "POST",
+        headers: { ...(await mutationHeaders(P.operator)) },
+        body: JSON.stringify({
+          clientRequestId: "sim-refused-0001",
+          requestType: "address_change",
+          requestText: "Please update the address on file for this employee.",
+          subjectEmployeeId: "E-1014",
+          sim: { checkpointStep: "s2" },
+        }),
+      }),
+      env,
+      createExecutionContext(),
+    );
+    expect(launch.status).toBe(400);
+    expect(await launch.json()).toMatchObject({ error: { code: "invalid_request", reason: "sim_not_allowed" } });
   });
 
   it("dev login refuses non-loopback hostnames; a loopback dev cookie session is accepted and carries the bound role", async () => {

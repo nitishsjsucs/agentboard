@@ -7,6 +7,8 @@ import { agentRoutes } from "./routes/agents.ts";
 import { approvalRoutes } from "./routes/approvals.ts";
 import { devRoutes } from "./routes/dev.ts";
 import { dlqRoutes } from "./routes/dlq.ts";
+import { metricsRoutes } from "./routes/metrics.ts";
+import { runRoutes } from "./routes/runs.ts";
 import { healthRoutes } from "./routes/health.ts";
 import { meRoutes } from "./routes/me.ts";
 import type { AppEnv } from "./types.ts";
@@ -31,9 +33,11 @@ export function buildApp(config: Config): Hono<AppEnv> {
   // Everything below requires a verified identity.
   app.use("/api/*", identityMiddleware);
   app.route("/", meRoutes);
+  app.route("/", runRoutes);
   app.route("/", approvalRoutes);
   app.route("/", agentRoutes);
   app.route("/", dlqRoutes);
+  app.route("/", metricsRoutes);
 
   app.notFound((c) => apiError(c, 404, "not_found", "no such route"));
   app.onError((error, c) => {

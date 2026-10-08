@@ -28,13 +28,15 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 20 | feat(approvals): coordinator-owned approvals with separation of duties and expiry | done |
 | 21 | feat(controls): role hold and release, DLQ replay | done |
 | 22 | docs: ADR 0001 and 0002 and milestone 2 demo script | done (local tag v0.2.0) |
+| 23 | feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction | done |
 
-Next: commit 23 (`feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction`).
+Next: commit 24 (`feat(search): FTS5 search documents and ranked search API`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 23 files, 103 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 26 files, 117 tests)
+- Tagged so far (`vitest list --tags-filter`): orchestration 59 of 61, authz 35 of 39 (the 6 WebSocket tests land with commit 25)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
@@ -73,3 +75,6 @@ Next: commit 23 (`feat(api): launch reservation and run, tool-call, timeline, ap
 30. **Tests within one file share D1 state** (the plugin isolates storage per test file), so tests that change People data use dataset runs with distinct subjects (`distinctRuns` in `test/helpers/agents.ts`) and count side effects per run or as deltas.
 31. **Approval routes arrive with commit 20.** `GET /api/approvals` and `POST /api/approvals/:id/decision` land with the approvals feature (not commit 23) because `approvals-sod.test.ts` asserts the 403 and 409 mappings and `dispatch.test.ts` #2 approves through the API. Shared request schemas and response types now live in `src/shared/api-types.ts`; validation failures answer 400 `invalid_request` in the ApiError shape. A cancelled run's pending approvals are marked `expired` with the note "run cancelled", so they can no longer be decided.
 32. **Agent and DLQ routes arrive with commit 21.** `GET /api/agents`, `POST /api/agents/:role/disable|enable`, `GET /api/dlq` and `POST /api/dlq/:id/replay` land with the controls they drive. DLQ replays are audited on the run stream (coordinator) and on the global stream (API).
+33. **Launch details.** The API checks the subject against a read-only directory lookup in `PEOPLE_DB` (to reject unknown employees and to build the run title with the employee's name, which feeds search). Section 8.5 says no production path other than the People Ops tools touches `PEOPLE_DB`; this read-only directory (`db/people.ts` `directoryEntry` and `GET /api/people/directory` for the launch picker, permission `runs:launch`) is the one exception. `LaunchRunRequest` also accepts `syntheticRef` and `requestedAt`, gated by `FAULT_INJECTION=on` exactly like `sim`, so the simulator can record its dataset references and business timestamps.
+34. **`rbac-matrix.test.ts` #7** covers the audit read now; the search half joins in commit 24 with the search route. `dev-mode.test.ts` #1 shows the `sim` refusal on an app built with `FAULT_INJECTION=off` and dev auth, because an Access-mode token cannot be verified in the `worker` project; `access-jwt.test.ts` #7 (unbound principal) landed here.
+35. **Control responses.** A refused recovery command answers 409 with `{ accepted: false, reason, snapshot }`; an accepted one answers 200.
