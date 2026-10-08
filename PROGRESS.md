@@ -40,8 +40,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 32 | feat(eval): eval-sim against wrangler dev on the built worker, and eval-planner against llama-server | done |
 | 33 | feat(eval): tagged test counter and README results renderer with staleness check | done (CI steps moved to 35) |
 | 33a | fix(eval): record the llama.cpp build and separate transport errors in the planner eval | done (extra commit, see deviation 42) |
+| 34 | chore(results): measured simulation, planner and test results | done (measured at 83f4c08) |
 
-Next: commit 34 (`chore(results): measured simulation, planner and test results`): run eval:sim, eval:planner and count:tests on a clean tree at commit 33, commit the JSON.
+Next: commit 35 (`docs: architecture, setup, deploy steps, local versus production and rendered results`).
 
 ## Check status (last run)
 

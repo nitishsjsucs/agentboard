@@ -1,0 +1,20 @@
+{
+  "orchestration": 61,
+  "authz": 39,
+  "total": 100,
+  "passing": 100,
+  "passingByTag": {
+    "orchestration": 61,
+    "authz": 39
+  },
+  "meta": {
+    "gitSha": "83f4c08f7315259e101a15316bfa864bb22e4f81",
+    "dirty": false,
+    "generatedAt": "2026-10-08T23:42:12.847Z",
+    "node": "v25.9.0",
+    "wrangler": "4.149.0",
+    "seed": 20261008,
+    "provider": "n/a",
+    "model": "n/a"
+  }
+}
