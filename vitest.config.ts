@@ -1,6 +1,7 @@
 import { cloudflareTest, readD1Migrations, type D1Migration } from "@cloudflare/vitest-plugin";
 import { exportJWK, generateKeyPair } from "jose";
 import { randomBytes } from "node:crypto";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 const TAGS = [
@@ -122,6 +123,15 @@ export default defineConfig({
           setupFiles: ["./test/helpers/setup.ts"],
           include: ["test/worker/auth/access-jwt.test.ts"],
           sequence: { groupOrder: 2 },
+        },
+      },
+      {
+        extends: true,
+        plugins: [react()],
+        test: {
+          name: "web",
+          environment: "happy-dom",
+          include: ["src/web/**/*.test.tsx"],
         },
       },
       {

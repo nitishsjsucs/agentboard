@@ -13,7 +13,7 @@
     "types": "wrangler types --strict-vars=false --env-file .dev.vars.example",
     "types:check": "wrangler types --strict-vars=false --env-file .dev.vars.example --check",
     "typecheck": "tsc -b",
-    "test": "vitest run --project worker --project worker-ws --project worker-access --project node",
+    "test": "vitest run --project worker --project worker-ws --project worker-access --project web --project node",
     "build": "vite build",
     "build:prod": "CLOUDFLARE_ENV=production vite build",
     "preview": "vite preview",

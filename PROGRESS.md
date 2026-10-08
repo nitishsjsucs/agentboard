@@ -32,13 +32,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 24 | feat(search): FTS5 search documents and ranked search API | done |
 | 25 | feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist | done |
 | 26 | feat(web): app shell, role-aware navigation, dev login and design tokens | done |
+| 27 | feat(web): dashboard with agent-role and DLQ panels, and runs list with search | done |
 
-Next: commit 27 (`feat(web): dashboard with agent-role and DLQ panels, and runs list with search`).
+Next: commit 28 (`feat(web): live run detail with timeline, tool-call traces and recovery controls`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 29 files, 128 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 30 files, 130 tests)
 - Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
