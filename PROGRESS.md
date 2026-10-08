@@ -35,8 +35,9 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 27 | feat(web): dashboard with agent-role and DLQ panels, and runs list with search | done |
 | 28 | feat(web): live run detail with timeline, tool-call traces and recovery controls | done (includes ApprovalCard and its test) |
 | 29 | feat(web): approval queue and launch form | done |
+| 30 | docs: milestone 3 demo script | done (local tag v0.3.0) |
 
-Next: commit 30 (`docs: milestone 3 demo script`), then milestone 4 (simulation and evals).
+Next: commit 31 (`feat(sim): shared simulation driver and 100-run workerd simulation test`).
 
 ## Check status (last run)
 

@@ -2,6 +2,13 @@
 
 Milestone releases of AgentBoard. Each milestone has a demo script in `demos/`.
 
+## v0.3.0: Console
+
+- HTTP API: launch with a per-requester idempotency reservation, run, tool-call, timeline and audit reads with redaction by permission, recovery commands, approvals, agent roles, DLQ and metrics.
+- FTS5 history search over runs, tasks, tool calls and approvals with bm25 ranking, filters, safe snippets and cursor paging.
+- Read-only run snapshots over WebSocket with identity, runs:read, an Origin allowlist and a run-exists check.
+- React console: dashboard with agent-role and DLQ panels, runs with search, live run detail with timeline, tool-call traces and recovery controls, approval queue, launch form, dev login.
+
 ## v0.2.0: Orchestration core
 
 - RunCoordinator: derived run status, recovery commands with cascades, leases with fencing epochs, the synchronous sweep and scheduled wake, budgets and the active-time deadline.
