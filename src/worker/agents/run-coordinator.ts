@@ -8,6 +8,7 @@
 
 import { Agent } from "agents";
 import type { Connection } from "agents";
+import type { AgentRole } from "../../shared/domain.ts";
 import { eventHash, GENESIS_HASH } from "../audit/hash-chain.ts";
 import { redactForViewer } from "../audit/redaction.ts";
 import { loadConfig, type Config } from "../config.ts";
@@ -79,6 +80,8 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
   private schemaReady = false;
   private broadcastVersion = -1;
   private flushing = false;
+  /** Last time the wake rechecked role holds against agent_controls (in memory; 0 after eviction). */
+  private lastHoldCheck = 0;
 
   /** Runs on every wake of the object, including after eviction: sweep, flush, re-arm. */
   override async onStart(): Promise<void> {
@@ -94,9 +97,28 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     this.ensureSchema();
     if (!this.loadState()) return;
     this.sql`UPDATE ab_run SET wake_at = NULL`;
+    // Backstop for role holds whose D1 mirror had not flushed when the role was enabled.
+    const enabledHeldRoles = await this.enabledHeldRoles();
     const now = this.clock.now();
-    const { state } = this.transact(now, () => null);
+    const { state } = this.transact(now, (tx) => {
+      for (const role of enabledHeldRoles) {
+        control(tx, { type: "release_role", role, actor: { kind: "system", id: "hold-recheck" }, reason: "role enabled (wake recheck)" }, null);
+      }
+      return null;
+    });
     await this.finish(state, now);
+  }
+
+  /** Roles this run holds tasks for that agent_controls no longer disables. Read before the transaction. */
+  private async enabledHeldRoles(): Promise<AgentRole[]> {
+    const state = this.loadState();
+    if (!state) return [];
+    const heldKinds = new Set([...state.tasks.values()].filter((t) => t.status === "held" && t.holdReason === "role_disabled").map((t) => t.kind));
+    if (heldKinds.size === 0) return [];
+    this.lastHoldCheck = this.clock.now();
+    const { results } = await this.env.DB.prepare("SELECT role FROM agent_controls WHERE disabled = 1").all<{ role: AgentRole }>();
+    const disabled = new Set(results.map((r) => r.role));
+    return [...heldKinds].map((kind) => ROLE_FOR_KIND[kind]).filter((role) => !disabled.has(role));
   }
 
   // Browser connections are read-only; every mutation goes through the audited HTTP API.
@@ -353,9 +375,12 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     return row?.next ?? null;
   }
 
-  /** Hold recheck deadline (commit 21). */
-  protected holdRecheckAt(_state: RunState): number | null {
-    return null;
+  /** While role holds exist, the wake rechecks agent_controls every HOLD_RECHECK_MS. */
+  protected holdRecheckAt(state: RunState): number | null {
+    const holds = [...state.tasks.values()].some((t) => t.status === "held" && t.holdReason === "role_disabled");
+    if (!holds) return null;
+    if (this.lastHoldCheck === 0) this.lastHoldCheck = this.clock.now();
+    return this.lastHoldCheck + this.config().holdRecheckMs;
   }
 
   /**

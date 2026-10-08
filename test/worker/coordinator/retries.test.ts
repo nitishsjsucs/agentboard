@@ -5,7 +5,11 @@ import worker from "../../../src/worker/index.ts";
 import { backoff, taskBackoff } from "../../../src/worker/queue/backoff.ts";
 import { handleQueueBatch, type ConsumerDeps } from "../../../src/worker/queue/consumer.ts";
 import { batchMessage, testConfig } from "../../helpers/queue.ts";
-import { claimMessage, completePlan, coordinator, events, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { claimMessage, completePlan, coordinator, events, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { setCoordinatorClock } from "../../helpers/clock.ts";
+import { apiGet, apiPost, json } from "../../helpers/api.ts";
+import { P } from "../../helpers/auth.ts";
+import type { DlqMessageView, Page } from "../../../src/shared/api-types.ts";
 
 describe("retry handling", { tags: ["orchestration"] }, () => {
   it("a retryable failure redispatches with delaySeconds from the capped exponential schedule; a non-retryable failure moves the run to needs_attention without redispatch", async () => {
@@ -96,6 +100,80 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect(failed?.detail).toMatchObject({ code: "agent_exception", retryable: true, willRetry: true, attempt: 1 });
     const [redispatch] = await takeDispatches(stub);
     expect(redispatch?.message).toMatchObject({ taskId: plan.message.taskId, attempt: 2 });
+  });
+
+  it("the DLQ consumer (queue name from DLQ_QUEUE_NAME) dead-letters a task only for its current dispatchId; a superseded dispatch is recorded as ignored_stale", async () => {
+    const config = testConfig();
+    expect(config.dlqQueueName).toBe("agentboard-tasks-dlq");
+    // Current dispatch: recorded and dead-lettered.
+    const live = await startManualRun();
+    await completePlan(live.stub, planFor("address_change"));
+    const [s1] = await takeDispatches(live.stub);
+    if (!s1) throw new Error("no s1");
+    const current = batchMessage(s1.message, 6);
+    const batch = createMessageBatch(config.dlqQueueName, [current]);
+    const ctx = createExecutionContext();
+    await worker.queue(batch, env);
+    expect((await getQueueResult(batch, ctx)).explicitAcks).toEqual([current.id]);
+    expect(await env.DB.prepare("SELECT outcome, dispatch_id, task_id FROM dlq_messages WHERE id = ?").bind(current.id).first()).toEqual({
+      outcome: "dead_lettered",
+      dispatch_id: s1.message.dispatchId,
+      task_id: s1.message.taskId,
+    });
+    const state = await readState(live.stub);
+    expect(state.tasks.get(s1.message.taskId)?.status).toBe("dead_lettered");
+    expect(state.run.status).toBe("needs_attention");
+
+    // Superseded dispatch (the lease expired and the task was redispatched): ignored, task untouched.
+    const stale = await startManualRun();
+    await completePlan(stale.stub, planFor("address_change"));
+    const [old] = await takeDispatches(stale.stub);
+    if (!old) throw new Error("no s1");
+    granted(await claimMessage(stale.stub, old.message));
+    await setCoordinatorClock(stale.stub, 3500);
+    await stale.stub.getSnapshot();
+    const before = (await readState(stale.stub)).tasks.get(old.message.taskId);
+    const superseded = batchMessage(old.message, 6);
+    // A preview-style queue name works the same way, because the name comes from config.
+    const custom = createMessageBatch("agentboard-preview-tasks-dlq", [superseded]);
+    const ctx2 = createExecutionContext();
+    await handleQueueBatch(custom, env, { ...config, dlqQueueName: "agentboard-preview-tasks-dlq" });
+    expect((await getQueueResult(custom, ctx2)).explicitAcks).toEqual([superseded.id]);
+    expect(await env.DB.prepare("SELECT outcome FROM dlq_messages WHERE id = ?").bind(superseded.id).first()).toEqual({ outcome: "ignored_stale" });
+    const after = (await readState(stale.stub)).tasks.get(old.message.taskId);
+    expect([after?.status, after?.dispatchId]).toEqual([before?.status, before?.dispatchId]);
+    expect((await events(stale.stub)).some((e) => e.action === "task.dead_letter_ignored")).toBe(true);
+  });
+
+  it("DLQ replay redispatches with a new dispatchId and audits the actor", async () => {
+    const config = testConfig();
+    const { stub, runId } = await startManualRun();
+    await completePlan(stub, planFor("address_change"));
+    const [s1] = await takeDispatches(stub);
+    if (!s1) throw new Error("no s1");
+    const message = batchMessage(s1.message, 6);
+    const batch = createMessageBatch(config.dlqQueueName, [message]);
+    await worker.queue(batch, env);
+    await getQueueResult(batch, createExecutionContext());
+    const listed = await json<Page<DlqMessageView>>(await apiGet(P.operator, "/api/dlq"));
+    expect(listed.items.find((m) => m.id === message.id)).toMatchObject({ outcome: "dead_lettered", runId, replayedAt: null });
+    // Operators can read the DLQ but only admins replay.
+    expect((await apiPost(P.operator, `/api/dlq/${message.id}/replay`, { reason: "try again" })).status).toBe(403);
+    const replay = await apiPost(P.admin, `/api/dlq/${message.id}/replay`, { reason: "downstream fixed" });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ accepted: true });
+    const [redispatch] = await takeDispatches(stub);
+    expect(redispatch?.message.taskId).toBe(s1.message.taskId);
+    expect(redispatch?.message.dispatchId).not.toBe(s1.message.dispatchId);
+    expect((await readState(stub)).run.status).toBe("running");
+    const replayed = (await events(stub)).find((e) => e.action === "dlq.replayed");
+    expect(replayed?.detail).toMatchObject({ reason: "downstream fixed" });
+    const runAudit = await env.DB.prepare("SELECT actor_id FROM audit_events WHERE stream = ? AND action = 'dlq.replayed'").bind(`run:${runId}`).first<{ actor_id: string }>();
+    expect(runAudit?.actor_id).toBe(P.admin);
+    const globalAudit = await env.DB.prepare("SELECT actor_id FROM audit_events WHERE stream = 'global' AND action = 'dlq.replayed'").first<{ actor_id: string }>();
+    expect(globalAudit?.actor_id).toBe(P.admin);
+    expect(await env.DB.prepare("SELECT replayed_by FROM dlq_messages WHERE id = ?").bind(message.id).first()).toEqual({ replayed_by: P.admin });
+    expect((await apiPost(P.admin, `/api/dlq/${message.id}/replay`, { reason: "again" })).status).toBe(409);
   });
 
   it("a schema-invalid (poison) message is acked and audited, not retried", async () => {

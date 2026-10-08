@@ -5,7 +5,21 @@ import { argsHash, idempotencyKey } from "../../../src/worker/agents/coordinator
 import { classifyToolResult } from "../../../src/worker/agents/executor-agent.ts";
 import { failure, success } from "../../../src/worker/mcp/results.ts";
 import { datasetRun, inputFromDataset, journal, runExecutor, runPlanner } from "../../helpers/agents.ts";
+import { createExecutionContext, createMessageBatch, getQueueResult } from "cloudflare:test";
+import { handleQueueBatch } from "../../../src/worker/queue/consumer.ts";
+import { apiGet, apiPost, json } from "../../helpers/api.ts";
+import { P } from "../../helpers/auth.ts";
+import { batchMessage, testConfig } from "../../helpers/queue.ts";
+import type { AgentRolesResponse } from "../../../src/shared/api-types.ts";
+import type { TaskMessage } from "../../../src/worker/queue/messages.ts";
 import { events, readState, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+
+async function deliver(message: TaskMessage): Promise<string[]> {
+  const batch = createMessageBatch("agentboard-tasks", [batchMessage(message)]);
+  const ctx = createExecutionContext();
+  await handleQueueBatch(batch, env, testConfig());
+  return (await getQueueResult(batch, ctx)).explicitAcks;
+}
 
 async function plannedRun(sim: SimDirectives | null = null) {
   const run = datasetRun("syn-0006");
@@ -94,6 +108,50 @@ describe("ExecutorAgent", { tags: ["orchestration"] }, () => {
     const busyFailure = (await events(busy.stub)).find((e) => e.action === "task.failed");
     expect(busyFailure?.detail).toMatchObject({ code: "in_progress", retryable: true, willRetry: true });
   });
+
+  it("disabling the executor role holds its dispatched tasks at the consumer; enabling releases them through the fan-out; the hold recheck releases a hold whose D1 mirror had not flushed", async () => {
+    const { stub } = await plannedRun();
+    const [s1] = await takeDispatches(stub);
+    if (!s1) throw new Error("no s1");
+    expect((await apiPost(P.admin, "/api/agents/executor/disable", { reason: "maintenance window" })).status).toBe(200);
+    // The consumer holds the message at the coordinator and acks it; nothing is leased.
+    expect(await deliver(s1.message)).toHaveLength(1);
+    let task = (await readState(stub)).tasks.get(s1.message.taskId);
+    expect([task?.status, task?.holdReason, task?.attempts]).toEqual(["held", "role_disabled", 0]);
+    const roles = await json<AgentRolesResponse>(await apiGet(P.viewer, "/api/agents"));
+    expect(roles.roles.find((r) => r.role === "executor")).toMatchObject({ disabled: true, reason: "maintenance window", heldTasks: 1 });
+    // Enable: the fan-out releases the hold and dispatches it with a new dispatchId.
+    expect((await apiPost(P.admin, "/api/agents/executor/enable", { reason: "maintenance done" })).status).toBe(200);
+    task = (await readState(stub)).tasks.get(s1.message.taskId);
+    expect(task?.status).toBe("ready");
+    const [released] = await takeDispatches(stub);
+    expect(released?.message.taskId).toBe(s1.message.taskId);
+    expect(released?.message.dispatchId).not.toBe(s1.message.dispatchId);
+    const toggles = await env.DB.prepare("SELECT actor_id, detail_json FROM audit_events WHERE stream = 'global' AND action = 'agent_role.toggled' ORDER BY seq").all<{ actor_id: string; detail_json: string }>();
+    expect(toggles.results.map((t) => [t.actor_id, (JSON.parse(t.detail_json) as { disabled: boolean }).disabled])).toEqual([
+      [P.admin, true],
+      [P.admin, false],
+    ]);
+
+    // Backstop: hold again, but make the D1 mirror lag so the fan-out cannot see the hold.
+    if (!released) throw new Error("no released dispatch");
+    await apiPost(P.admin, "/api/agents/executor/disable", { reason: "second window" });
+    await deliver(released.message);
+    expect((await readState(stub)).tasks.get(s1.message.taskId)?.status).toBe("held");
+    await env.DB.prepare("UPDATE tasks SET status = 'ready', hold_reason = NULL WHERE id = ?").bind(s1.message.taskId).run();
+    await apiPost(P.admin, "/api/agents/executor/enable", { reason: "second window over" });
+    expect((await readState(stub)).tasks.get(s1.message.taskId)?.status).toBe("held");
+    // No RPC from here: the coordinator's wake rechecks agent_controls (HOLD_RECHECK_MS is 1 s in tests).
+    const started = Date.now();
+    let status = "held";
+    while (Date.now() - started < 6000 && status === "held") {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      status = (await readState(stub)).tasks.get(s1.message.taskId)?.status ?? "missing";
+    }
+    expect(status).toBe("ready");
+    const releasedBy = (await events(stub)).filter((e) => e.action === "task.released").map((e) => e.detail["reason"]);
+    expect(releasedBy).toEqual(["role_enabled", "role_enabled"]);
+  }, 15_000);
 
   it("aborts a call exceeding TOOL_TIMEOUT_MS and reports a retryable timeout before the lease expires", async () => {
     const { stub, runId } = await plannedRun();
