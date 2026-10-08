@@ -30,14 +30,15 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 22 | docs: ADR 0001 and 0002 and milestone 2 demo script | done (local tag v0.2.0) |
 | 23 | feat(api): launch reservation and run, tool-call, timeline, approval, agent and DLQ endpoints with redaction | done |
 | 24 | feat(search): FTS5 search documents and ranked search API | done |
+| 25 | feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist | done |
 
-Next: commit 25 (`feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist`).
+Next: commit 26 (`feat(web): app shell, role-aware navigation, dev login and design tokens`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 27 files, 122 tests)
-- Tagged so far (`vitest list --tags-filter`): orchestration 59 of 61, authz 35 of 39 (the 6 WebSocket tests land with commit 25)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 29 files, 128 tests)
+- Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
