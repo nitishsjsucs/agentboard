@@ -21,13 +21,14 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 13 | feat(queue): sharded dispatch, role-agent skeleton, backoff, dispatch-fenced DLQ and bounded batch concurrency | done |
 | 14 | feat(mcp): People Ops MCP server with 12 tools and call-bound token checks | done |
 | 15 | feat(mcp): integration ledger with lock takeover and logical dedupe, and dev-only fault directives | done (fault directives landed in 14) |
+| 16 | feat(llm): provider interface with Workers AI, OpenAI-compatible and stub providers | done |
 
-Next: commit 16 (`feat(llm): provider interface with Workers AI, OpenAI-compatible and stub providers`).
+Next: commit 17 (`feat(agents): PlannerAgent with allowlists, subject pinning, one repair and gating edges`).
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, node; 16 files, 71 tests)
+- `npm test`: pass (projects worker, worker-ws, worker-access, node; 17 files, 76 tests)
 - `npm run synth:check`: pass
 - `npm run types:check`: pass
 - `npm run build`: pass
