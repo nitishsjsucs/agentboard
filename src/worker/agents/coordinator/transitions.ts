@@ -212,7 +212,8 @@ export function deriveRunStatus(state: RunState): { status: RunStatus; reason: s
   if (run.deadlineExceeded) return { status: "needs_attention", reason: "deadline_exceeded" };
 
   const plan = tasks.find((t) => t.kind === "plan");
-  if (plan && plan.status !== "succeeded") {
+  if (!plan) return { status: "queued", reason: null };
+  if (plan.status !== "succeeded") {
     return plan.status === "leased" || plan.attempts > 0 ? { status: "planning", reason: null } : { status: "queued", reason: null };
   }
   const work = tasks.filter((t) => t.kind !== "plan");

@@ -16,6 +16,7 @@ import { Clock } from "../util/clock.ts";
 import { idempotencyKey, mintCredential } from "./coordinator/credentials.ts";
 import { budgetGate, raiseBudget } from "./coordinator/budgets.ts";
 import { claim } from "./coordinator/leases.ts";
+import { mirrorStatements, outboxBackoffMs, type D1Statement } from "./coordinator/outbox.ts";
 import { nextDeadline, reapExpired } from "./coordinator/sweep.ts";
 import {
   approvalFromRow,
@@ -74,6 +75,7 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
   readonly clock = new Clock();
   private schemaReady = false;
   private broadcastVersion = -1;
+  private flushing = false;
 
   /** Runs on every wake of the object, including after eviction: sweep, flush, re-arm. */
   override async onStart(): Promise<void> {
@@ -229,8 +231,10 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
       const state = fresh ?? this.loadState();
       if (!state) throw new Error(`run ${this.name} does not exist`);
       const tx = new RunTx(state, now, cfg);
-      this.beforeOperation(tx);
-      applyDerivedStatus(tx);
+      if (!fresh) {
+        this.beforeOperation(tx);
+        applyDerivedStatus(tx);
+      }
       const result = operation(tx);
       promote(tx);
       applyDerivedStatus(tx);
@@ -261,11 +265,69 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     await this.armWake(state, now);
   }
 
-  /** Outbox delivery (commit 12). */
-  protected async flushOutbox(): Promise<void> {}
+  /**
+   * Test-only: a coordinator whose KV holds `test:manualDispatch` leaves its
+   * queue rows in the outbox for the test to take. Honored only in ENVIRONMENT=test.
+   */
+  protected manualDispatch(): boolean {
+    return this.config().environment === "test" && this.ctx.storage.kv.get("test:manualDispatch") === true;
+  }
+
+  /** Delivers outbox rows in id order, one lane per kind; only one flush runs at a time. */
+  protected async flushOutbox(): Promise<void> {
+    if (this.flushing) return;
+    this.flushing = true;
+    try {
+      await this.flushLane("d1");
+      if (!this.manualDispatch()) await this.flushLane("queue");
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  private async flushLane(kind: "d1" | "queue"): Promise<void> {
+    for (let round = 0; round < 50; round++) {
+      const now = this.clock.now();
+      const rows = this.sql<{ id: number; payload_json: string; attempts: number; next_attempt_at: number }>`
+        SELECT id, payload_json, attempts, next_attempt_at FROM ab_outbox WHERE kind = ${kind} AND sent_at IS NULL ORDER BY id LIMIT 25`;
+      if (rows.length === 0) return;
+      // Order is preserved: a row waiting on its backoff holds back everything after it.
+      const due: typeof rows = [];
+      for (const row of rows) {
+        if (row.next_attempt_at > now) break;
+        due.push(row);
+      }
+      if (due.length === 0) return;
+      try {
+        if (kind === "d1") {
+          const statements = due.flatMap((row) => (JSON.parse(row.payload_json) as { statements: D1Statement[] }).statements);
+          await this.env.DB.batch(statements.map((s) => this.env.DB.prepare(s.sql).bind(...s.params)));
+        } else {
+          await this.env.TASK_QUEUE.sendBatch(
+            due.map((row) => {
+              const payload = JSON.parse(row.payload_json) as { message: TaskMessage; delaySeconds: number };
+              return { body: payload.message, delaySeconds: payload.delaySeconds };
+            }),
+          );
+        }
+      } catch (error) {
+        const first = due[0];
+        if (first) {
+          const attempts = first.attempts + 1;
+          this.sql`UPDATE ab_outbox SET attempts = ${attempts}, next_attempt_at = ${now + outboxBackoffMs(attempts)} WHERE id = ${first.id}`;
+        }
+        console.warn(`outbox ${kind} delivery failed; will retry`, String(error));
+        return;
+      }
+      for (const row of due) this.sql`UPDATE ab_outbox SET sent_at = ${now} WHERE id = ${row.id}`;
+    }
+  }
 
   protected outboxNextAttemptAt(): number | null {
-    return null;
+    const manual = this.manualDispatch();
+    const row = this.sql<{ next: number | null }>`
+      SELECT MIN(next_attempt_at) AS next FROM ab_outbox WHERE sent_at IS NULL AND (kind = 'd1' OR ${manual ? 0 : 1} = 1)`[0];
+    return row?.next ?? null;
   }
 
   /** Hold recheck deadline (commit 21). */
@@ -392,8 +454,11 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     return persisted;
   }
 
-  /** Hook for the D1 mirror outbox rows (commit 12). */
-  protected afterPersist(_tx: RunTx, _events: PersistedEvent[]): void {}
+  /** The D1 mirror of this transaction: one outbox row, written in the same transaction. */
+  protected afterPersist(tx: RunTx, events: PersistedEvent[]): void {
+    const statements = mirrorStatements(tx, events);
+    this.sql`INSERT INTO ab_outbox (kind, payload_json, attempts, next_attempt_at) VALUES ('d1', ${JSON.stringify({ statements })}, 0, ${tx.now})`;
+  }
 
   // -------------------------------------------------------------------------
   // Views
