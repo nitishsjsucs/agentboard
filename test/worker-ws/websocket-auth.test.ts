@@ -1,10 +1,13 @@
-import { listDurableObjectIds } from "cloudflare:test";
+import { listDurableObjectIds, runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import type { RunCoordinator } from "../../src/worker/agents/run-coordinator.ts";
+import { loadConfig } from "../../src/worker/config.ts";
+import { handleAgentRoute, WS_REAUTHORIZE_MS } from "../../src/worker/realtime.ts";
 import { newRunId } from "../../src/worker/util/ids.ts";
 import type { RunSnapshot } from "../../src/shared/api-types.ts";
 import { authHeaders, P, signTestJwt } from "../helpers/auth.ts";
-import { startManualRun } from "../helpers/runs.ts";
+import { raw, startManualRun } from "../helpers/runs.ts";
 import { openSocket, upgrade } from "../helpers/ws.ts";
 
 describe("WebSocket authorization", { tags: ["authz"] }, () => {
@@ -119,5 +122,52 @@ describe("WebSocket authorization", { tags: ["authz"] }, () => {
     // An already expired token is refused at the upgrade (outside the verifier's clock tolerance).
     const expired = await signTestJwt(P.viewer, { expiresIn: "2 minutes ago" });
     expect((await upgrade(`/agents/run-coordinator/${runId}`, { "Cf-Access-Jwt-Assertion": expired })).status).toBe(401);
+  }, 15_000);
+
+  it("a socket must be authorized again WS_REAUTHORIZE_MS after its upgrade: a removed role binding stops its snapshots and refuses the reconnect", async () => {
+    const { stub, runId } = await startManualRun();
+    const principal = "ws.revoked@agentboard.test";
+    const at = new Date().toISOString();
+    await env.DB.prepare("INSERT INTO role_bindings (principal, role, display_name, created_at, updated_at, updated_by) VALUES (?, 'viewer', 'Revoked Viewer', ?, ?, 'test')")
+      .bind(principal, at, at)
+      .run();
+    const revokedToken = await signTestJwt(principal, { expiresIn: "12h" });
+
+    // The production route: a 12-hour token keeps its expiry, and the socket is due for reauthorization after WS_REAUTHORIZE_MS.
+    const routed = openSocket(await upgrade(`/agents/run-coordinator/${runId}`, { "Cf-Access-Jwt-Assertion": revokedToken }));
+    await routed.next("cf_agent_state");
+    const sessions = await runInDurableObject(raw(stub), (instance: RunCoordinator) =>
+      [...instance.getConnections<{ sessionExpiresAt: number; reauthorizeAt: number }>()].map((connection) => connection.state),
+    );
+    expect(sessions).toHaveLength(1);
+    const [session] = sessions;
+    expect(session?.sessionExpiresAt).toBeGreaterThan(Date.now() + 11 * 3_600_000);
+    expect(session?.reauthorizeAt).toBeGreaterThan(Date.now() + WS_REAUTHORIZE_MS - 10_000);
+    expect(session?.reauthorizeAt).toBeLessThanOrEqual(Date.now() + WS_REAUTHORIZE_MS);
+    routed.ws.close();
+
+    // The same route with a 1.5 s interval (a forged reauthorization time is overwritten); one binding is removed meanwhile.
+    const loaded = loadConfig(env);
+    if (!loaded.ok) throw new Error(loaded.errors.join("; "));
+    const open = async (token: string) => {
+      const headers = { Upgrade: "websocket", "Cf-Access-Jwt-Assertion": token, "x-agentboard-reauthorize-at": String(Date.now() + 3_600_000) };
+      const socket = openSocket(await handleAgentRoute(new Request(`http://127.0.0.1:8784/agents/run-coordinator/${runId}`, { headers }), env, loaded.config, 1_500));
+      expect((await socket.next("cf_agent_state")).state).toMatchObject({ runId });
+      return { socket, closed: new Promise<number>((resolve) => socket.ws.addEventListener("close", (event) => resolve(event.code))) };
+    };
+    const viewerToken = await signTestJwt(P.viewer, { expiresIn: "12h" });
+    const revoked = await open(revokedToken);
+    const kept = await open(viewerToken);
+    await env.DB.prepare("DELETE FROM role_bindings WHERE principal = ?").bind(principal).run();
+    await scheduler.wait(1_700);
+    await stub.control({ type: "pause", actor: { kind: "user", id: P.operator }, reason: "after the reauthorization time" });
+    // A normal closure, not the terminal 4401, so the client reconnects; neither socket gets the snapshot.
+    expect([await revoked.closed, await kept.closed]).toEqual([1000, 1000]);
+    expect([...revoked.socket.frames, ...kept.socket.frames].filter((f) => f.type === "cf_agent_state")).toEqual([]);
+    // The reconnect is authorized against the current binding: refused for the removed one, accepted for the other.
+    expect((await upgrade(`/agents/run-coordinator/${runId}`, { "Cf-Access-Jwt-Assertion": revokedToken })).status).toBe(403);
+    const again = openSocket(await upgrade(`/agents/run-coordinator/${runId}`, { "Cf-Access-Jwt-Assertion": viewerToken }));
+    expect(((await again.next("cf_agent_state")).state as RunSnapshot).status).toBe("paused");
+    again.ws.close();
   }, 15_000);
 });

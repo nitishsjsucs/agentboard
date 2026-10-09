@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserRouter, useLocation, useNavigate } from "react-router";
 import type { MeResponse } from "../shared/api-types.ts";
 import { api, ApiRequestError } from "./api/client.ts";
@@ -10,24 +10,30 @@ function SessionProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [unauthenticated, setUnauthenticated] = useState(false);
-  const [version, setVersion] = useState(0);
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const latest = useRef(0);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Resolves once the session state holds this load's answers, so a caller can wait for the new
+  // principal (dev login) before it renders pages that fetch by permission. Only the latest load
+  // applies its answers.
+  const reload = useCallback(async () => {
+    const load = ++latest.current;
+    const [healthResult, meResult] = await Promise.allSettled([api.get<Health>("/api/health"), api.get<MeResponse>("/api/me")]);
+    if (load !== latest.current) return;
+    setHealth(healthResult.status === "fulfilled" ? healthResult.value : null);
+    if (meResult.status === "fulfilled") {
+      setMe(meResult.value);
+      setUnauthenticated(false);
+    } else {
+      setMe(null);
+      setUnauthenticated(meResult.reason instanceof ApiRequestError && meResult.reason.status === 401);
+    }
+  }, []);
+
   useEffect(() => {
-    api.get<Health>("/api/health").then(setHealth).catch(() => setHealth(null));
-    api
-      .get<MeResponse>("/api/me")
-      .then((value) => {
-        setMe(value);
-        setUnauthenticated(false);
-      })
-      .catch((error: unknown) => {
-        setMe(null);
-        setUnauthenticated(error instanceof ApiRequestError && error.status === 401);
-      });
-  }, [version]);
+    void reload();
+  }, [reload]);
 
   useEffect(() => {
     if (unauthenticated && health?.authMode === "dev" && location.pathname !== "/dev/login") navigate("/dev/login");

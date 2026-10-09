@@ -31,7 +31,8 @@ export function DevLogin() {
   const login = async (principal: string) => {
     try {
       await api.post("/api/dev/login", { principal });
-      reload();
+      // Wait for the new principal's permissions, so the dashboard never fetches with the previous one's.
+      await reload();
       navigate("/");
     } catch (e) {
       setError((e as Error).message);

@@ -14,10 +14,11 @@ export interface Health {
 export interface Session {
   me: MeResponse | null;
   health: Health | null;
-  reload: () => void;
+  /** Loads /api/health and /api/me again; resolves once the session holds the answers. */
+  reload: () => Promise<void>;
 }
 
-export const SessionContext = createContext<Session>({ me: null, health: null, reload: () => undefined });
+export const SessionContext = createContext<Session>({ me: null, health: null, reload: async () => undefined });
 
 export function useSession(): Session {
   return useContext(SessionContext);

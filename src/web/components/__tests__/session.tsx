@@ -21,7 +21,7 @@ export function me(role: Role, id = `${role}@agentboard.test`): MeResponse {
 export function withSession(role: Role, children: ReactNode, id?: string) {
   return (
     <MemoryRouter>
-      <SessionContext.Provider value={{ me: me(role, id), health: null, reload: () => undefined }}>{children}</SessionContext.Provider>
+      <SessionContext.Provider value={{ me: me(role, id), health: null, reload: async () => undefined }}>{children}</SessionContext.Provider>
     </MemoryRouter>
   );
 }

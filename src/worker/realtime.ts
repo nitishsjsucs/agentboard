@@ -10,20 +10,27 @@
 // only the first two segments, so a longer path would reach any agent class.
 //
 // Authorization is checked at the upgrade, and the socket then lives on, so
-// the route forwards the verified token's expiry to the coordinator, which
-// closes the socket (4401) before any broadcast once that time has passed.
+// the route forwards two times to the coordinator, which checks them before
+// every broadcast: the verified token's expiry (after it the socket is closed
+// with 4401 and the client stops), and WS_REAUTHORIZE_MS after the upgrade
+// (after it the socket is closed normally, and the client reconnects through
+// this route, which checks the token and the principal's role binding again).
 
 import { routeAgentRequest } from "agents";
-import { SESSION_EXPIRES_HEADER } from "./agents/run-coordinator.ts";
+import { REAUTHORIZE_AT_HEADER, SESSION_EXPIRES_HEADER } from "./agents/run-coordinator.ts";
 import { authenticate } from "./api/middleware/identity.ts";
 import type { Config } from "./config.ts";
 import { RUN_ID_PATTERN } from "./util/ids.ts";
+
+/** The longest a run WebSocket keeps its upgrade-time authorization before it must reconnect. */
+export const WS_REAUTHORIZE_MS = 5 * 60_000;
 
 function refuse(status: 401 | 403 | 404, code: string): Response {
   return Response.json({ error: { code, message: code, requestId: crypto.randomUUID() } }, { status });
 }
 
-export async function handleAgentRoute(request: Request, env: Env, config: Config): Promise<Response> {
+/** `reauthorizeMs` defaults to WS_REAUTHORIZE_MS; tests pass a shorter one. */
+export async function handleAgentRoute(request: Request, env: Env, config: Config, reauthorizeMs = WS_REAUTHORIZE_MS): Promise<Response> {
   const routed = await routeAgentRequest(request, env, {
     onBeforeRequest: () => refuse(404, "not_found"),
     onBeforeConnect: async (upgrade, route) => {
@@ -38,9 +45,10 @@ export async function handleAgentRoute(request: Request, env: Env, config: Confi
       if (!RUN_ID_PATTERN.test(route.name)) return refuse(404, "not_found");
       const exists = await env.DB.prepare("SELECT 1 AS present FROM runs WHERE id = ?").bind(route.name).first();
       if (!exists) return refuse(404, "not_found");
-      // Always set here (overwriting anything the client sent), so the coordinator can trust it.
+      // Always set here (overwriting anything the client sent), so the coordinator can trust them.
       const headers = new Headers(upgrade.headers);
       headers.set(SESSION_EXPIRES_HEADER, String(auth.identity.expiresAt));
+      headers.set(REAUTHORIZE_AT_HEADER, String(Date.now() + reauthorizeMs));
       return new Request(upgrade, { headers });
     },
   });

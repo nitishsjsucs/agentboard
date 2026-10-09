@@ -67,16 +67,38 @@ type Row = Record<string, string | number | boolean | null>;
  */
 export const SESSION_EXPIRES_HEADER = "x-agentboard-session-expires";
 
-/** WebSocket close code for a socket whose identity token has expired. */
+/**
+ * Set by the same route: when the socket must reconnect, in epoch ms, so the
+ * route checks the token and the principal's role binding again.
+ */
+export const REAUTHORIZE_AT_HEADER = "x-agentboard-reauthorize-at";
+
+/** WebSocket close code for a socket whose identity token has expired (terminal: useAgent does not reconnect). */
 export const SESSION_EXPIRED_CLOSE = 4401;
+
+/**
+ * WebSocket close code for a socket that must be authorized again. useAgent
+ * treats 1008 and 4000 to 4999 as terminal, so this is a normal closure, after
+ * which the client reconnects through the route.
+ */
+export const REAUTHORIZE_CLOSE = 1000;
 
 interface SessionState {
   sessionExpiresAt: number;
+  reauthorizeAt: number;
 }
 
-function sessionExpiry(request: Request): number | null {
-  const value = Number(request.headers.get(SESSION_EXPIRES_HEADER));
+function epochHeader(request: Request, name: string): number | null {
+  const value = Number(request.headers.get(name));
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Both session bounds the route set, or null when either is missing or already passed. */
+function liveSession(request: Request, now: number): SessionState | null {
+  const sessionExpiresAt = epochHeader(request, SESSION_EXPIRES_HEADER);
+  const reauthorizeAt = epochHeader(request, REAUTHORIZE_AT_HEADER);
+  if (sessionExpiresAt === null || reauthorizeAt === null || sessionExpiresAt <= now || reauthorizeAt <= now) return null;
+  return { sessionExpiresAt, reauthorizeAt };
 }
 
 export interface PersistedEvent {
@@ -151,26 +173,30 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
 
   // A connection without a live session gets no protocol frames (no snapshot) and is closed in onConnect.
   override shouldSendProtocolMessages(_connection: Connection, ctx: ConnectionContext): boolean {
-    const expiresAt = sessionExpiry(ctx.request);
-    return expiresAt !== null && expiresAt > Date.now();
+    return liveSession(ctx.request, Date.now()) !== null;
   }
 
   override onConnect(connection: Connection, ctx: ConnectionContext): void {
-    const expiresAt = sessionExpiry(ctx.request);
-    if (expiresAt === null || expiresAt <= Date.now()) {
+    const session = liveSession(ctx.request, Date.now());
+    if (!session) {
       connection.close(SESSION_EXPIRED_CLOSE, "session_expired");
       return;
     }
     // Connection state survives hibernation; the SDK keeps its own flags beside it.
-    connection.setState({ sessionExpiresAt: expiresAt } satisfies SessionState);
+    connection.setState(session satisfies SessionState);
   }
 
-  /** Closes every socket whose identity token has expired, so it receives no further snapshot. */
-  protected closeExpiredConnections(): void {
+  /**
+   * Closes every socket whose session has ended, so it receives no further snapshot: 4401 once the
+   * identity token has expired, and a normal closure once the socket is due to be authorized again
+   * (the client reconnects through the route, which checks the token and the role binding).
+   */
+  protected closeEndedSessions(): void {
     const now = Date.now();
     for (const connection of this.getConnections<SessionState>()) {
-      const expiresAt = connection.state?.sessionExpiresAt;
-      if (typeof expiresAt !== "number" || expiresAt <= now) connection.close(SESSION_EXPIRED_CLOSE, "session_expired");
+      const { sessionExpiresAt, reauthorizeAt } = connection.state ?? {};
+      if (typeof sessionExpiresAt !== "number" || sessionExpiresAt <= now) connection.close(SESSION_EXPIRED_CLOSE, "session_expired");
+      else if (typeof reauthorizeAt !== "number" || reauthorizeAt <= now) connection.close(REAUTHORIZE_CLOSE, "reauthorize");
     }
   }
 
@@ -347,7 +373,7 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
 
   /** After the commit, and only then: broadcast the snapshot (once per version) to sockets whose session is live. */
   protected publishSnapshot(state: RunState): void {
-    this.closeExpiredConnections();
+    this.closeEndedSessions();
     if (state.run.version !== this.broadcastVersion) {
       this.broadcastVersion = state.run.version;
       this.setState(this.snapshotOf(state));
