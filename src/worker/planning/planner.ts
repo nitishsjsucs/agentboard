@@ -238,6 +238,23 @@ export interface PlanCall {
   valid: boolean;
 }
 
+/**
+ * A model call failed (timeout, transport or provider error). Carries the
+ * tokens this planning attempt's earlier calls already used, and its calls,
+ * so the failure report still counts them against the run's LLM budget
+ * (SPEC section 7.4); otherwise the retry would spend them again unseen.
+ */
+export class PlanningError extends Error {
+  readonly llmTokens: number;
+  readonly calls: PlanCall[];
+  constructor(cause: unknown, llmTokens: number, calls: PlanCall[]) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = "PlanningError";
+    this.llmTokens = llmTokens;
+    this.calls = calls;
+  }
+}
+
 export type PlanOutcome =
   | { ok: true; plan: Plan; tasks: MaterializedTask[]; llmTokens: number; validFirstPass: boolean; repaired: boolean; calls: PlanCall[] }
   | { ok: false; code: "plan_invalid" | "llm_budget_exhausted"; issues: PlanIssue[]; policyViolations: PolicyViolation[]; llmTokens: number; calls: PlanCall[] };
@@ -259,20 +276,26 @@ export async function planRequest(provider: LlmProvider, input: PlanRequestInput
   const attempt = async (purpose: "plan" | "plan_repair", user: string): Promise<{ text: string } | { exhausted: true }> => {
     const cap = outputCap(limits.remainingLlmTokens - used, prompt.system.length + user.length);
     if (cap === null) return { exhausted: true };
-    const result = await provider.generate(
-      {
-        purpose,
-        system: prompt.system,
-        user,
-        jsonSchema: schema,
-        temperature: limits.temperature,
-        maxOutputTokens: cap,
-        timeoutMs: limits.timeoutMs,
-        ...(limits.seed !== undefined ? { seed: limits.seed } : {}),
-        metadata: limits.metadata,
-      },
-      signal,
-    );
+    let result: LlmResult;
+    try {
+      result = await provider.generate(
+        {
+          purpose,
+          system: prompt.system,
+          user,
+          jsonSchema: schema,
+          temperature: limits.temperature,
+          maxOutputTokens: cap,
+          timeoutMs: limits.timeoutMs,
+          ...(limits.seed !== undefined ? { seed: limits.seed } : {}),
+          metadata: limits.metadata,
+        },
+        signal,
+      );
+    } catch (error) {
+      calls.push({ purpose, maxOutputTokens: cap, result: null, valid: false });
+      throw new PlanningError(error, used, calls);
+    }
     used += result.usage.inputTokens + result.usage.outputTokens;
     calls.push({ purpose, maxOutputTokens: cap, result, valid: false });
     return { text: result.text };

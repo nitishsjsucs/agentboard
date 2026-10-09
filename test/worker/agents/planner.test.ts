@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import { estimateTokens } from "../../../src/worker/llm/provider.ts";
 import { ScriptedProvider } from "../../../src/worker/llm/stub.ts";
 import { validatePlan } from "../../../src/worker/planning/planner.ts";
 import { datasetRun, firstRunOfType, inputFromDataset, planningLog, runPlanner } from "../../helpers/agents.ts";
@@ -109,6 +110,32 @@ describe("PlannerAgent", { tags: ["orchestration"] }, () => {
     expect(state.run.status).toBe("needs_attention");
     const failed = (await events(rejected.stub)).find((e) => e.action === "task.failed");
     expect((failed?.detail["evidence"] as { issues: { code: string }[] }).issues.map((i) => i.code)).toEqual(["missing_required_step"]);
+  });
+
+  it("a model call that throws after an earlier call still reports that call's tokens: the retry is counted against the LLM budget", async () => {
+    const run = datasetRun("syn-0006");
+    const { stub } = await startManualRun(inputFromDataset(run));
+    const [plan] = await takeDispatches(stub);
+    if (!plan) throw new Error("no plan dispatch");
+    // The first output is invalid; the repair call then throws (the scripted provider has no second output).
+    const bad = JSON.stringify({ steps: [{ id: "s1", tool: "hris.get_employee", args: { employeeId: run.subjectEmployeeId }, dependsOn: [] }] });
+    const scripted = new ScriptedProvider([bad]);
+    expect(await runPlanner(plan.message, scripted)).toEqual({ kind: "ack" });
+    expect(scripted.requests.map((r) => r.purpose)).toEqual(["plan", "plan_repair"]);
+    const first = scripted.requests[0];
+    if (!first) throw new Error("no first request");
+    const firstCallTokens = estimateTokens(`${first.system}\n${first.user}`) + estimateTokens(bad);
+    const state = await readState(stub);
+    expect(state.run.usage.llmTokens).toBe(firstCallTokens);
+    const task = state.tasks.get(plan.message.taskId);
+    expect([task?.status, task?.attempts, task?.lastError]).toEqual(["ready", 1, "agent_exception"]);
+    const failed = (await events(stub)).find((e) => e.action === "task.failed");
+    expect(failed?.detail).toMatchObject({ code: "agent_exception", retryable: true, willRetry: true });
+    const log = (await planningLog()).filter((row) => row.task_id === plan.message.taskId);
+    expect(log.map((row) => [row.repaired, row.error])).toEqual([
+      [0, "llm_error"],
+      [1, "llm_error"],
+    ]);
   });
 
   it("approval flags come from policy: a privileged grant requires approval even when the model says it does not", async () => {

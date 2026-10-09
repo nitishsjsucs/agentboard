@@ -12,7 +12,7 @@ import { selectProvider } from "../llm/select.ts";
 import type { AiRunner } from "../llm/workers-ai.ts";
 import { withPeopleOps } from "../mcp/client.ts";
 import { promptHash } from "../llm/stub.ts";
-import { buildPlanPrompt, planRequest, type CatalogEntry } from "../planning/planner.ts";
+import { buildPlanPrompt, planRequest, PlanningError, type CatalogEntry, type PlanCall } from "../planning/planner.ts";
 import { newCallId } from "../util/ids.ts";
 import type { CompletionReport, RunCoordinatorRpc } from "./coordinator/schema.ts";
 import { RoleAgent, type GrantedClaim } from "./role-agent.ts";
@@ -48,21 +48,32 @@ export class PlannerAgent extends RoleAgent {
     const llm = this.providerOverride ?? (await this.provider(catalog));
 
     const input = { requestType: context.request.requestType as RequestType, subjectEmployeeId: context.request.subjectEmployeeId, requestText: context.request.requestText };
-    const outcome = await planRequest(llm, input, catalog, {
-      maxSteps: context.budget.maxSteps,
-      remainingLlmTokens: context.remaining.llmTokens,
-      timeoutMs: config.llmTimeoutMs,
-      temperature: 0,
-      metadata: { runId: context.runId, taskId: context.taskId },
-    });
     const prompt = buildPlanPrompt(input, catalog, context.budget.maxSteps);
     const hash = promptHash(prompt.system, prompt.user);
-    for (const call of outcome.calls) {
-      this.sql`INSERT INTO ab_planning_log (task_id, run_id, provider, model, prompt_hash, input_tokens, output_tokens, max_output_tokens, latency_ms,
-        valid_first_pass, repaired, error, at) VALUES (${context.taskId}, ${context.runId}, ${call.result?.provider ?? llm.name}, ${call.result?.model ?? llm.model},
-        ${hash}, ${call.result?.usage.inputTokens ?? 0}, ${call.result?.usage.outputTokens ?? 0}, ${call.maxOutputTokens}, ${call.result?.latencyMs ?? 0},
-        ${outcome.ok && outcome.validFirstPass ? 1 : 0}, ${call.purpose === "plan_repair" ? 1 : 0}, ${outcome.ok ? null : outcome.code}, ${new Date().toISOString()})`;
+    const log = (calls: readonly PlanCall[], validFirstPass: boolean, error: string | null) => {
+      for (const call of calls) {
+        this.sql`INSERT INTO ab_planning_log (task_id, run_id, provider, model, prompt_hash, input_tokens, output_tokens, max_output_tokens, latency_ms,
+          valid_first_pass, repaired, error, at) VALUES (${context.taskId}, ${context.runId}, ${call.result?.provider ?? llm.name}, ${call.result?.model ?? llm.model},
+          ${hash}, ${call.result?.usage.inputTokens ?? 0}, ${call.result?.usage.outputTokens ?? 0}, ${call.maxOutputTokens}, ${call.result?.latencyMs ?? 0},
+          ${validFirstPass ? 1 : 0}, ${call.purpose === "plan_repair" ? 1 : 0}, ${error}, ${new Date().toISOString()})`;
+      }
+    };
+    let outcome;
+    try {
+      outcome = await planRequest(llm, input, catalog, {
+        maxSteps: context.budget.maxSteps,
+        remainingLlmTokens: context.remaining.llmTokens,
+        timeoutMs: config.llmTimeoutMs,
+        temperature: 0,
+        metadata: { runId: context.runId, taskId: context.taskId },
+      });
+    } catch (error) {
+      // A model call failed: log the calls, then let the role skeleton report a retryable failure
+      // that carries the tokens already spent (PlanningError.llmTokens).
+      if (error instanceof PlanningError) log(error.calls, false, "llm_error");
+      throw error;
     }
+    log(outcome.calls, outcome.ok && outcome.validFirstPass, outcome.ok ? null : outcome.code);
     const base = { taskId: context.taskId, leaseId: claim.lease.leaseId, epoch: claim.lease.epoch, usage: { llmTokens: outcome.llmTokens } };
     if (outcome.ok) return { ...base, outcome: "succeeded", output: { plan: outcome.plan, validFirstPass: outcome.validFirstPass, repaired: outcome.repaired } };
     return {
