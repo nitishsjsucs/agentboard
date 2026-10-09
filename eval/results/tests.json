@@ -8,9 +8,9 @@
     "authz": 39
   },
   "meta": {
-    "gitSha": "c29b802968c1f9403252ee41421e6b0510626244",
+    "gitSha": "8f04166bdbbf7f309d6272bab5b1e97b2c19a5ce",
     "dirty": false,
-    "generatedAt": "2026-10-09T00:12:39.226Z",
+    "generatedAt": "2026-10-09T00:33:44.691Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,

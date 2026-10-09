@@ -168,7 +168,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `c29b802`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `8f04166`.
 
 | Metric | Value |
 |---|---|
@@ -177,7 +177,7 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Outcome match (measured status equals expected) | 100/100 |
 | Duplicate side effects (per idempotency key) | 0 |
 | Logical duplicate side effects (per run and step) | 0 |
-| Tool calls | 575 (ok 544, permanent_error 4, replayed 6, retryable_error 21) |
+| Tool calls | 577 (ok 546, permanent_error 4, replayed 6, retryable_error 21) |
 | Ledger replays (of which logical) | 6 (0) |
 | Task retries; runs recovered by retry | 21; 18 |
 | Lease expiries; recovered | 6; 6 |
@@ -186,16 +186,16 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Budget exhaustions; recoveries | 3; 3 |
 | Silent no-ops detected by the verifier; false positives | 4/4; 0 |
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
-| Audit events; runs with a valid hash chain | 3230; 100/100 |
+| Audit events; runs with a valid hash chain | 3232; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7234 ms; 10952 ms |
-| Search latency p50; p95 (local) | 5 ms; 7 ms |
+| Run duration p50; p95 (local wall clock) | 7223 ms; 10811 ms |
+| Search latency p50; p95 (local) | 2 ms; 3 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `c29b802`.
+Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `8f04166`.
 
 | Metric | Value |
 |---|---|
@@ -207,12 +207,12 @@ Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit
 | Tool-set F1 (macro) | 0.593 |
 | Argument accuracy (gold fields of matched steps) | 1.000 |
 | Unknown-tool rate | 0.000 |
-| Latency p50; p95 | 941 ms; 9997 ms |
+| Latency p50; p95 | 916 ms; 8970 ms |
 | Prompt tokens p50; max | 817; 1368 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-09 at commit `c29b802`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `8f04166`.
 
 Tagged tests: 61 orchestration + 39 authorization = 100; passing: 100.
 
@@ -225,6 +225,7 @@ Not measured. Nothing has been deployed; every number above comes from local run
 Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
+- Tool-call and audit-event totals can differ by a few between runs of the same code. Each planner shard caches the tool catalog, but planner tasks that reach a shard before its cache is filled each fetch it (`tools/list`, recorded as a tool call with its own audit event), and how many do depends on timing.
 - Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. Both paths are covered by tests (`idempotency.test.ts` #8, `retries.test.ts` #5 and #6).
 - Planner argument accuracy is computed only over gold steps the model got right by tool and position, which with this small model are mostly the opening read steps. Read it together with exact match and tool-set F1, which show how far the plans are from the gold sequences.
 - Planning quality of the production model (Workers AI) is not measured.
