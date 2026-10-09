@@ -19,7 +19,7 @@ flowchart LR
     AUTH["Identity: Access JWT (prod) or local RS256 JWT (dev/test)"]
     API["Hono API /api/*"]
     ROUTE["/agents/run-coordinator/:runId (read-only WebSocket, Origin allowlist)"]
-    MCPE["People Ops MCP endpoint (in-process)"]
+    MCPE["People Ops MCP endpoint (in-process; external /mcp dev-only)"]
     QC["queue() consumer"]
   end
   subgraph DOs["Durable Objects with SQLite (Agents SDK)"]
@@ -103,7 +103,7 @@ The rules that make it safe under at-least-once delivery:
 | History search | D1 FTS5 | D1 FTS5 (same code) |
 | Identity | `AUTH_MODE=dev`: RS256 JWTs from a locally generated key, verified by the same code as Access; dev login on loopback only | Cloudflare Access JWT in `Cf-Access-Jwt-Assertion` against the team JWKS (verified locally only against an intercepted JWKS) |
 | LLM planning | deterministic stub in tests and the simulation; a local llama-server (Qwen3-1.7B Q4_0) for `eval:planner` | Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway (unit-tested with a fake binding only; never executed) |
-| MCP integrations | in-process Streamable HTTP to the simulated People systems | the same in-process path to the same simulated systems |
+| MCP integrations | in-process Streamable HTTP to the simulated People systems; an external `/mcp` route for MCP Inspector only with `MCP_EXTERNAL=on` on loopback | the same in-process path to the same simulated systems; no external route (`MCP_EXTERNAL=on` is refused at load time) |
 | Fault directives (simulation) | on in tests and the simulation | off, enforced at load time |
 | Preview deployments | not applicable | `preview.yml` deploys each pull request to the shared `preview` environment once the Cloudflare secrets exist (never run; checked offline with `wrangler deploy --dry-run`) |
 | Numbers in this README | all of them | none |
@@ -122,6 +122,16 @@ Requires Node 24 (Node 25.9 also verified) and no Cloudflare login.
 A bare `wrangler dev` is **unsupported**. Against `wrangler.jsonc` it fails, because the `assets` block has no `directory` (the Vite plugin supplies it at build time); after any `vite build` it would follow `.wrangler/deploy/config.json` to whatever `dist/` holds, which may be stale or a production build. `serve:built` and `eval:sim` build first, assert the built config is the local one, and pass `--config dist/agentboard/wrangler.json` with an absolute `--env-file`.
 
 With the stub planner (the local default), only the synthetic dataset's requests can be planned; the launch form offers them as dev-only samples.
+
+### Inspecting the MCP server (development only)
+
+The agents reach the People Ops MCP server in-process; by default the worker answers 404 on `/mcp`. For debugging with MCP Inspector, add `MCP_EXTERNAL=on` to `.dev.vars` and restart `npm run dev` or `npm run serve:built` (the config loader refuses the flag outside development, and the route answers only on loopback hosts). Then mint a token:
+
+```sh
+npm run dev:token -- --integration --tool hris.get_employee --args '{"employeeId":"E-1001"}'
+```
+
+It is bound to that one read tool and those exact arguments for 60 seconds; write tools are refused. Connect MCP Inspector over Streamable HTTP through its local proxy (the route sends no CORS headers) to `http://127.0.0.1:8784/mcp` (`serve:built`) or `http://127.0.0.1:5173/mcp` (`npm run dev`), with the token as the bearer token. Checked with curl against the built worker (initialize, tools/list, the bound call, a refused call with other arguments, 401 without a token, 404 for a non-loopback host); MCP Inspector itself was not run here.
 
 ## Deploy (not done; needs an account)
 
