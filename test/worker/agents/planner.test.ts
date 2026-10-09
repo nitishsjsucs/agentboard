@@ -72,7 +72,43 @@ describe("PlannerAgent", { tags: ["orchestration"] }, () => {
     expect(await takeDispatches(stub)).toEqual([]);
     const failed = (await events(stub)).find((e) => e.action === "task.failed");
     expect(failed?.detail).toMatchObject({ code: "plan_invalid", retryable: false, willRetry: false });
-    expect((failed?.detail["evidence"] as { issues: { code: string }[] }).issues.map((i) => i.code)).toEqual(["unknown_tool"]);
+    expect((failed?.detail["evidence"] as { issues: { code: string }[] }).issues.map((i) => i.code)).toEqual(["unknown_tool", "missing_required_step"]);
+  });
+
+  it("a plan without the request type's required write is repaired once, and fails the plan task when the repair still lacks it", async () => {
+    const run = firstRunOfType("manager_change");
+    const ctx = { requestType: run.requestType, subjectEmployeeId: run.subjectEmployeeId, maxSteps: 8 };
+    // Valid on every per-step rule: without the plan-level check it materialized one read, the run succeeded and no approval was asked.
+    const readOnly = JSON.stringify({ steps: [{ id: "s1", tool: "hris.get_employee", args: { employeeId: run.subjectEmployeeId }, dependsOn: [] }] });
+    const direct = validatePlan(readOnly, ctx);
+    expect(direct.ok).toBe(false);
+    if (!direct.ok) expect(direct.issues).toEqual([{ code: "missing_required_step", message: "a manager_change plan must include hris.update_manager" }]);
+
+    // The repair names the missing write; a repair that adds it is accepted, and the write waits for an approver.
+    const repaired = await startManualRun(inputFromDataset(run));
+    const [first] = await takeDispatches(repaired.stub);
+    if (!first) throw new Error("no plan dispatch");
+    const fixed = new ScriptedProvider([readOnly, JSON.stringify(run.goldPlan)]);
+    await runPlanner(first.message, fixed);
+    expect(fixed.requests[0]?.user).not.toContain("missing_required_step");
+    expect(fixed.requests[1]?.user).toContain("missing_required_step: a manager_change plan must include hris.update_manager");
+    let state = await readState(repaired.stub);
+    expect([...state.tasks.values()].filter((t) => t.kind === "execute").map((t) => [t.tool, t.requiresApproval]).sort()).toEqual([
+      ["hris.get_employee", false],
+      ["hris.update_manager", true],
+      ["notify.send", false],
+    ]);
+
+    // Two plans without the write: the plan task fails non-retryable and nothing is materialized.
+    const rejected = await startManualRun(inputFromDataset(run));
+    const [second] = await takeDispatches(rejected.stub);
+    if (!second) throw new Error("no plan dispatch");
+    await runPlanner(second.message, new ScriptedProvider([readOnly, readOnly]));
+    state = await readState(rejected.stub);
+    expect([...state.tasks.values()].map((t) => [t.kind, t.status, t.lastError])).toEqual([["plan", "failed", "plan_invalid"]]);
+    expect(state.run.status).toBe("needs_attention");
+    const failed = (await events(rejected.stub)).find((e) => e.action === "task.failed");
+    expect((failed?.detail["evidence"] as { issues: { code: string }[] }).issues.map((i) => i.code)).toEqual(["missing_required_step"]);
   });
 
   it("approval flags come from policy: a privileged grant requires approval even when the model says it does not", async () => {

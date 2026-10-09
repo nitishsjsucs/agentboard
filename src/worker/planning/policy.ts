@@ -76,21 +76,42 @@ export function checkStepPolicy(step: PlanStep, requestType: RequestType, subjec
   return issues;
 }
 
+/**
+ * Writes a plan must contain to carry out its request type: the changes the
+ * request asks for (every request text template names them). Without this
+ * rule a plan of one read step is valid: it materializes, runs and reports
+ * `succeeded` without doing the work, and skips the approval the missing
+ * write would have needed.
+ */
+export const REQUIRED_WRITES: Record<RequestType, readonly ToolName[]> = {
+  address_change: ["hris.update_address"],
+  manager_change: ["hris.update_manager"],
+  onboarding_access: ["itsm.create_ticket", "access.grant_role"],
+  privileged_access: ["access.grant_role"],
+  offboarding: ["hris.set_employment_status", "access.revoke_all_roles", "itsm.create_ticket"],
+  access_revocation: ["access.revoke_role"],
+};
+
 export interface PlanPolicyIssue {
-  code: "missing_gate";
+  code: "missing_required_step" | "missing_gate";
   stepId?: string;
   message: string;
 }
 
 /**
- * Plan-level rule: `access.revoke_all_roles` runs only behind an approval. The
- * plan must also terminate the subject with `hris.set_employment_status`
- * (always gated), so the gating edges put the revoke after that approval.
- * Without this rule a plan that drops the status change revokes every role
- * with no approval at all.
+ * Plan-level rules. Every required write of the request type is present
+ * (`missing_required_step`), and `access.revoke_all_roles` runs only behind an
+ * approval: the plan must also terminate the subject with
+ * `hris.set_employment_status` (always gated), so the gating edges put the
+ * revoke after that approval (`missing_gate`). Without the second rule a plan
+ * that drops the status change revokes every role with no approval at all.
  */
-export function checkPlanPolicy(steps: readonly PlanStep[]): PlanPolicyIssue[] {
+export function checkPlanPolicy(steps: readonly PlanStep[], requestType: RequestType): PlanPolicyIssue[] {
   const issues: PlanPolicyIssue[] = [];
+  const tools = new Set(steps.map((s) => s.tool));
+  for (const tool of REQUIRED_WRITES[requestType]) {
+    if (!tools.has(tool)) issues.push({ code: "missing_required_step", message: `a ${requestType} plan must include ${tool}` });
+  }
   const terminates = steps.some((s) => s.tool === "hris.set_employment_status" && s.args["status"] === "terminated");
   for (const step of steps) {
     if (step.tool === "access.revoke_all_roles" && !terminates) {
