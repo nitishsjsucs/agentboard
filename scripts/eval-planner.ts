@@ -80,7 +80,8 @@ async function serverProvenance(): Promise<ServerProvenance | null> {
     n_ctx: props.default_generation_settings?.n_ctx ?? props.n_ctx ?? null,
     total_slots: props.total_slots ?? null,
     build_info: props.build_info ?? null,
-    models: (listed.data ?? []).map((m) => String(m.id ?? "")),
+    // File names only: llama-server reports absolute paths, which would put this machine's home directory in the results.
+    models: (listed.data ?? []).map((m) => basename(String(m.id ?? ""))),
   };
   const problems: string[] = [];
   if (provenance.model_file !== basename(gguf)) problems.push(`the server serves ${provenance.model_file || "an unknown model"}, not ${basename(gguf)}`);
@@ -166,7 +167,7 @@ for (const [index, run] of runs.entries()) {
       // The output schema has no approval field, so every policy-gated step is set by policy, not the model.
       policyOverrides: finalCheck.ok ? finalCheck.plan.steps.filter((s) => approvalFor(s).required && (s as { requiresApproval?: unknown }).requiresApproval !== true).length : 0,
       validWithGoldWrites: outcome.ok && coversGoldWrites,
-      servedModel: outcome.calls.at(-1)?.result?.servedModel ?? null,
+      servedModel: ((served) => (served ? basename(served) : null))(outcome.calls.at(-1)?.result?.servedModel),
       latencyMs: performance.now() - started,
       promptTokens,
       tokensOut: outcome.calls.reduce((sum, c) => sum + (c.result?.usage.outputTokens ?? 0), 0),
