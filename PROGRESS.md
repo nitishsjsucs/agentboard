@@ -46,9 +46,25 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 
 All 36 planned commits are done, plus the extra fix commit 33a. Every item on the section 1.1 "must ship" list exists and is tested.
 
+### After the plan: fixes and stretch items (builder 2)
+
+The stretch items of section 1.1 are built in the spec's cut order where they do not touch measured paths, and the ones that change `src` or `scripts` are grouped before one re-measurement (deviation 44).
+
+| # | Commit | Status |
+|---|---|---|
+| 37 | fix(scripts): add the npm deploy script that the deploy steps use | done |
+| 38 | ci: gated per-PR deploys to the preview environment | done |
+| 39 | ci: release workflow that publishes a milestone from its changelog section and demo script | next |
+| 40 | docs: ADRs 0003 to 0005 | planned |
+| 41 | test(web): UI tests for tool-call traces, role and DLQ panels, the confirm dialog, meters and the audit badge | planned |
+| 42 | feat(web): dark-mode tokens | planned |
+| 43 | feat(mcp): dev-only external /mcp route for MCP Inspector and dev:token --integration | planned |
+| 44 | chore(results): re-measure simulation, planner and test results after the stretch items | planned |
+| 45 | docs: README, CHANGELOG and PROGRESS for the stretch items | planned |
+
 ## What is left (stretch items, cut first per SPEC section 1.1, and human steps)
 
-- Stretch, not built: `.github/workflows/preview.yml`, `.github/workflows/release.yml`, UI component tests beyond the 8, dark-mode tokens, ADRs beyond 0001 and 0002, the external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`; the worker answers 404 on `/mcp`, and `dev:token --integration` is not implemented).
+- Stretch, in progress (see the table above): `.github/workflows/preview.yml` is built (gated, never run against an account); still to build: `.github/workflows/release.yml`, UI component tests beyond the 8, dark-mode tokens, ADRs beyond 0001 and 0002, the external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`; the worker answers 404 on `/mcp`, and `dev:token --integration` is not implemented).
 - Not done by the builders (needs Nitish, SPEC section 18): pushing, opening the 8 PRs, GitHub releases for the local tags `v0.1.0` to `v0.4.0`, any deployment, Access setup, Workers AI planner quality.
 - If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until `npm run count:tests`, `npm run eval:sim` and `npm run eval:planner` (with `AGENTBOARD_LLM_PORT=8140 npm run llm:serve` running and `LLM_BASE_URL=http://127.0.0.1:8140`) are re-run on a clean, committed tree and `npm run results:render` is re-run.
 
@@ -109,3 +125,4 @@ All 36 planned commits are done, plus the extra fix commit 33a. Every item on th
 41. **`count:tests -- --check` and `results:check` join CI in commit 35**, where the README with the rendered counts lands. The check compares the suite with `eval/results/tests.json` and the README's reported counts, and neither exists until the measured results are committed, so adding it at commit 33 would break CI there. `scripts/bootstrap-admin.ts` (SQL for a production admin binding) also lands here.
 42. **Extra commit 33a.** The first full planner measurement showed two defects in the scripts: `llama-server --version` prints to stderr, so the recorded build was empty, and two requests that failed at the transport (one timeout, one connection failure) were indistinguishable from invalid plans. Fixing them changed `scripts/`, which made every earlier measurement stale by the `results:check` rule, so all three measurements were taken again at the fixed commit.
 43. **Foreign README edits in history.** Another session edited `README.md` in this working tree while commits 12 to 14 were being built. Commit 12 (`cfde7d4`, outbox and audit) swept that session's uncommitted 445-line README into its diff, and that session then committed `6ffb555` ("docs: README with status, architecture, design decisions, local setup and roadmap", no Co-Authored-By trailer) between plan commits 13 and 14. Neither changed any other file. Commit 35 replaced the README entirely, so the current README is this build's. The history was not rewritten; whoever opens the PRs can decide whether to drop `6ffb555` and the README hunk of `cfde7d4`.
+44. **Stretch items after the release, and the results staleness rule.** `results:check` fails whenever `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` differ from the measured commit, so any commit that changes those paths after the v0.4.0 results is red on that one CI step until the measurements are taken again. The stretch items are therefore ordered so the ones outside the measured paths (workflows, `package.json` scripts, ADRs) come first and stay fully green, the three that change `src` or `scripts` (UI tests, dark-mode tokens, the external `/mcp` route) come next, and one re-measurement commit follows them. At those three commits typecheck, tests and build pass and only `results:check` reports the stale measurement; the head of the group passes everything. The preview workflow's built-config check is inline in the workflow (not a new file under `scripts/`) for the same reason.

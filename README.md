@@ -105,6 +105,7 @@ The rules that make it safe under at-least-once delivery:
 | LLM planning | deterministic stub in tests and the simulation; a local llama-server (Qwen3-1.7B Q4_0) for `eval:planner` | Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway (unit-tested with a fake binding only; never executed) |
 | MCP integrations | in-process Streamable HTTP to the simulated People systems | the same in-process path to the same simulated systems |
 | Fault directives (simulation) | on in tests and the simulation | off, enforced at load time |
+| Preview deployments | not applicable | `preview.yml` deploys each pull request to the shared `preview` environment once the Cloudflare secrets exist (never run; checked offline with `wrangler deploy --dry-run`) |
 | Numbers in this README | all of them | none |
 
 ## Local setup
@@ -133,7 +134,8 @@ With the stub planner (the local default), only the synthetic dataset's requests
 7. `npm run deploy` (`CLOUDFLARE_ENV=production vite build && wrangler deploy`).
 8. Zero Trust: create a self-hosted Access application for the `workers.dev` hostname, allow your identity, copy the AUD tag and team domain into `env.production` vars, set `ALLOWED_ORIGINS` to the hostname, redeploy.
 9. Open the URL, authenticate, confirm `/api/me` shows `admin`.
-10. A preview environment repeats steps 2 to 8 with `--env preview` on every `wrangler d1`, `wrangler queues` and `wrangler secret` command and the `-preview` names. Cloudflare does not generate preview URLs for Workers that implement Durable Objects.
+10. A preview environment repeats steps 2 to 8 with `--env preview` on every `wrangler d1`, `wrangler queues` and `wrangler secret` command and the `-preview` names (`agentboard-preview`, `agentboard-people-preview`, `agentboard-preview-tasks`, `agentboard-preview-tasks-dlq`), deploying with `npm run deploy:preview`. Cloudflare does not generate preview URLs for Workers that implement Durable Objects, so there is one shared preview Worker, `agentboard-preview`.
+11. Per-PR preview deployments: add the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. `.github/workflows/preview.yml` then applies new D1 migrations to the preview databases, builds with `CLOUDFLARE_ENV=preview`, refuses any built config that is not the preview one, and deploys every pull request to `agentboard-preview`, one deploy at a time. Without the secrets (and on pull requests from forks) it skips the deploy job. It has not run against a real account.
 
 The top-level configuration is the local one and has `workers_dev: false`, so an accidental top-level deploy is unreachable; production refuses dev auth, fault injection, the stub LLM and a short signing key at load time.
 
