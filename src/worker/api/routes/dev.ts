@@ -52,6 +52,15 @@ export function devRoutes(): Hono<AppEnv> {
     c.header("Set-Cookie", `${ACCESS_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${DEV_SESSION_SECONDS}`);
     return c.json({ principal, role: binding.role });
   });
+  // Sample requests from the synthetic dataset, so the launch form works with the stub planner.
+  app.get("/api/dev/samples", identityMiddleware, requirePermission("runs:launch"), async (c) => {
+    const { default: dataset } = (await import("../../../../fixtures/synthetic/dataset.v1.json", { with: { type: "json" } })) as {
+      default: { runs: { ref: string; requestType: string; subjectEmployeeId: string; requestText: string }[] };
+    };
+    const samples = dataset.runs.slice(0, 24).map((r) => ({ ref: r.ref, requestType: r.requestType, subjectEmployeeId: r.subjectEmployeeId, requestText: r.requestText }));
+    return c.json({ samples });
+  });
+
   // Side-effect counters for the evaluation (admin only; dev mode and loopback only, like every dev route).
   app.get("/api/dev/people/side-effects", identityMiddleware, requirePermission("dlq:replay"), async (c) => {
     const db = c.env.PEOPLE_DB;

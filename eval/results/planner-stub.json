@@ -1,0 +1,2040 @@
+{
+  "meta": {
+    "gitSha": "83f4c08f7315259e101a15316bfa864bb22e4f81",
+    "dirty": false,
+    "generatedAt": "2026-10-08T23:48:08.818Z",
+    "node": "v25.9.0",
+    "wrangler": "4.149.0",
+    "seed": 7,
+    "provider": "stub",
+    "model": "stub-gold-plans",
+    "label": "stub",
+    "llama_cpp_build": "n/a",
+    "gguf": "n/a",
+    "quant": "n/a",
+    "server_flags": "n/a",
+    "base_url": "n/a",
+    "temperature": 0,
+    "sanity": true
+  },
+  "metrics": {
+    "n": 100,
+    "valid_first_pass": 100,
+    "valid_after_repair": 100,
+    "policy_violations": 0,
+    "tool_sequence_exact": 100,
+    "tool_set_f1_macro": 1,
+    "arg_accuracy": 1,
+    "unknown_tool_rate": 0,
+    "policy_overrides": 45,
+    "latency_ms_p50": 0.06460400000000277,
+    "latency_ms_p95": 0.2066276999999908,
+    "prompt_tokens_p50": 798.5,
+    "prompt_tokens_max": 1036,
+    "tokens_out_total": 11052,
+    "plan_invalid": 0,
+    "request_errors": 0
+  },
+  "perRequest": [
+    {
+      "ref": "syn-0001",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 3.091540999999978,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 87,
+      "error": null
+    },
+    {
+      "ref": "syn-0002",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.4517089999999939,
+      "promptTokens": [
+        809
+      ],
+      "tokensOut": 91,
+      "error": null
+    },
+    {
+      "ref": "syn-0003",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.6765829999999937,
+      "promptTokens": [
+        1033
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0004",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.12258299999999167,
+      "promptTokens": [
+        804
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0005",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.14949999999998909,
+      "promptTokens": [
+        929
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0006",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.46704100000002313,
+      "promptTokens": [
+        797
+      ],
+      "tokensOut": 108,
+      "error": null
+    },
+    {
+      "ref": "syn-0007",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.11233300000000668,
+      "promptTokens": [
+        795
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0008",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.09687500000001137,
+      "promptTokens": [
+        788
+      ],
+      "tokensOut": 88,
+      "error": null
+    },
+    {
+      "ref": "syn-0009",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.0897499999999809,
+      "promptTokens": [
+        802
+      ],
+      "tokensOut": 92,
+      "error": null
+    },
+    {
+      "ref": "syn-0010",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.1304580000000044,
+      "promptTokens": [
+        1029
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0011",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.11133399999999938,
+      "promptTokens": [
+        938
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0012",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.10912500000000591,
+      "promptTokens": [
+        935
+      ],
+      "tokensOut": 131,
+      "error": null
+    },
+    {
+      "ref": "syn-0013",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.4117080000000044,
+      "promptTokens": [
+        795
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0014",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.10054200000001856,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0015",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.07349999999999568,
+      "promptTokens": [
+        808
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0016",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.07270799999997735,
+      "promptTokens": [
+        800
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0017",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.12829099999999016,
+      "promptTokens": [
+        791
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0018",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.1339580000000069,
+      "promptTokens": [
+        1035
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0019",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.19583399999999074,
+      "promptTokens": [
+        705
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0020",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.0660840000000178,
+      "promptTokens": [
+        789
+      ],
+      "tokensOut": 87,
+      "error": null
+    },
+    {
+      "ref": "syn-0021",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06362500000000182,
+      "promptTokens": [
+        788
+      ],
+      "tokensOut": 88,
+      "error": null
+    },
+    {
+      "ref": "syn-0022",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.06487500000000068,
+      "promptTokens": [
+        704
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0023",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05416700000000674,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0024",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.07325000000000159,
+      "promptTokens": [
+        789
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0025",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05525000000000091,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 87,
+      "error": null
+    },
+    {
+      "ref": "syn-0026",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.08795900000001211,
+      "promptTokens": [
+        1034
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0027",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.05854199999998855,
+      "promptTokens": [
+        801
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0028",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.09516700000000355,
+      "promptTokens": [
+        1033
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0029",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.054000000000002046,
+      "promptTokens": [
+        803
+      ],
+      "tokensOut": 92,
+      "error": null
+    },
+    {
+      "ref": "syn-0030",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.053625000000010914,
+      "promptTokens": [
+        708
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0031",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.07320799999999394,
+      "promptTokens": [
+        1035
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0032",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04954200000000242,
+      "promptTokens": [
+        802
+      ],
+      "tokensOut": 91,
+      "error": null
+    },
+    {
+      "ref": "syn-0033",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04729199999999878,
+      "promptTokens": [
+        709
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0034",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.08050000000000068,
+      "promptTokens": [
+        787
+      ],
+      "tokensOut": 88,
+      "error": null
+    },
+    {
+      "ref": "syn-0035",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.0742089999999962,
+      "promptTokens": [
+        936
+      ],
+      "tokensOut": 131,
+      "error": null
+    },
+    {
+      "ref": "syn-0036",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.09645900000001006,
+      "promptTokens": [
+        1028
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0037",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06929200000001856,
+      "promptTokens": [
+        789
+      ],
+      "tokensOut": 88,
+      "error": null
+    },
+    {
+      "ref": "syn-0038",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06974999999999909,
+      "promptTokens": [
+        932
+      ],
+      "tokensOut": 131,
+      "error": null
+    },
+    {
+      "ref": "syn-0039",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.10179200000001742,
+      "promptTokens": [
+        1032
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0040",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.07308399999999438,
+      "promptTokens": [
+        936
+      ],
+      "tokensOut": 131,
+      "error": null
+    },
+    {
+      "ref": "syn-0041",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.0625,
+      "promptTokens": [
+        705
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0042",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.09095800000000054,
+      "promptTokens": [
+        931
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0043",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06312499999998522,
+      "promptTokens": [
+        791
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0044",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.050958000000008496,
+      "promptTokens": [
+        793
+      ],
+      "tokensOut": 88,
+      "error": null
+    },
+    {
+      "ref": "syn-0045",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06524999999999181,
+      "promptTokens": [
+        791
+      ],
+      "tokensOut": 108,
+      "error": null
+    },
+    {
+      "ref": "syn-0046",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.047457999999977574,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0047",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.072749999999985,
+      "promptTokens": [
+        1028
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0048",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.08616599999999153,
+      "promptTokens": [
+        934
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0049",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04729199999999878,
+      "promptTokens": [
+        803
+      ],
+      "tokensOut": 91,
+      "error": null
+    },
+    {
+      "ref": "syn-0050",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.054666999999994914,
+      "promptTokens": [
+        789
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0051",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.10054099999999266,
+      "promptTokens": [
+        791
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0052",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04749999999998522,
+      "promptTokens": [
+        802
+      ],
+      "tokensOut": 91,
+      "error": null
+    },
+    {
+      "ref": "syn-0053",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04441700000000992,
+      "promptTokens": [
+        708
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0054",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.0624170000000106,
+      "promptTokens": [
+        794
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0055",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.06758300000001327,
+      "promptTokens": [
+        1035
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0056",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.04341600000000767,
+      "promptTokens": [
+        788
+      ],
+      "tokensOut": 88,
+      "error": null
+    },
+    {
+      "ref": "syn-0057",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.08691600000000221,
+      "promptTokens": [
+        1033
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0058",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04824999999999591,
+      "promptTokens": [
+        704
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0059",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04383299999997803,
+      "promptTokens": [
+        706
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0060",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.06420900000000529,
+      "promptTokens": [
+        810
+      ],
+      "tokensOut": 92,
+      "error": null
+    },
+    {
+      "ref": "syn-0061",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.0503750000000025,
+      "promptTokens": [
+        795
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0062",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04691700000000765,
+      "promptTokens": [
+        709
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0063",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.07562500000000227,
+      "promptTokens": [
+        1034
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0064",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06387499999999591,
+      "promptTokens": [
+        930
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0065",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.06379199999997809,
+      "promptTokens": [
+        1034
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0066",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.07370800000001054,
+      "promptTokens": [
+        929
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0067",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.041957999999993945,
+      "promptTokens": [
+        792
+      ],
+      "tokensOut": 87,
+      "error": null
+    },
+    {
+      "ref": "syn-0068",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.07758300000000418,
+      "promptTokens": [
+        1036
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0069",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05116699999999241,
+      "promptTokens": [
+        794
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0070",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.07379199999999742,
+      "promptTokens": [
+        934
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0071",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06433300000000486,
+      "promptTokens": [
+        929
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0072",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06674999999998477,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0073",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05516699999998309,
+      "promptTokens": [
+        933
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0074",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.051625000000001364,
+      "promptTokens": [
+        705
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0075",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04641700000001947,
+      "promptTokens": [
+        808
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0076",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.04220900000001393,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0077",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06537500000001728,
+      "promptTokens": [
+        935
+      ],
+      "tokensOut": 131,
+      "error": null
+    },
+    {
+      "ref": "syn-0078",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.053541999999993095,
+      "promptTokens": [
+        789
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0079",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06662500000001614,
+      "promptTokens": [
+        933
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0080",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06870800000001509,
+      "promptTokens": [
+        930
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0081",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.04404199999999037,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 90,
+      "error": null
+    },
+    {
+      "ref": "syn-0082",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05608300000000099,
+      "promptTokens": [
+        932
+      ],
+      "tokensOut": 131,
+      "error": null
+    },
+    {
+      "ref": "syn-0083",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06887500000001978,
+      "promptTokens": [
+        934
+      ],
+      "tokensOut": 129,
+      "error": null
+    },
+    {
+      "ref": "syn-0084",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05687500000001933,
+      "promptTokens": [
+        928
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0085",
+      "requestType": "access_revocation",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.04070799999999508,
+      "promptTokens": [
+        790
+      ],
+      "tokensOut": 87,
+      "error": null
+    },
+    {
+      "ref": "syn-0086",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06999999999999318,
+      "promptTokens": [
+        792
+      ],
+      "tokensOut": 108,
+      "error": null
+    },
+    {
+      "ref": "syn-0087",
+      "requestType": "offboarding",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 11,
+      "equalFields": 11,
+      "steps": 5,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.06204199999999105,
+      "promptTokens": [
+        1029
+      ],
+      "tokensOut": 158,
+      "error": null
+    },
+    {
+      "ref": "syn-0088",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.03870900000001143,
+      "promptTokens": [
+        704
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0089",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.06029200000000401,
+      "promptTokens": [
+        789
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0090",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.04424999999997681,
+      "promptTokens": [
+        794
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0091",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.04720800000001191,
+      "promptTokens": [
+        796
+      ],
+      "tokensOut": 107,
+      "error": null
+    },
+    {
+      "ref": "syn-0092",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.036000000000001364,
+      "promptTokens": [
+        704
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0093",
+      "requestType": "address_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.05662499999999682,
+      "promptTokens": [
+        795
+      ],
+      "tokensOut": 106,
+      "error": null
+    },
+    {
+      "ref": "syn-0094",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04583299999998758,
+      "promptTokens": [
+        801
+      ],
+      "tokensOut": 91,
+      "error": null
+    },
+    {
+      "ref": "syn-0095",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.03650000000001796,
+      "promptTokens": [
+        704
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0096",
+      "requestType": "onboarding_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 0,
+      "latencyMs": 0.07433299999999576,
+      "promptTokens": [
+        928
+      ],
+      "tokensOut": 128,
+      "error": null
+    },
+    {
+      "ref": "syn-0097",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.04066699999998491,
+      "promptTokens": [
+        802
+      ],
+      "tokensOut": 91,
+      "error": null
+    },
+    {
+      "ref": "syn-0098",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.03624999999999545,
+      "promptTokens": [
+        708
+      ],
+      "tokensOut": 85,
+      "error": null
+    },
+    {
+      "ref": "syn-0099",
+      "requestType": "privileged_access",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.05324999999999136,
+      "promptTokens": [
+        803
+      ],
+      "tokensOut": 92,
+      "error": null
+    },
+    {
+      "ref": "syn-0100",
+      "requestType": "manager_change",
+      "validFirstPass": true,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "latencyMs": 0.03595800000002214,
+      "promptTokens": [
+        704
+      ],
+      "tokensOut": 85,
+      "error": null
+    }
+  ]
+}

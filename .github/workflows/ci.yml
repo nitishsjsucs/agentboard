@@ -2,7 +2,10 @@ name: ci
 
 on:
   push:
+    branches: ["**"]
   pull_request:
+  # release.yml runs this workflow on the tagged commit before it publishes a release.
+  workflow_call:
 
 jobs:
   ci:
@@ -20,4 +23,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run synth:check
       - run: npm test
+      - run: npm run test:sim
+      - run: npm run count:tests -- --check
+      - run: npm run results:check
       - run: npm run build

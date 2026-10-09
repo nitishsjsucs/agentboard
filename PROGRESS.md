@@ -33,17 +33,52 @@ Source of truth for the design: `SPEC.md` (revision 2). This file tracks where t
 | 25 | feat(realtime): read-only run snapshots over WebSocket with an Origin allowlist | done |
 | 26 | feat(web): app shell, role-aware navigation, dev login and design tokens | done |
 | 27 | feat(web): dashboard with agent-role and DLQ panels, and runs list with search | done |
+| 28 | feat(web): live run detail with timeline, tool-call traces and recovery controls | done (includes ApprovalCard and its test) |
+| 29 | feat(web): approval queue and launch form | done |
+| 30 | docs: milestone 3 demo script | done (local tag v0.3.0) |
+| 31 | feat(sim): shared simulation driver and 100-run workerd simulation test | done |
+| 32 | feat(eval): eval-sim against wrangler dev on the built worker, and eval-planner against llama-server | done |
+| 33 | feat(eval): tagged test counter and README results renderer with staleness check | done (CI steps moved to 35) |
+| 33a | fix(eval): record the llama.cpp build and separate transport errors in the planner eval | done (extra commit, see deviation 42) |
+| 34 | chore(results): measured simulation, planner and test results | done (measured at 83f4c08) |
+| 35 | docs: architecture, setup, deploy steps, local versus production and rendered results | done (CI adds count:tests --check and results:check) |
+| 36 | chore(release): v0.4.0 changelog and milestone 4 demo script | done (local tag v0.4.0) |
 
-Next: commit 28 (`feat(web): live run detail with timeline, tool-call traces and recovery controls`).
+All 36 planned commits are done, plus the extra fix commit 33a. Every item on the section 1.1 "must ship" list exists and is tested.
 
-## Check status (last run)
+### After the plan: fixes and stretch items (builder 2)
 
-- `npm run typecheck`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 30 files, 130 tests)
-- Tagged (`vitest list --tags-filter`): orchestration 61, authz 39 (all 100 planned tests exist and pass)
-- `npm run synth:check`: pass
+The stretch items of section 1.1 are built in the spec's cut order where they do not touch measured paths, and the ones that change `src` or `scripts` are grouped before one re-measurement (deviation 44).
+
+| # | Commit | Status |
+|---|---|---|
+| 37 | fix(scripts): add the npm deploy script that the deploy steps use | done |
+| 38 | ci: gated per-PR deploys to the preview environment | done |
+| 39 | ci: release workflow that publishes a milestone from its changelog section and demo script | done |
+| 40 | docs: ADRs 0003 to 0005 | next |
+| 41 | test(web): UI tests for tool-call traces, role and DLQ panels, the confirm dialog, meters and the audit badge | planned |
+| 42 | feat(web): dark-mode tokens | planned |
+| 43 | feat(mcp): dev-only external /mcp route for MCP Inspector and dev:token --integration | planned |
+| 44 | chore(results): re-measure simulation, planner and test results after the stretch items | planned |
+| 45 | docs: README, CHANGELOG and PROGRESS for the stretch items | planned |
+
+## What is left (stretch items, cut first per SPEC section 1.1, and human steps)
+
+- Stretch, in progress (see the table above): `.github/workflows/preview.yml` (gated, never run against an account) and `.github/workflows/release.yml` (never run; its notes step was run locally for every tag) are built; still to build: UI component tests beyond the 8, dark-mode tokens, ADRs beyond 0001 and 0002, the external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`; the worker answers 404 on `/mcp`, and `dev:token --integration` is not implemented).
+- Not done by the builders (needs Nitish, SPEC section 18): pushing, opening the 8 PRs, GitHub releases for the local tags `v0.1.0` to `v0.4.0`, any deployment, Access setup, Workers AI planner quality.
+- If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until `npm run count:tests`, `npm run eval:sim` and `npm run eval:planner` (with `AGENTBOARD_LLM_PORT=8140 npm run llm:serve` running and `LLM_BASE_URL=http://127.0.0.1:8140`) are re-run on a clean, committed tree and `npm run results:render` is re-run.
+
+## Check status (last run, 2026-10-08, at the release commit)
+
 - `npm run types:check`: pass
+- `npm run typecheck`: pass
+- `npm run synth:check`: pass
+- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 34 files, 140 tests)
+- `npm run test:sim`: pass (6 tests; all 100 runs reach their expected status; several consecutive runs of 22 to 34 s)
+- `npm run count:tests -- --check`: pass (61 orchestration + 39 authz = 100)
+- `npm run results:check`: pass (results measured at `83f4c08`, clean tree)
 - `npm run build`: pass
+- Measured (in `eval/results/`, rendered in the README): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 100/100 valid chains; eval:planner (Qwen3-1.7B Q4_0, llama-server 0.5.0 build 11146) 84/100 valid plans, 9/100 exact tool sequences; count:tests 100/100 passing.
 
 ## Deviations from SPEC.md
 
@@ -83,3 +118,11 @@ Next: commit 28 (`feat(web): live run detail with timeline, tool-call traces and
 34. **`rbac-matrix.test.ts` #7** covers the audit read now; the search half joins in commit 24 with the search route. `dev-mode.test.ts` #1 shows the `sim` refusal on an app built with `FAULT_INJECTION=off` and dev auth, because an Access-mode token cannot be verified in the `worker` project; `access-jwt.test.ts` #7 (unbound principal) landed here.
 35. **Control responses.** A refused recovery command answers 409 with `{ accepted: false, reason, snapshot }`; an accepted one answers 200.
 36. **Search response shape.** `GET /api/search` returns `{ items: SearchHit[], nextCursor }` (the spec's table says `SearchHit[]`) because `search.test.ts` requires cursor paging; the cursor is an opaque offset. Queries are reduced to letter and digit runs, each quoted and ANDed, so no FTS5 syntax reaches SQLite. Search documents are upserted by the coordinator's outbox in the same D1 batch as the mirrors.
+37. **`ApprovalCard` and its test landed with commit 28**, because the run detail page uses the card; commit 29 adds the approval queue and launch pages. The launch form offers dev-only sample requests from the synthetic dataset (`GET /api/dev/samples`, dev mode and loopback only), because the local stub planner only knows the dataset's prompts.
+38. **UI checked by hand** on 2026-10-08 against `wrangler dev` on the built worker (port 8784): dev login, launching a dataset sample, the live run detail reaching `succeeded`, tool-call traces, the verified audit chain, the dashboard and search highlights all rendered and worked.
+39. **Eval provenance helper.** `scripts/lib/meta.ts` (not in the layout) writes `{ gitSha, dirty, generatedAt, node, wrangler, seed, provider, model }` into every result. "Dirty" means a tracked or untracked change under the measured paths (`src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc`, `package-lock.json`), the same set `results:check` diffs. `eval:sim` writes its own `.dev.vars.eval` with a fresh dev keypair (no dependency on `npm run dev:keys`), runs wrangler dev on port 8784 with inspector port 9234, and kills the process group when done. `npm run llm:serve` takes `AGENTBOARD_LLM_PORT` (default 8080); on this machine the eval used port 8140.
+40. **`eval:planner` scoring choices.** Exact match, F1 and argument accuracy score the last plan the model produced (the repair when there was one). The plan output schema has no approval field, so `policy_overrides` counts every policy-gated step in the final valid plans (the model never sets approval).
+41. **`count:tests -- --check` and `results:check` join CI in commit 35**, where the README with the rendered counts lands. The check compares the suite with `eval/results/tests.json` and the README's reported counts, and neither exists until the measured results are committed, so adding it at commit 33 would break CI there. `scripts/bootstrap-admin.ts` (SQL for a production admin binding) also lands here.
+42. **Extra commit 33a.** The first full planner measurement showed two defects in the scripts: `llama-server --version` prints to stderr, so the recorded build was empty, and two requests that failed at the transport (one timeout, one connection failure) were indistinguishable from invalid plans. Fixing them changed `scripts/`, which made every earlier measurement stale by the `results:check` rule, so all three measurements were taken again at the fixed commit.
+43. **Foreign README edits in history.** Another session edited `README.md` in this working tree while commits 12 to 14 were being built. Commit 12 (`cfde7d4`, outbox and audit) swept that session's uncommitted 445-line README into its diff, and that session then committed `6ffb555` ("docs: README with status, architecture, design decisions, local setup and roadmap", no Co-Authored-By trailer) between plan commits 13 and 14. Neither changed any other file. Commit 35 replaced the README entirely, so the current README is this build's. The history was not rewritten; whoever opens the PRs can decide whether to drop `6ffb555` and the README hunk of `cfde7d4`.
+44. **Stretch items after the release, and the results staleness rule.** `results:check` fails whenever `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` differ from the measured commit, so any commit that changes those paths after the v0.4.0 results is red on that one CI step until the measurements are taken again. The stretch items are therefore ordered so the ones outside the measured paths (workflows, `package.json` scripts, ADRs) come first and stay fully green, the three that change `src` or `scripts` (UI tests, dark-mode tokens, the external `/mcp` route) come next, and one re-measurement commit follows them. At those three commits typecheck, tests and build pass and only `results:check` reports the stale measurement; the head of the group passes everything. The preview workflow's built-config check is inline in the workflow (not a new file under `scripts/`) for the same reason.
