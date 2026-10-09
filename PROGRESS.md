@@ -54,8 +54,8 @@ The stretch items of section 1.1 are built in the spec's cut order where they do
 |---|---|---|
 | 37 | fix(scripts): add the npm deploy script that the deploy steps use | done |
 | 38 | ci: gated per-PR deploys to the preview environment | done |
-| 39 | ci: release workflow that publishes a milestone from its changelog section and demo script | next |
-| 40 | docs: ADRs 0003 to 0005 | planned |
+| 39 | ci: release workflow that publishes a milestone from its changelog section and demo script | done |
+| 40 | docs: ADRs 0003 to 0005 | next |
 | 41 | test(web): UI tests for tool-call traces, role and DLQ panels, the confirm dialog, meters and the audit badge | planned |
 | 42 | feat(web): dark-mode tokens | planned |
 | 43 | feat(mcp): dev-only external /mcp route for MCP Inspector and dev:token --integration | planned |
@@ -64,7 +64,7 @@ The stretch items of section 1.1 are built in the spec's cut order where they do
 
 ## What is left (stretch items, cut first per SPEC section 1.1, and human steps)
 
-- Stretch, in progress (see the table above): `.github/workflows/preview.yml` is built (gated, never run against an account); still to build: `.github/workflows/release.yml`, UI component tests beyond the 8, dark-mode tokens, ADRs beyond 0001 and 0002, the external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`; the worker answers 404 on `/mcp`, and `dev:token --integration` is not implemented).
+- Stretch, in progress (see the table above): `.github/workflows/preview.yml` (gated, never run against an account) and `.github/workflows/release.yml` (never run; its notes step was run locally for every tag) are built; still to build: UI component tests beyond the 8, dark-mode tokens, ADRs beyond 0001 and 0002, the external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`; the worker answers 404 on `/mcp`, and `dev:token --integration` is not implemented).
 - Not done by the builders (needs Nitish, SPEC section 18): pushing, opening the 8 PRs, GitHub releases for the local tags `v0.1.0` to `v0.4.0`, any deployment, Access setup, Workers AI planner quality.
 - If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until `npm run count:tests`, `npm run eval:sim` and `npm run eval:planner` (with `AGENTBOARD_LLM_PORT=8140 npm run llm:serve` running and `LLM_BASE_URL=http://127.0.0.1:8140`) are re-run on a clean, committed tree and `npm run results:render` is re-run.
 

@@ -145,6 +145,10 @@ The top-level configuration is the local one and has `workers_dev: false`, so an
 - `npm run test:sim` drives all 100 synthetic requests through the real API, queue, coordinator, agents and MCP tools in workerd, with the same driver as `eval:sim`.
 - Exactly 100 tests are tagged `orchestration` or `authz` (SPEC section 13.1). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count.
 
+## Releases
+
+Four milestone tags, `v0.1.0` to `v0.4.0`, exist in this repository with a demo script each in `demos/` and a section each in `CHANGELOG.md`; no GitHub release has been published yet. `.github/workflows/release.yml` publishes one: pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. The four existing tags predate the workflow (GitHub runs the workflow file of the tagged commit), so their releases are created by running it by hand, for example `gh workflow run release.yml -f tag=v0.1.0`; an existing release is left untouched.
+
 ## Results
 
 Every number below is written by a script into `eval/results/*.json` and rendered here by `npm run results:render`. CI (`npm run results:check`) fails if this block differs from the JSON, if a measurement ran on a dirty tree, or if the measured code changed after the measurement.
