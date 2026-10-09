@@ -6,7 +6,7 @@ import type { Plan, PlanStep, RequestType } from "../../shared/domain.ts";
 import { NOTIFY_TEMPLATE_FOR } from "../../shared/synth/catalog.ts";
 import type { LlmProvider, LlmResult } from "../llm/provider.ts";
 import { materializePlan, type MaterializedTask } from "./materialize.ts";
-import { ALLOWED_TOOLS, approvalFor, checkStepPolicy, type PolicyViolation } from "./policy.ts";
+import { ALLOWED_TOOLS, approvalFor, checkPlanPolicy, checkStepPolicy, type PolicyViolation } from "./policy.ts";
 import { isToolName, isWriteTool, TOOL_INPUTS, TOOL_SPECS, toolJsonSchema } from "./tool-registry.ts";
 
 export interface PlanContext {
@@ -29,6 +29,7 @@ export interface PlanIssue {
     | "manager_is_subject"
     | "role_not_allowed"
     | "gated_dependency"
+    | "missing_gate"
     | "cycle";
   stepId?: string;
   message: string;
@@ -94,6 +95,8 @@ export function validatePlan(raw: unknown, ctx: PlanContext): PlanValidation {
       }
     }
   }
+  // Plan-level rule: revoke_all_roles only behind the termination approval.
+  for (const issue of checkPlanPolicy(steps)) issues.push(issue);
   if (issues.length > 0) return fail(issues);
 
   const plan: Plan = { steps };
@@ -105,7 +108,7 @@ export function validatePlan(raw: unknown, ctx: PlanContext): PlanValidation {
 function fail(issues: PlanIssue[]): PlanValidation {
   const violations = new Set<PolicyViolation>();
   for (const issue of issues) {
-    if (issue.code === "tool_not_allowed" || issue.code === "off_subject") violations.add(issue.code);
+    if (issue.code === "tool_not_allowed" || issue.code === "off_subject" || issue.code === "missing_gate") violations.add(issue.code);
   }
   return { ok: false, issues, policyViolations: [...violations] };
 }

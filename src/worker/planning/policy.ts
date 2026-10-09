@@ -45,7 +45,7 @@ export function approvalFor(step: Pick<PlanStep, "tool" | "args">): ApprovalRequ
   }
 }
 
-export type PolicyViolation = "tool_not_allowed" | "off_subject";
+export type PolicyViolation = "tool_not_allowed" | "off_subject" | "missing_gate";
 
 export interface PolicyIssue {
   code: PolicyViolation | "manager_is_subject" | "role_not_allowed";
@@ -71,6 +71,34 @@ export function checkStepPolicy(step: PlanStep, requestType: RequestType, subjec
     }
     if (requestType === "privileged_access" && !isPrivilegedRole(step.args["system"], step.args["role"])) {
       issues.push({ code: "role_not_allowed", stepId: step.id, message: `privileged_access may grant only ${PRIVILEGED_ROLES.join(", ")}` });
+    }
+  }
+  return issues;
+}
+
+export interface PlanPolicyIssue {
+  code: "missing_gate";
+  stepId?: string;
+  message: string;
+}
+
+/**
+ * Plan-level rule: `access.revoke_all_roles` runs only behind an approval. The
+ * plan must also terminate the subject with `hris.set_employment_status`
+ * (always gated), so the gating edges put the revoke after that approval.
+ * Without this rule a plan that drops the status change revokes every role
+ * with no approval at all.
+ */
+export function checkPlanPolicy(steps: readonly PlanStep[]): PlanPolicyIssue[] {
+  const issues: PlanPolicyIssue[] = [];
+  const terminates = steps.some((s) => s.tool === "hris.set_employment_status" && s.args["status"] === "terminated");
+  for (const step of steps) {
+    if (step.tool === "access.revoke_all_roles" && !terminates) {
+      issues.push({
+        code: "missing_gate",
+        stepId: step.id,
+        message: "access.revoke_all_roles is allowed only together with hris.set_employment_status to terminated, whose approval it waits for",
+      });
     }
   }
   return issues;
