@@ -168,16 +168,18 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `8f04166`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `b4d4dd6`.
 
 | Metric | Value |
 |---|---|
 | Runs executed | 100 |
+| Injected by the seeded dataset: fault directives; checkpoint runs the driver pauses or cancels | transient_error 18 (3 of them twice), duplicate_delivery 10, crash_after_call 6, permanent_error 4, silent_noop 4, budget_exhausted 3; pause_resume 3, cancel 2 |
 | Outcome distribution | awaiting_approval 3, cancelled 4, rejected 6, succeeded 87 |
 | Outcome match (measured status equals expected) | 100/100 |
 | Duplicate side effects (per idempotency key) | 0 |
 | Logical duplicate side effects (per run and step) | 0 |
-| Tool calls | 577 (ok 546, permanent_error 4, replayed 6, retryable_error 21) |
+| Duplicate; missing rows in the simulated domain tables (tickets, notifications, new grants) against applied steps | 0; 0 |
+| Tool calls | 575 (ok 544, permanent_error 4, replayed 6, retryable_error 21) |
 | Ledger replays (of which logical) | 6 (0) |
 | Task retries; runs recovered by retry | 21; 18 |
 | Lease expiries; recovered | 6; 6 |
@@ -186,35 +188,36 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Budget exhaustions; recoveries | 3; 3 |
 | Silent no-ops detected by the verifier; false positives | 4/4; 0 |
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
-| Audit events; runs with a valid hash chain | 3232; 100/100 |
+| Audit events; runs with a valid hash chain | 3230; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7223 ms; 10811 ms |
-| Search latency p50; p95 (local) | 2 ms; 3 ms |
+| Run duration p50; p95 (local wall clock) | 7293 ms; 10868 ms |
+| Search latency p50; p95 (local) | 2 ms; 4 ms |
 
-This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
+This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `8f04166`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `b4d4dd6`.
 
 | Metric | Value |
 |---|---|
-| Valid plans, first pass | 84/100 (84%) |
-| Valid plans after one repair | 84/100 (84%) |
-| Invalid after the repair; requests that failed at the transport (timeout or connection) | 16; 0 |
+| Valid plans, first pass | 57/100 (57%) |
+| Valid plans after one repair | 77/100 (77%) |
+| Valid plans that contain every write of the gold plan | 76/100 (76%) |
+| Invalid after the repair; requests that failed at the transport (timeout or connection) | 23; 0 |
 | Plans rejected for policy violations | 0 |
-| Tool sequence exactly equal to gold | 9/100 (9%) |
-| Tool-set F1 (macro) | 0.593 |
-| Argument accuracy (gold fields of matched steps) | 1.000 |
-| Unknown-tool rate | 0.000 |
-| Latency p50; p95 | 916 ms; 8970 ms |
-| Prompt tokens p50; max | 817; 1368 |
+| Tool sequence exactly equal to gold | 34/100 (34%) |
+| Tool-set F1 (macro) | 0.932 |
+| Argument accuracy (gold fields of matched steps) | 0.982 |
+| Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
+| Latency p50; p95 | 2663 ms; 7007 ms |
+| Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-09 at commit `8f04166`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `b4d4dd6`.
 
-Tagged tests: 61 orchestration + 39 authorization = 100; passing: 100.
+Tagged tests: 63 orchestration + 41 authorization = 104; passing: 104.
 
 ### Production
 

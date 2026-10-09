@@ -1,14 +1,14 @@
 {
   "meta": {
-    "gitSha": "8f04166bdbbf7f309d6272bab5b1e97b2c19a5ce",
+    "gitSha": "b4d4dd6ccaff095d4ac25a3b9bd76e6fdadab85e",
     "dirty": false,
-    "generatedAt": "2026-10-09T00:28:08.204Z",
+    "generatedAt": "2026-10-09T03:18:02.980Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
     "provider": "stub",
     "model": "stub-gold-plans",
-    "bundleSha256": "eba13d6a298164765763445bd6ac4ff1c60bc4e60ee232e48ac318b432823165",
+    "bundleSha256": "046871b68de0209741f9d88892947b42dcb3adb8b26fa9f151052a0d63a1bbdc",
     "environment": "local wrangler dev (workerd, local D1, local queues)",
     "concurrency": 8
   },
@@ -36,9 +36,9 @@
     },
     "outcome_match": 100,
     "tasks_total": 700,
-    "tool_calls_total": 577,
+    "tool_calls_total": 575,
     "tool_calls_by_outcome": {
-      "ok": 546,
+      "ok": 544,
       "retryable_error": 21,
       "replayed": 6,
       "permanent_error": 4
@@ -48,6 +48,29 @@
     "side_effects_total": 216,
     "duplicate_side_effects": 0,
     "logical_duplicate_effects": 0,
+    "domain_inserts": {
+      "tickets": 31,
+      "notifications": 85,
+      "grants": 31
+    },
+    "domain_inserts_expected": {
+      "tickets": 31,
+      "notifications": 85,
+      "grants": 31
+    },
+    "domain_duplicate_inserts": 0,
+    "domain_missing_inserts": 0,
+    "injected_by_modifier": {
+      "duplicate_delivery": 10,
+      "transient_error": 18,
+      "crash_after_call": 6,
+      "pause_resume": 3,
+      "permanent_error": 4,
+      "cancel": 2,
+      "budget_exhausted": 3,
+      "silent_noop": 4
+    },
+    "injected_transient_twice": 3,
     "task_retries": 21,
     "runs_recovered_by_retry": 18,
     "lease_expiries": 6,
@@ -73,16 +96,16 @@
       "run.paused": 3,
       "run.resumed": 3
     },
-    "audit_events_total": 3232,
+    "audit_events_total": 3230,
     "audit_chains_valid": 100,
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 7223,
-    "run_duration_ms_p95": 10811.199999999992,
-    "search_latency_ms_p50": 2.4658330000020214,
-    "search_latency_ms_p95": 3.483612200000062,
-    "driver_wall_clock_ms": 103522
+    "run_duration_ms_p50": 7293,
+    "run_duration_ms_p95": 10868.19999999999,
+    "search_latency_ms_p50": 2.1271039999992354,
+    "search_latency_ms_p95": 4.11292469999681,
+    "driver_wall_clock_ms": 104072
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"
