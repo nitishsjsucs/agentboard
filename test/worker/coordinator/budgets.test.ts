@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_BUDGET } from "../../../src/shared/domain.ts";
-import { plannerMaxOutputTokens } from "../../../src/worker/agents/coordinator/budgets.ts";
 import type { ClaimResult, ToolCallTrace } from "../../../src/worker/agents/coordinator/schema.ts";
+import { estimateTokens, type LlmRequest } from "../../../src/worker/llm/provider.ts";
+import { ScriptedProvider } from "../../../src/worker/llm/stub.ts";
+import { datasetRun, inputFromDataset, runPlanner } from "../../helpers/agents.ts";
 import { apiPost } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
@@ -86,7 +88,7 @@ describe("execution budgets", { tags: ["orchestration"] }, () => {
     expect((await events(stub)).filter((e) => e.action === "budget.exhausted").map((e) => e.detail["budget"])).toEqual(["maxToolCalls"]);
   });
 
-  it("plan-time limits: more than maxSteps steps is rejected, maxOutputTokens is capped to the remaining LLM budget, and a planner claim below the 1500-token floor is refused", async () => {
+  it("plan-time limits: more than maxSteps steps is rejected, each model request's maxOutputTokens is capped to the LLM budget left (repair included), a cap below 200 fails the plan task without a model call, and a planner claim below the 1500-token floor is refused", async () => {
     const { stub } = await startManualRun({ budget: { ...DEFAULT_BUDGET, maxSteps: 2 } });
     await completePlan(stub, planFor("address_change"));
     const state = await readState(stub);
@@ -96,11 +98,55 @@ describe("execution budgets", { tags: ["orchestration"] }, () => {
     expect(state.run.status).toBe("needs_attention");
     expect((await events(stub)).find((e) => e.action === "plan.rejected")?.detail["issues"]).toEqual([{ code: "too_many_steps", stepId: null }]);
 
-    expect(plannerMaxOutputTokens(6000, 3000)).toBe(800);
-    expect(plannerMaxOutputTokens(1600, 2400)).toBe(800);
-    expect(plannerMaxOutputTokens(1300, 2400)).toBe(500);
-    expect(plannerMaxOutputTokens(1000, 2400)).toBe(200);
-    expect(plannerMaxOutputTokens(990, 2400)).toBeNull();
+    // The output cap, through a real PlannerAgent and a scripted model: min(800, remaining - ceil(promptChars / 3)),
+    // where remaining is the run's LLM budget minus what this planning attempt already used.
+    const request = datasetRun("syn-0006");
+    const readOnly = JSON.stringify({ steps: [{ id: "s1", tool: "hris.get_employee", args: { employeeId: request.subjectEmployeeId }, dependsOn: [] }] });
+    const gold = JSON.stringify(request.goldPlan);
+    const promptChars = (r: LlmRequest) => r.system.length + r.user.length;
+    const callTokens = (r: LlmRequest, output: string) => estimateTokens(`${r.system}\n${r.user}`) + estimateTokens(output);
+    async function planWith(maxLlmTokens: number, outputs: string[], requestText = request.requestText) {
+      const started = await startManualRun(inputFromDataset(request, { requestText, budget: { ...DEFAULT_BUDGET, maxLlmTokens } }));
+      const [d] = await takeDispatches(started.stub);
+      if (!d) throw new Error("no plan dispatch");
+      const model = new ScriptedProvider(outputs);
+      expect(await runPlanner(d.message, model)).toEqual({ kind: "ack" });
+      const after = await readState(started.stub);
+      return { model, state: after, planTask: after.tasks.get(d.message.taskId), stub: started.stub };
+    }
+
+    // The default budget (6000) leaves room, so both requests get the 800 ceiling. This run also yields the prompts.
+    const probe = await planWith(DEFAULT_BUDGET.maxLlmTokens, [readOnly, gold]);
+    const [firstPrompt, repairPrompt] = probe.model.requests;
+    if (!firstPrompt || !repairPrompt) throw new Error("expected a plan and a repair request");
+    expect([firstPrompt.maxOutputTokens, repairPrompt.maxOutputTokens]).toEqual([800, 800]);
+    expect(probe.planTask?.status).toBe("succeeded");
+
+    // A budget that leaves 600 tokens after the prompt: the first request is capped at 600.
+    const capped = await planWith(Math.ceil(promptChars(firstPrompt) / 3) + 600, [gold]);
+    expect(capped.model.requests.map((r) => [r.user === firstPrompt.user, r.maxOutputTokens])).toEqual([[true, 600]]);
+    expect(capped.planTask?.status).toBe("succeeded");
+
+    // The repair's cap subtracts the first call's tokens: a budget that leaves exactly 500 for the repair.
+    const repairBudget = callTokens(firstPrompt, readOnly) + Math.ceil(promptChars(repairPrompt) / 3) + 500;
+    expect(repairBudget).toBeGreaterThanOrEqual(1500);
+    const repaired = await planWith(repairBudget, [readOnly, gold]);
+    expect(repaired.model.requests.map((r) => [r.purpose, r.maxOutputTokens])).toEqual([
+      ["plan", Math.min(800, repairBudget - Math.ceil(promptChars(firstPrompt) / 3))],
+      ["plan_repair", 500],
+    ]);
+    expect(repaired.planTask?.status).toBe("succeeded");
+
+    // The claim floor (1500) passes, but a long request leaves a cap below 200: the plan task fails
+    // non-retryably with llm_budget_exhausted and the model is never called.
+    const padding = " Please keep the rest of the employee record as it is.".repeat(60);
+    expect(Math.min(800, 1500 - Math.ceil((promptChars(firstPrompt) + padding.length) / 3))).toBeLessThan(200);
+    const exhausted = await planWith(1500, [gold], request.requestText + padding);
+    expect(exhausted.model.requests).toEqual([]);
+    expect([exhausted.planTask?.status, exhausted.planTask?.lastError]).toEqual(["failed", "llm_budget_exhausted"]);
+    expect(exhausted.state.run.status).toBe("needs_attention");
+    expect(exhausted.state.run.usage.llmTokens).toBe(0);
+    expect((await events(exhausted.stub)).find((e) => e.action === "task.failed")?.detail).toMatchObject({ code: "llm_budget_exhausted", retryable: false, willRetry: false });
 
     const poor = await startManualRun({ budget: { ...DEFAULT_BUDGET, maxLlmTokens: 1400 } });
     const [planDispatch] = await takeDispatches(poor.stub);

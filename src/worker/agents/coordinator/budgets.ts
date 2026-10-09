@@ -7,12 +7,11 @@ import type { BudgetGate } from "./leases.ts";
 import { SYSTEM, type ControlCommand, type ControlResult } from "./schema.ts";
 import type { RunTx } from "./transitions.ts";
 
-/** A planner claim needs at least this many LLM tokens left. */
+/**
+ * A planner claim needs at least this many LLM tokens left. Each model request's own output
+ * cap (and the llm_budget_exhausted failure below it) is `outputCap` in planning/planner.ts.
+ */
 export const PLANNER_TOKEN_FLOOR = 1500;
-/** Upper bound for one planning request's output. */
-export const MAX_PLAN_OUTPUT_TOKENS = 800;
-/** Below this output cap the planner fails with llm_budget_exhausted instead of calling the model. */
-export const MIN_PLAN_OUTPUT_TOKENS = 200;
 
 export const budgetGate: BudgetGate = (tx, task, reserve) => {
   const { budget, usage } = tx.run;
@@ -21,13 +20,6 @@ export const budgetGate: BudgetGate = (tx, task, reserve) => {
   if (task.kind === "plan" && budget.maxLlmTokens - usage.llmTokens < PLANNER_TOKEN_FLOOR) return { budget: "maxLlmTokens" };
   return null;
 };
-
-/** maxOutputTokens = min(800, remaining - ceil(promptChars / 3)); null when that is below 200. */
-export function plannerMaxOutputTokens(remainingLlmTokens: number, promptChars: number): number | null {
-  const estimatedInput = Math.ceil(promptChars / 3);
-  const cap = Math.min(MAX_PLAN_OUTPUT_TOKENS, remainingLlmTokens - estimatedInput);
-  return cap < MIN_PLAN_OUTPUT_TOKENS ? null : cap;
-}
 
 /** Sweep step 3: the active-time deadline (queued, planning and running time only). */
 export function checkActiveDeadline(tx: RunTx): void {

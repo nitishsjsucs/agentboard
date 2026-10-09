@@ -259,10 +259,20 @@ export type PlanOutcome =
   | { ok: true; plan: Plan; tasks: MaterializedTask[]; llmTokens: number; validFirstPass: boolean; repaired: boolean; calls: PlanCall[] }
   | { ok: false; code: "plan_invalid" | "llm_budget_exhausted"; issues: PlanIssue[]; policyViolations: PolicyViolation[]; llmTokens: number; calls: PlanCall[] };
 
-/** Output-token cap: min(800, remaining - ceil(promptChars / 3)); null below 200 (SPEC section 7.1). */
+/** Upper bound for one planning request's output. */
+export const MAX_PLAN_OUTPUT_TOKENS = 800;
+/** Below this output cap the planner fails with llm_budget_exhausted instead of calling the model. */
+export const MIN_PLAN_OUTPUT_TOKENS = 200;
+
+/**
+ * Output-token cap of one model request: min(800, remaining - ceil(promptChars / 3)), where
+ * remaining is the run's LLM budget left minus what this planning attempt already used; null
+ * below 200 (SPEC sections 7.1 and 7.4). The only implementation; budgets.test.ts drives it
+ * through a real PlannerAgent.
+ */
 export function outputCap(remainingLlmTokens: number, promptChars: number): number | null {
-  const cap = Math.min(800, remainingLlmTokens - Math.ceil(promptChars / 3));
-  return cap < 200 ? null : cap;
+  const cap = Math.min(MAX_PLAN_OUTPUT_TOKENS, remainingLlmTokens - Math.ceil(promptChars / 3));
+  return cap < MIN_PLAN_OUTPUT_TOKENS ? null : cap;
 }
 
 /** Plans one request: one model call, and exactly one repair when validation fails. */
