@@ -1,14 +1,14 @@
 {
   "meta": {
-    "gitSha": "52d601a0f1247e985fb709dba410cb67a968b467",
+    "gitSha": "b3f5ed8a4b30680b8bc0ed36fd1f4b5410deec9c",
     "dirty": false,
-    "generatedAt": "2026-10-09T03:40:20.047Z",
+    "generatedAt": "2026-10-09T18:43:18.555Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
     "provider": "stub",
     "model": "stub-gold-plans",
-    "bundleSha256": "046871b68de0209741f9d88892947b42dcb3adb8b26fa9f151052a0d63a1bbdc",
+    "bundleSha256": "d7d21d6d8633bc0f9d4098755c5aeebff2bd69247925f77cea493bde838787eb",
     "environment": "local wrangler dev (workerd, local D1, local queues)",
     "concurrency": 8
   },
@@ -36,9 +36,9 @@
     },
     "outcome_match": 100,
     "tasks_total": 700,
-    "tool_calls_total": 575,
+    "tool_calls_total": 573,
     "tool_calls_by_outcome": {
-      "ok": 544,
+      "ok": 542,
       "retryable_error": 21,
       "replayed": 6,
       "permanent_error": 4
@@ -96,16 +96,16 @@
       "run.paused": 3,
       "run.resumed": 3
     },
-    "audit_events_total": 3230,
+    "audit_events_total": 3228,
     "audit_chains_valid": 100,
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 7277,
-    "run_duration_ms_p95": 10917.39999999999,
-    "search_latency_ms_p50": 1.975021000005654,
-    "search_latency_ms_p95": 2.999679149997976,
-    "driver_wall_clock_ms": 104207
+    "run_duration_ms_p50": 9021,
+    "run_duration_ms_p95": 15323.599999999999,
+    "search_latency_ms_p50": 7.590104500006419,
+    "search_latency_ms_p95": 12.532841700009891,
+    "driver_wall_clock_ms": 128849
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"
