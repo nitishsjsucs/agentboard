@@ -1,10 +1,13 @@
+import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import type { SyntheticRun } from "../../../src/shared/synth/generator.ts";
+import type { PlannerAgent } from "../../../src/worker/agents/planner-agent.ts";
 import { estimateTokens } from "../../../src/worker/llm/provider.ts";
 import { ScriptedProvider } from "../../../src/worker/llm/stub.ts";
 import { validatePlan } from "../../../src/worker/planning/planner.ts";
-import { datasetRun, firstRunOfType, inputFromDataset, planningLog, runPlanner } from "../../helpers/agents.ts";
-import { claimMessage, events, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { datasetRun, distinctRuns, firstRunOfType, inputFromDataset, plannerAgent, planningLog, runPlanner } from "../../helpers/agents.ts";
+import { claimMessage, events, readState, report, startManualRun, takeDispatches, type CoordinatorStub } from "../../helpers/runs.ts";
 
 describe("PlannerAgent", { tags: ["orchestration"] }, () => {
   it("accepts a valid stub plan and validates its arguments against the registry schemas", async () => {
@@ -156,5 +159,61 @@ describe("PlannerAgent", { tags: ["orchestration"] }, () => {
     expect(state.tasks.get(grant?.id ?? "")?.status).toBe("awaiting_approval");
     expect([...state.approvals.values()].map((a) => [a.tool, a.risk, a.status])).toEqual([["access.grant_role", "high", "pending"]]);
     expect(state.run.status).toBe("awaiting_approval");
+  });
+
+  it("planner tasks that reach a shard while its catalog read is in flight share that read and its outcome: one tools/list call is traced", async () => {
+    // No other test in this file uses this shard, so its catalog cache starts empty.
+    const agent = await plannerAgent("planner-1");
+    let reads = 0;
+    let gate = Promise.withResolvers<void>();
+    let fail = true;
+    await runInDurableObject(agent as unknown as DurableObjectStub<PlannerAgent>, (instance: PlannerAgent) => {
+      instance.catalogReadOverride = async (read) => {
+        reads += 1;
+        await gate.promise;
+        if (fail) throw new Error("catalog read failed");
+        return read();
+      };
+    });
+    const planTasks = async (stubs: CoordinatorStub[]) => Promise.all(stubs.map(async (stub) => [...(await readState(stub)).tasks.values()].find((t) => t.kind === "plan")));
+    // Holds the first read open until every task is leased and has had time to reach its catalog lookup.
+    const concurrently = async (runs: SyntheticRun[]) => {
+      const started = await Promise.all(runs.map((run) => startManualRun(inputFromDataset(run))));
+      const messages = await Promise.all(
+        started.map(async ({ stub }) => {
+          const [plan] = await takeDispatches(stub);
+          if (!plan) throw new Error("no plan dispatch");
+          return plan.message;
+        }),
+      );
+      const handled = Promise.all(messages.map((message) => agent.handleTask(message)));
+      for (let i = 0; i < 100 && !(await planTasks(started.map((s) => s.stub))).every((t) => t?.status === "leased"); i++) await scheduler.wait(20);
+      await scheduler.wait(300);
+      gate.resolve();
+      expect(await handled).toEqual(messages.map(() => ({ kind: "ack" })));
+      return started;
+    };
+    const tracedCatalogReads = async (runIds: string[]) =>
+      (await env.DB.prepare(`SELECT run_id FROM tool_calls WHERE tool = 'tools/list' AND run_id IN (${runIds.map(() => "?").join(", ")})`).bind(...runIds).all<{ run_id: string }>()).results;
+    const [a, b, c, d, e] = distinctRuns("address_change", 5);
+    if (!a || !b || !c || !d || !e) throw new Error("not enough runs");
+
+    // A failed read fails every task that waited for it, retryably; nothing is cached or traced.
+    const failed = await concurrently([a, b]);
+    expect(reads).toBe(1);
+    expect((await planTasks(failed.map((s) => s.stub))).map((t) => [t?.status, t?.lastError])).toEqual([
+      ["ready", "agent_exception"],
+      ["ready", "agent_exception"],
+    ]);
+    expect(await tracedCatalogReads(failed.map((s) => s.runId))).toEqual([]);
+
+    // A successful read is shared: three tasks plan with one read, and it is traced once.
+    reads = 0;
+    fail = false;
+    gate = Promise.withResolvers<void>();
+    const shared = await concurrently([c, d, e]);
+    expect(reads).toBe(1);
+    expect((await planTasks(shared.map((s) => s.stub))).map((t) => t?.status)).toEqual(["succeeded", "succeeded", "succeeded"]);
+    expect(await tracedCatalogReads(shared.map((s) => s.runId))).toHaveLength(1);
   });
 });

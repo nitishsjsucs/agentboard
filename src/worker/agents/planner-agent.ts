@@ -1,8 +1,9 @@
 // PlannerAgent (SPEC section 7.1): the only agent that calls a model. It reads
-// the tool catalog over MCP with its catalog-only token (cached 5 minutes,
-// traced when fetched), plans with one repair, logs every model call, and
-// reports the plan with its token usage. Policy, allowlists and subject
-// pinning are enforced by the validator, and again by the coordinator.
+// the tool catalog over MCP with its catalog-only token (cached 5 minutes, one
+// read in flight per instance, traced when fetched), plans with one repair,
+// logs every model call, and reports the plan with its token usage. Policy,
+// allowlists and subject pinning are enforced by the validator, and again by
+// the coordinator.
 
 import { Client } from "@modelcontextprotocol/client";
 import type { RequestType } from "../../shared/domain.ts";
@@ -23,7 +24,11 @@ export class PlannerAgent extends RoleAgent {
   readonly role = "planner" as const;
   /** Test-only provider override (set through runInDurableObject); never set in production code. */
   providerOverride: LlmProvider | null = null;
+  /** Test-only wrapper around the tools/list read (set through runInDurableObject); never set in production code. */
+  catalogReadOverride: ((read: () => Promise<CatalogEntry[]>) => Promise<CatalogEntry[]>) | null = null;
   private tablesReady = false;
+  /** The tools/list read in flight on this instance; planner tasks that find the cache empty meanwhile wait for it. */
+  private catalogRead: Promise<CatalogEntry[]> | null = null;
 
   override onStart(): void {
     this.ensureTables();
@@ -92,19 +97,26 @@ export class PlannerAgent extends RoleAgent {
     return selectProvider(config, { ai: (this.env as { AI?: AiRunner }).AI, stubFixtures: () => fixtures });
   }
 
-  /** tools/list over MCP with the planner's catalog token, cached for 5 minutes; a fetch is traced. */
+  /**
+   * tools/list over MCP with the planner's catalog token, cached for 5 minutes; a fetch is traced.
+   * A Durable Object delivers other requests while one awaits I/O, so planner tasks interleave on
+   * one instance; a task that finds the cache empty while a read is in flight waits for that read
+   * instead of reading and tracing the catalog again. It shares the read's outcome: a failed read fails every waiting task
+   * (retryable), so no task spends more than one tool timeout on the catalog.
+   */
   private async catalog(token: string, claim: GrantedClaim, coordinator: RunCoordinatorRpc): Promise<CatalogEntry[]> {
-    const cached = this.sql<{ fetched_at: number; tools_json: string }>`SELECT fetched_at, tools_json FROM ab_catalog_cache ORDER BY fetched_at DESC LIMIT 1`[0];
-    if (cached && Date.now() - cached.fetched_at < CATALOG_TTL_MS) return JSON.parse(cached.tools_json) as CatalogEntry[];
+    const cached = this.cachedCatalog();
+    if (cached) return cached;
+    if (this.catalogRead) return this.catalogRead;
     const started = Date.now();
-    // Bounded like every other MCP call, so the planner's lease covers the catalog read (SPEC section 5.2).
-    const timeoutMs = this.config().toolTimeoutMs;
-    const tools = await withPeopleOps(this.env, this.config(), token, async (client: Client) => (await client.listTools(undefined, { signal: AbortSignal.timeout(timeoutMs), timeout: timeoutMs })).tools);
-    const catalog: CatalogEntry[] = tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description ?? "",
-      inputSchema: tool.inputSchema as Record<string, unknown>,
-    }));
+    const read = this.readCatalog(token);
+    this.catalogRead = read;
+    let catalog: CatalogEntry[];
+    try {
+      catalog = await read;
+    } finally {
+      if (this.catalogRead === read) this.catalogRead = null;
+    }
     const finished = Date.now();
     this.sql`DELETE FROM ab_catalog_cache`;
     this.sql`INSERT INTO ab_catalog_cache (fetched_at, tools_json) VALUES (${finished}, ${JSON.stringify(catalog)})`;
@@ -129,5 +141,20 @@ export class PlannerAgent extends RoleAgent {
       durationMs: finished - started,
     });
     return catalog;
+  }
+
+  private cachedCatalog(): CatalogEntry[] | null {
+    const cached = this.sql<{ fetched_at: number; tools_json: string }>`SELECT fetched_at, tools_json FROM ab_catalog_cache ORDER BY fetched_at DESC LIMIT 1`[0];
+    return cached && Date.now() - cached.fetched_at < CATALOG_TTL_MS ? (JSON.parse(cached.tools_json) as CatalogEntry[]) : null;
+  }
+
+  private readCatalog(token: string): Promise<CatalogEntry[]> {
+    const read = async (): Promise<CatalogEntry[]> => {
+      // Bounded like every other MCP call, so the planner's lease covers the catalog read (SPEC section 5.2).
+      const timeoutMs = this.config().toolTimeoutMs;
+      const tools = await withPeopleOps(this.env, this.config(), token, async (client: Client) => (await client.listTools(undefined, { signal: AbortSignal.timeout(timeoutMs), timeout: timeoutMs })).tools);
+      return tools.map((tool) => ({ name: tool.name, description: tool.description ?? "", inputSchema: tool.inputSchema as Record<string, unknown> }));
+    };
+    return this.catalogReadOverride ? this.catalogReadOverride(read) : read();
   }
 }
