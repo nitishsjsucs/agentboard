@@ -126,10 +126,28 @@ This round re-ran every check on `fb9b78e` (all green: typecheck, 155 tests, sim
 
 These commits would form PR 11 (commits 71 to 75). At commits 71 to 73 `results:check` and `count:tests -- --check` report the stale measurement by design (deviation 44); commit 74 makes them green again. Typecheck and the touched test files ran before each commit, and the full `npm test`, `test:sim`, `types:check`, `synth:check` and `build` ran at 73 before the measurement.
 
+### Re-verification of the known-issue fixes (builder 7, 2026-10-09)
+
+The workflow asked for this round again ("Try again"). Nothing planned was left at `6711458`, so the round re-checked the starting state, verified commits 71 to 75 from committed files only, and recorded the results. No file under a measured path changed.
+
+| # | Commit | Status |
+|---|---|---|
+| 76 | docs: PROGRESS, README and CHANGELOG for the re-verification of the known-issue fixes | done |
+
+Commit 76 joins PR 11, which now covers commits 71 to 76.
+
+What was checked (details under "Check status"):
+
+- Starting state in this working tree at `6711458`: every check green (typecheck, `types:check`, `synth:check`, 158 tests, `test:sim`, `count:tests -- --check`, `results:check`, build).
+- A clean clone of `6711458` (no `.dev.vars`, no `.wrangler` state, `npm ci --prefer-offline`) passed every `ci.yml` step. The verification gate had done this for `52d601a`, but commits 71 to 75 had only run in this working tree.
+- `npm run eval:sim` in that clone reproduced every count of the committed `b3f5ed8` measurement exactly, including 573 tool calls and 3228 audit events, which confirms that commit 71 made those totals stable; only latencies moved. The result file was not committed (the README cites it in one sentence), so the Results block still shows `b3f5ed8`.
+- `npm run eval:planner -- --provider stub` in the clone: 100/100 on every metric; only per-request latencies differ from the committed file. The llama-server planner eval was not run again: its quality metrics and all 100 per-request results already reproduced at `b7db936`, `52d601a` and `b3f5ed8`, and commit 71 does not touch the code path it measures.
+- Browser check against `serve:built` in the clone (dark mode): dev login as Admin, then switching to Ana Viewer; the viewer's dashboard made no `/api/dlq` request and no 403 appeared (known issue (a) stays fixed). As Kim Operator, launching sample `syn-0006` (address change) opened the live run detail, which reached `succeeded`, and the Audit tab reported a verified hash chain of 28 events. The only console error was the expected 401 for `/api/me` before login.
+
 ## What is left (human steps)
 
 - Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1, every review finding and the three known minor issues are done. There is no further planned build work in SPEC.md.
-- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 70, PR 11 = commits 71 to 75); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
+- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 70, PR 11 = commits 71 to 76); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
 - Decide the resume wording before using it: see "Resume claim status" below. Several phrases of SPEC section 0 are not true yet.
 - Commit `7ff7a92` and the README hunk of `b7a3199` (deviation 43): history was kept and the CHANGELOG now says where they came from (deviation 57). Rewriting them out remains possible only before the first push; it would move the four tags and require re-running count:tests, eval:sim and eval:planner on the new head, because `results:check` diffs against the recorded `gitSha`.
 - Known minor issues: the three listed by earlier rounds are fixed (commits 71 to 73): (a) the dashboard's one 403 for `/api/dlq` right after switching principals on the dev login page, (b) the timing-dependent catalog reads that made tool-call and audit-event totals vary between simulation runs, (c) open run WebSockets that kept their authorization until token expiry. None is known now. `npm audit` reports GHSA-6qxp-vccf-f47h (high) for the pinned MCP SDK packages; the affected OAuth client flow is not used (deviation 64), so the pins were kept.
@@ -140,9 +158,17 @@ These commits would form PR 11 (commits 71 to 75). At commits 71 to 73 `results:
   4. `npm run eval:planner -- --provider stub` (sanity file, must score 100%)
   5. `npm run results:render`, then commit `eval/results` and the README block together.
 
-## Check status (last run 2026-10-09 local time by builder 6)
+## Check status (last run 2026-10-09 local time by builder 7)
 
-In this repository at the head (commit 75; the measured commit is `b3f5ed8`, and commits 74 and 75 change no measured path), Node 25.9.0, npm 11.12.1, on AC power while three other repositories' workerd processes were running:
+Builder 7, Node 25.9.0, npm 11.12.1, on AC power (Low Power Mode off) while other repositories' vitest and workerd processes were running. The measured commit is still `b3f5ed8`; commits 74 to 76 change no measured path.
+
+- In this working tree at `6711458` (start of the round) and again at the head after commit 76: `types:check`, `typecheck`, `synth:check` (4 files match), `npm test` (42 files, 158 passed, 0 failed, 0 skipped), `test:sim` (1 file, 6 tests), `count:tests -- --check` (64 + 42 = 106), `results:check` (block matches, none dirty or stale) and `build` all pass with exit 0.
+- In a clean clone of `6711458` after `npm ci --prefer-offline`: the same eight `ci.yml` steps all exit 0 with the same counts. The CI bundle-size step's method gives `dist/agentboard/index.js` 2479509 bytes (595320 gzip -9), plus the dataset chunk 206969, a library chunk 230860 and the rolldown runtime 1793 bytes; client bundle 384.27 kB (117.95 kB gzip).
+- `npm run eval:sim` in the clone (2026-10-09 19:11 to 19:13 UTC, exit 0, 1 min 54 s, result `gitSha` `6711458`, `dirty: false`, bundle sha256 identical to the `b3f5ed8` measurement): every metric equal to the committed `simulation.json` except run duration p50 7327 ms and p95 11175 ms (committed 9021 and 15324), search latency p50 1.8 ms and p95 3.2 ms (committed 7.6 and 12.5) and the driver's wall clock. Not committed (see the round section above).
+- `npm run eval:planner -- --provider stub` in the clone: exit 0, 100/100 on every metric; only `latencyMs` differs per request.
+- Processes: the clone's `eval:sim` stopped its own `wrangler dev`, and the clone's `serve:built` (ports 8784 and 9234) was stopped with SIGTERM after the browser check; no wrangler, workerd or llama-server process of this repository or its clone is left running, and ports 8784, 9234 and 8140 have no listener. No llama-server was started this round.
+
+Builder 6's run at commit 75 (it produced the committed measurements), in this repository, on AC power while three other repositories' workerd processes were running:
 
 - `npm run types:check`: pass (exit 0)
 - `npm run typecheck`: pass (exit 0)
@@ -174,9 +200,9 @@ Each phrase of the SPEC section 0 resume text, its state on 2026-10-08 (re-judge
 | "live execution updates, searchable task histories, approval controls, and D1-backed audit records across approximately 100 simulated agent runs" | true locally (local D1) | eval:sim 100 runs, 100/100 valid audit chains | none beyond "simulated" |
 | "three specialized agents" | two of the three are deterministic workers | only PlannerAgent calls a model | keep and be ready to explain why, or "a planning agent plus execution and verification workers" |
 | "Cloudflare Agents SDK, Durable Objects, Queues, and MCP, with task leases, bounded execution budgets, retry handling, and duplicate-action prevention" | true locally (workerd, Miniflare queues) | 104 tagged tests, eval:sim | none |
-| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 76 of the 77 commits (after commit 75) carry a Claude `Co-Authored-By` trailer; `7ff7a92` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
+| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 77 of the 78 commits (after commit 76) carry a Claude `Co-Authored-By` trailer; `7ff7a92` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
 | "Git pull requests" | none opened; all commits are on local `main` | deviation 13 | keep only after the PRs exist (PR 1 to 11) |
-| "meaningful commits" | true | 77 conventional commits: plan commits 1 to 36 and 33a, then 37 to 75, plus the foreign `7ff7a92` | none |
+| "meaningful commits" | true | 78 conventional commits: plan commits 1 to 36 and 33a, then 37 to 76, plus the foreign `7ff7a92` | none |
 | "Cloudflare preview deployments" | not done: `preview.yml` has never run, no account | Deploy step 11 | keep only after `preview.yml` has deployed a PR; wording "per-PR deployments to a preview environment" |
 | "approximately 100 orchestration and authorization test cases" | true: 106 tagged, all passing (re-measured at `b3f5ed8`) | count:tests | read the test names before interviews |
 | "four sprint demo releases" | four local tags made within one afternoon (14:40, 15:34, 15:59 and 16:54 on 2026-10-08); none is a GitHub release yet | `git for-each-ref refs/tags` | use "four incremental releases with demo scripts", and publish them after the push |
@@ -278,3 +304,4 @@ All 24 findings were verified first (by reading the code, and for the behavioral
 62. **Awaitable session reload (commit 73).** `Session.reload` returns a promise that resolves once the session state holds the new `/api/health` and `/api/me` answers; only the latest load applies its answers. `DevLogin` awaits it before navigating to the dashboard. `src/web/pages/__tests__/DevLogin.test.tsx` (tag `ui`, not in the 106) renders the whole app against a fake dev API.
 63. **106 tagged tests.** Commits 71 and 72 each add one tagged test (`planner.test.ts` #7, orchestration; `websocket-auth.test.ts` #6, authz), so the count is 64 + 42 = 106 after deviation 49's 104. The web project has 17 tests (16 component tests and the dev login page test).
 64. **`npm audit` advisory left as is.** GHSA-6qxp-vccf-f47h (high) covers `@modelcontextprotocol/client` below 2.2.0 and `@modelcontextprotocol/sdk` below 1.31.0 (both direct pins here, also required by `agents`): the SDK's OAuth client could send credentials to an authorization server chosen by the MCP server. The only MCP client here (`mcp/client.ts`) passes `authProvider: { token }`, which the SDK's `isOAuthClientProvider` does not treat as an OAuth provider (it needs `tokens()` and `clientInformation()`), it talks only to the in-process People Ops endpoint, and the Agents SDK's MCP client manager is not used. Upgrading would leave the versions section 2.2 verified, so the pins were kept and the README Limitations section records the advisory.
+65. **A reproduction cited in prose, not committed (commit 76).** Builder 7 ran `eval:sim` again in a clean clone of `6711458` to check that commit 71 made the tool-call and audit-event totals stable. Its numbers appear in one README sentence under "Reading the results" (with the command, date and clone commit) and in "Check status" above, but its result file was not committed: the rendered Results block keeps the `b3f5ed8` measurement, so the planner, test and simulation sections still come from one commit and the README's latency note stays accurate. The rendered block and `results:check` are unaffected.
