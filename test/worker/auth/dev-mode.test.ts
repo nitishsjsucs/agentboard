@@ -35,6 +35,7 @@ const BROKEN: [string, Record<string, unknown>][] = [
   ["fault injection on", { FAULT_INJECTION: "on" }],
   ["MCP_EXTERNAL on", { MCP_EXTERNAL: "on" }],
   ["a stub LLM", { LLM_PROVIDER: "stub" }],
+  ["an OpenAI-compatible LLM endpoint (unauthenticated; planner prompts carry request text)", { LLM_PROVIDER: "openai-compatible" }],
   ["a short signing key", { INTEGRATION_SIGNING_KEY: btoa("too-short-key") }],
   ["a violated timing invariant (LEASE_TTL_MS < 2 * TOOL_TIMEOUT_MS + 1000)", { LEASE_TTL_MS: "9000" }],
 ];

@@ -132,6 +132,10 @@ export function parseConfig(vars: Record<string, unknown>, hasAiBinding: boolean
     if (v.FAULT_INJECTION) errors.push(`${v.ENVIRONMENT} requires FAULT_INJECTION=off`);
     if (v.MCP_EXTERNAL) errors.push(`${v.ENVIRONMENT} requires MCP_EXTERNAL=off`);
     if (v.LLM_PROVIDER === "stub") errors.push(`${v.ENVIRONMENT} may not use the stub LLM provider`);
+    // Planner prompts carry the request text (PII the console hides without pii:read), and the
+    // OpenAI-compatible provider sends them to LLM_BASE_URL with no credential, possibly over plain http.
+    // It exists for local evals; a deployed planner uses Workers AI through the AI binding.
+    if (v.LLM_PROVIDER === "openai-compatible") errors.push(`${v.ENVIRONMENT} may use only the workers-ai LLM provider`);
     if (v.ACCESS_DEV_JWKS !== undefined) errors.push(`ACCESS_DEV_JWKS must be absent in ${v.ENVIRONMENT}`);
     if (v.DEV_ACCESS_PRIVATE_JWK !== undefined) errors.push(`DEV_ACCESS_PRIVATE_JWK must be absent in ${v.ENVIRONMENT}`);
     for (const origin of allowedOrigins) if (!origin.startsWith("https://")) errors.push(`ALLOWED_ORIGINS entry ${origin} must be https://`);
