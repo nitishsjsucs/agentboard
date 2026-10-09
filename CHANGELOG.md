@@ -17,6 +17,16 @@ Stretch items from SPEC section 1.1, built after v0.4.0:
 - CI prints the worker bundle size after the build.
 - Every measurement taken again in a separate session to check that it reproduces: every outcome, recovery and audit-chain count and every planner quality metric matched; only local latencies and the timing-dependent tool-catalog reads (2 more tool calls and 2 more audit events) moved.
 
+Fixes from an independent review (correctness, security and honesty):
+
+- Security: `access.revoke_all_roles` is accepted only in a plan that also terminates the subject, so it always waits behind that approval (an offboarding plan without the status change used to revoke every role with no approval). Run WebSockets accept only the coordinator's own path (the Agents SDK's `/sub/{class}/{name}` forwarding reached any agent class), and a socket is closed once its identity token expires. AI Gateway no longer logs planner prompts.
+- Correctness: a plan must contain the writes its request type exists for, so a read-only plan can no longer reach `succeeded`. Workers AI calls and the planner's `tools/list` are bounded by their timeouts. A planning attempt whose model call throws still reports the tokens it spent. `raise_budget` must raise at least one field.
+- Tests: tests that launch real runs wait for them to settle (`npm test` exited 1 on some runs), the RBAC matrix expects each allowed call's own status, and the retry test asserts a nonzero redispatch delay. Four tagged tests were added (104 in all).
+- Evaluation: `count:tests` never counts passes from a stale report; `eval:sim` pages through the DLQ, checks the simulated domain tables for duplicate inserts independently of the ledger, and records the injected fault counts; `eval:planner` reports valid plans that contain every gold write and reads its provenance from the answering server; `results:check` also covers `test`, `seed` and the build and test configuration; `engines` requires Node 24.
+- Simulation, planner and test results measured again on the fixed code.
+
+History note: commit `6ffb555` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `cfde7d4` were written by a parallel session working in the same tree, not by this build's commit sequence. `6ffb555` is the only commit without the `Co-Authored-By` trailer that every other commit carries; read it as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags).
+
 ## v0.4.0: Evaluation and release
 
 - One simulation driver for the 100-run workerd simulation (`npm run test:sim`) and `npm run eval:sim` against `wrangler dev` on the built worker.
