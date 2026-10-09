@@ -57,10 +57,30 @@ describe("synthetic generator", { tags: ["data"] }, () => {
     ]);
     expect(principals.every((p) => p.principal === p.principal.toLowerCase())).toBe(true);
 
-    expect(countBy(runs, (r) => r.requestType)).toEqual(RUNS_BY_TYPE);
+    // The SPEC 12.1 numbers are written out here, not imported from the generator, so a drifted constant fails.
+    expect(countBy(runs, (r) => r.requestType)).toEqual({
+      address_change: 20,
+      manager_change: 15,
+      onboarding_access: 20,
+      privileged_access: 15,
+      offboarding: 15,
+      access_revocation: 15,
+    });
+    expect(RUNS_BY_TYPE).toEqual(countBy(runs, (r) => r.requestType));
     expect(runs.filter((r) => APPROVAL_TYPES.has(r.requestType))).toHaveLength(45);
     expect(countBy(runs.filter((r) => r.approval), (r) => r.approval?.decision ?? null)).toEqual({ approve: 36, reject: 6, pending: 3 });
-    expect(countBy(runs, (r) => r.modifier)).toEqual({ ...MODIFIER_COUNTS, none: 50 });
+    expect(countBy(runs, (r) => r.modifier)).toEqual({
+      transient_error: 18,
+      duplicate_delivery: 10,
+      crash_after_call: 6,
+      permanent_error: 4,
+      silent_noop: 4,
+      budget_exhausted: 3,
+      pause_resume: 3,
+      cancel: 2,
+      none: 50,
+    });
+    expect({ ...MODIFIER_COUNTS, none: 50 }).toEqual(countBy(runs, (r) => r.modifier));
     const transient = runs.filter((r) => r.modifier === "transient_error");
     expect(transient.filter((r) => r.sim?.faults?.length === 2)).toHaveLength(3);
     expect(transient.filter((r) => r.sim?.faults?.length === 1)).toHaveLength(15);
