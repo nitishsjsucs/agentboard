@@ -6,7 +6,7 @@
   "description": "Agent coordination and operations console for a simulated People-operations organization, on Cloudflare Workers.",
   "license": "MIT",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "vite dev",
