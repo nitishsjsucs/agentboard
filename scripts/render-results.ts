@@ -106,18 +106,19 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
     const n = Number(m["n"]);
     lines.push(
       "",
-      `Command: \`npm run eval:planner\` against llama-server (${data.meta.llama_cpp_build}) serving \`${data.meta.gguf}\` (${data.meta.quant}) with \`${data.meta.server_flags}\`, temperature 0, seed 7, one request at a time. Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`.`,
+      `Command: \`npm run eval:planner\` against llama-server (${data.meta.llama_cpp_build}) serving \`${data.meta.gguf}\` (${data.meta.quant}), launched with \`${data.meta.server_flags}\` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`.`,
       "",
       "| Metric | Value |",
       "|---|---|",
       `| Valid plans, first pass | ${pct(Number(m["valid_first_pass"]), n)} |`,
       `| Valid plans after one repair | ${pct(Number(m["valid_after_repair"]), n)} |`,
+      `| Valid plans that contain every write of the gold plan | ${pct(Number(m["valid_with_gold_writes"]), n)} |`,
       `| Invalid after the repair; requests that failed at the transport (timeout or connection) | ${m["plan_invalid"]}; ${m["request_errors"]} |`,
       `| Plans rejected for policy violations | ${m["policy_violations"]} |`,
       `| Tool sequence exactly equal to gold | ${pct(Number(m["tool_sequence_exact"]), n)} |`,
       `| Tool-set F1 (macro) | ${Number(m["tool_set_f1_macro"]).toFixed(3)} |`,
       `| Argument accuracy (gold fields of matched steps) | ${Number(m["arg_accuracy"]).toFixed(3)} |`,
-      `| Unknown-tool rate | ${Number(m["unknown_tool_rate"]).toFixed(3)} |`,
+      `| Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | ${Number(m["unknown_tool_rate"]).toFixed(3)} |`,
       `| Latency p50; p95 | ${ms(m["latency_ms_p50"])}; ${ms(m["latency_ms_p95"])} |`,
       `| Prompt tokens p50; max | ${m["prompt_tokens_p50"]}; ${m["prompt_tokens_max"]} |`,
     );
