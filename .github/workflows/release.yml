@@ -7,10 +7,12 @@
 # Tags whose commits predate this file (v0.1.0 to v0.4.0) never trigger it: GitHub
 # runs the workflow file of the tagged commit. For those, run it by hand
 # (workflow_dispatch) with the tag name; it then reads the notes from the default
-# branch and does not run CI. Those tagged commits were checked only locally;
-# pushing the tags runs each tagged commit's own ci.yml (its push trigger has no
-# branch filter), so check that those runs passed before dispatching a release.
-# An existing release is left untouched.
+# branch and does not run CI. The four tags are on GitHub, and pushing them ran
+# each tagged commit's own ci.yml: it passed for v0.1.0 to v0.3.0 and failed for
+# v0.4.0 (results:check: the tagged commit's result files cite the working
+# repository's commit id, which the published history does not contain). Decide
+# how to handle v0.4.0 before dispatching its release. An existing release is
+# left untouched.
 name: release
 
 on:
