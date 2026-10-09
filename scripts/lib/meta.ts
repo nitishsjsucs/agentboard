@@ -20,8 +20,25 @@ export interface ResultMeta {
   model: string;
 }
 
-/** Paths whose content determines a measurement (SPEC section 14: results:check compares the same set). */
-export const MEASURED_PATHS = ["src", "migrations", "fixtures", "scripts", "wrangler.jsonc", "package-lock.json"];
+/**
+ * Paths whose content determines a measurement; results:check compares the same set. SPEC section 14
+ * names src, migrations, fixtures, scripts, wrangler.jsonc and package-lock.json. The tests (behind
+ * tests.json), the generated seeds, the build and test configuration and package.json also shape what
+ * is measured, so they are included too.
+ */
+export const MEASURED_PATHS = [
+  "src",
+  "migrations",
+  "fixtures",
+  "scripts",
+  "wrangler.jsonc",
+  "package-lock.json",
+  "package.json",
+  "test",
+  "seed",
+  "vite.config.ts",
+  "vitest.config.ts",
+];
 
 /** Dirty when any measured path differs from HEAD (tracked changes or untracked files). */
 export function isDirty(): boolean {
