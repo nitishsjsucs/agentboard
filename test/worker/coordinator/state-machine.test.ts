@@ -321,4 +321,79 @@ describe("RunCoordinator state machine", { tags: ["orchestration"] }, () => {
     expect((await readState(stub)).run.status).toBe("running");
     expect((await takeDispatches(stub)).map((d) => d.message.taskId)).toEqual([x2?.id]);
   });
+
+  it("verify and plan recovery: a failed verify task whose execute task succeeded is retried directly at generation + 1 or skipped by an admin as unverified; a failed plan task is retried at generation + 1", async () => {
+    /** Runs s1 and s2 and fails the verify task of s2's write; returns the run at needs_attention. */
+    async function failedVerify() {
+      const started = await startManualRun();
+      await completePlan(started.stub, planFor("address_change"));
+      for (let i = 0; i < 2; i++) {
+        const [d] = await takeDispatches(started.stub);
+        if (!d) throw new Error("missing dispatch");
+        await report(started.stub, await claimMessage(started.stub, d.message), { outcome: "succeeded", output: { ok: true }, usage: {} });
+      }
+      const [verify] = await takeDispatches(started.stub);
+      if (!verify || verify.message.role !== "verifier") throw new Error("no verify dispatch");
+      await report(started.stub, await claimMessage(started.stub, verify.message), { outcome: "failed", retryable: false, code: "postcondition_failed", evidence: { expected: "x", actual: "y" }, usage: {} });
+      const byStep = tasksByStep(await readState(started.stub));
+      expect([byStep.get("x:s2")?.status, byStep.get("v:s2")?.status]).toEqual(["succeeded", "failed"]);
+      expect((await readState(started.stub)).run.status).toBe("needs_attention");
+      return { ...started, verify };
+    }
+
+    // Retry of the verify task alone: it goes back to ready at generation + 1 and is dispatched once; the write is not re-run.
+    const retried = await failedVerify();
+    const verifyId = retried.verify.message.taskId;
+    expect(await retried.stub.control({ type: "retry_task", taskId: verifyId, actor: OPERATOR, reason: "the read was stale" })).toMatchObject({ accepted: true });
+    let byStep = tasksByStep(await readState(retried.stub));
+    expect([byStep.get("v:s2")?.status, byStep.get("v:s2")?.generation, byStep.get("v:s2")?.attempts, byStep.get("v:s2")?.lastError]).toEqual(["ready", 1, 0, null]);
+    expect([byStep.get("x:s2")?.status, byStep.get("x:s2")?.generation]).toEqual(["succeeded", 0]);
+    const retryEvents = (await events(retried.stub)).filter((e) => e.action === "task.retried");
+    expect(retryEvents.map((e) => [e.task_id, e.detail["from"], e.detail["to"], e.detail["cascadeFrom"]])).toEqual([[verifyId, "failed", "ready", undefined]]);
+    const redispatched = await takeDispatches(retried.stub);
+    expect(redispatched.filter((d) => d.message.taskId === verifyId).map((d) => d.message.dispatchId === retried.verify.message.dispatchId)).toEqual([false]);
+    expect(redispatched.some((d) => d.message.taskId === byStep.get("x:s2")?.id)).toBe(false);
+    for (const d of redispatched) {
+      await report(retried.stub, await claimMessage(retried.stub, d.message), { outcome: "succeeded", output: fakeOutput(d.message.role === "executor" ? "notify.send" : null), evidence: { checked: true }, usage: {} });
+    }
+    await drain(retried.stub);
+    expect((await readState(retried.stub)).run.status).toBe("succeeded");
+
+    // Admin skip of the failed verify task: skipped, the event records that the write stays unverified, and nothing cascades.
+    const skipped = await failedVerify();
+    const skipId = skipped.verify.message.taskId;
+    expect(await skipped.stub.control({ type: "skip_task", taskId: skipId, actor: ADMIN, reason: "checked by hand" })).toMatchObject({ accepted: true });
+    byStep = tasksByStep(await readState(skipped.stub));
+    expect([byStep.get("v:s2")?.status, byStep.get("x:s2")?.status]).toEqual(["skipped", "succeeded"]);
+    const skipEvents = (await events(skipped.stub)).filter((e) => e.action === "task.skipped");
+    expect(skipEvents.map((e) => [e.task_id, e.detail])).toEqual([[skipId, { reason: "checked by hand", stepId: "s2", unverified: true }]]);
+    await drain(skipped.stub);
+    const afterSkip = await readState(skipped.stub);
+    expect(afterSkip.run.status).toBe("succeeded");
+    expect(afterSkip.run.usage.skippedSteps).toBe(0);
+
+    // A failed plan task: retried at generation + 1 with a new dispatch, then planned again.
+    const replanned = await startManualRun();
+    const [planDispatch] = await takeDispatches(replanned.stub);
+    if (!planDispatch) throw new Error("no plan dispatch");
+    await report(replanned.stub, await claimMessage(replanned.stub, planDispatch.message), { outcome: "failed", retryable: false, code: "plan_invalid", usage: { llmTokens: 50 } });
+    let planTask = (await readState(replanned.stub)).tasks.get(planDispatch.message.taskId);
+    expect([planTask?.status, planTask?.lastError]).toEqual(["failed", "plan_invalid"]);
+    expect((await readState(replanned.stub)).run.status).toBe("needs_attention");
+    expect(await replanned.stub.control({ type: "retry_task", taskId: planDispatch.message.taskId, actor: OPERATOR, reason: "plan again" })).toMatchObject({ accepted: true });
+    planTask = (await readState(replanned.stub)).tasks.get(planDispatch.message.taskId);
+    expect([planTask?.status, planTask?.generation, planTask?.attempts, planTask?.lastError]).toEqual(["ready", 1, 0, null]);
+    // attempts is 0 again, so the run is queued until the plan task is leased again.
+    expect((await readState(replanned.stub)).run.status).toBe("queued");
+    const [again] = await takeDispatches(replanned.stub);
+    expect(again?.message).toMatchObject({ taskId: planDispatch.message.taskId, role: "planner" });
+    expect(again?.message.dispatchId).not.toBe(planDispatch.message.dispatchId);
+    if (!again) throw new Error("no plan redispatch");
+    await report(replanned.stub, await claimMessage(replanned.stub, again.message), { outcome: "succeeded", output: { plan: planFor("address_change") }, usage: { llmTokens: 100 } });
+    const planned = await readState(replanned.stub);
+    expect(planned.run.status).toBe("running");
+    expect([...planned.tasks.values()].filter((t) => t.kind === "execute")).toHaveLength(3);
+    await drain(replanned.stub);
+    expect((await readState(replanned.stub)).run.status).toBe("succeeded");
+  });
 });

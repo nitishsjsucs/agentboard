@@ -76,7 +76,7 @@ describe("approvals", { tags: ["orchestration"] }, () => {
     expect(employee?.manager_id).not.toBe(REJECTED.fields.managerId);
   });
 
-  it("a pending approval past expires_at becomes expired through the sweep, the run needs attention, and a decision racing the expiry gets 409", async () => {
+  it("a pending approval past expires_at becomes expired through the sweep, the run needs attention, and a decision racing the expiry gets 409; an operator retry asks again at generation + 1", async () => {
     const { stub, runId, approval } = await awaitingApproval(EXPIRED);
     // APPROVAL_TTL_MS is 60 s in tests. No RPC runs between the clock move and the decision:
     // the decision's own transaction sweeps first and finds the approval expired.
@@ -92,5 +92,38 @@ describe("approvals", { tags: ["orchestration"] }, () => {
     expect((await events(stub)).filter((e) => e.action === "approval.expired")).toHaveLength(1);
     const mirrored = await env.DB.prepare("SELECT status FROM approvals WHERE run_id = ?").bind(runId).first<{ status: string }>();
     expect(mirrored?.status).toBe("expired");
+
+    // SPEC 3.5: retrying a task rejected by expiry puts it back to pending at generation + 1, and it asks for a new approval.
+    const retry = await apiPost(P.operator, `/api/runs/${runId}/tasks/${approval.taskId}/retry`, { reason: "approver was away" });
+    expect(retry.status).toBe(200);
+    let after = await readState(stub);
+    const task = after.tasks.get(approval.taskId);
+    expect([task?.status, task?.generation]).toEqual(["awaiting_approval", 1]);
+    expect(after.run.status).toBe("awaiting_approval");
+    const approvals = [...after.approvals.values()].sort((a, b) => a.generation - b.generation);
+    expect(approvals.map((a) => [a.status, a.generation, a.taskId])).toEqual([
+      ["expired", 0, approval.taskId],
+      ["pending", 1, approval.taskId],
+    ]);
+    const second = approvals[1];
+    if (!second) throw new Error("no second approval");
+    expect(task?.approvalId).toBe(second.id);
+    const mirroredBoth = await env.DB.prepare("SELECT id, status FROM approvals WHERE run_id = ? ORDER BY requested_at, id").bind(runId).all<{ id: string; status: string }>();
+    expect(mirroredBoth.results.map((r) => [r.id, r.status]).sort()).toEqual(
+      [
+        [approval.id, "expired"],
+        [second.id, "pending"],
+      ].sort(),
+    );
+    const retried = (await events(stub)).filter((e) => e.action === "task.retried");
+    expect(retried.map((e) => [e.task_id, e.detail["from"], e.detail["to"], e.detail["generation"]])).toEqual([[approval.taskId, "rejected", "pending", 1]]);
+
+    // The new approval is decided like any other, and the run completes.
+    const decided = await apiPost(P.approver, `/api/approvals/${second.id}/decision`, { decision: "approve", note: "approved on retry" });
+    expect(decided.status).toBe(200);
+    await driveAgents(stub);
+    after = await readState(stub);
+    expect(after.tasks.get(approval.taskId)?.status).toBe("succeeded");
+    expect(after.run.status).toBe("succeeded");
   });
 });
