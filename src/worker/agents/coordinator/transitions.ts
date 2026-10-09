@@ -629,6 +629,9 @@ export function control(tx: RunTx, cmd: ControlCommand, budgetRaise: ((tx: RunTx
     }
     case "dead_letter": {
       const task = tx.task(cmd.taskId);
+      // Idempotent for its own dispatch: the DLQ is at-least-once too, and the consumer retries a
+      // message whose control() call threw after this transaction committed.
+      if (task?.status === "dead_lettered" && task.dispatchId === cmd.dispatchId) return { accepted: true, reason: "already_dead_lettered" };
       const reapedFrom = tx.reaped.get(cmd.taskId);
       const current = task !== undefined && task.status === "ready" && (task.dispatchId === cmd.dispatchId || reapedFrom === cmd.dispatchId);
       if (!task || !current) {

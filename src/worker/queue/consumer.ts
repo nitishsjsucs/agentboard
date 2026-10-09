@@ -2,8 +2,10 @@
 //
 // DLQ batches (batch.queue === DLQ_QUEUE_NAME): record the message, then ask
 // the coordinator to dead-letter the task. The coordinator does so only when
-// the message's dispatchId is the task's current dispatch; otherwise the row
-// is marked ignored_stale. Always ack.
+// the message's dispatchId is the task's current dispatch (and answers a repeat
+// for a task it already dead-lettered with that dispatch as accepted);
+// otherwise the row is marked ignored_stale on the message's first delivery.
+// Always ack.
 //
 // Task batches: up to CONSUMER_CONCURRENCY messages at a time. Poison
 // messages are audited and acked; messages for a disabled role are held at
@@ -133,7 +135,7 @@ async function handleDeadLetter(message: Message<unknown>, env: Env, deps: Consu
   }
   const body = parsed.data;
   try {
-    await env.DB.prepare(
+    const insert = await env.DB.prepare(
       `INSERT OR IGNORE INTO dlq_messages (id, run_id, task_id, dispatch_id, body_json, attempts, outcome, received_at)
        VALUES (?, ?, ?, ?, ?, ?, 'dead_lettered', ?)`,
     )
@@ -147,8 +149,13 @@ async function handleDeadLetter(message: Message<unknown>, env: Env, deps: Consu
       taskId: body.taskId,
       dispatchId: body.dispatchId,
     });
-    if (!result.accepted) {
-      await env.DB.prepare("UPDATE dlq_messages SET outcome = 'ignored_stale' WHERE id = ?").bind(message.id).run();
+    // Only this message's first delivery decides its outcome. A redelivery (or a retry after the
+    // coordinator had already committed) finds the row in place and leaves it alone: the dead-letter
+    // is idempotent at the coordinator, and a row that was replayed or recovered since must keep its record.
+    if (!result.accepted && insert.meta.changes > 0) {
+      await env.DB.prepare("UPDATE dlq_messages SET outcome = 'ignored_stale' WHERE id = ? AND outcome = 'dead_lettered' AND replayed_at IS NULL")
+        .bind(message.id)
+        .run();
     }
     message.ack();
   } catch (error) {

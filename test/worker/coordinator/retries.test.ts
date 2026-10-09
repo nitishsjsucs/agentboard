@@ -134,7 +134,7 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect(redispatch?.message).toMatchObject({ taskId: plan.message.taskId, attempt: 2 });
   });
 
-  it("the DLQ consumer (queue name from DLQ_QUEUE_NAME) dead-letters a task only for its current dispatchId; a superseded dispatch is recorded as ignored_stale", async () => {
+  it("the DLQ consumer (queue name from DLQ_QUEUE_NAME) dead-letters a task only for its current dispatchId, also when the same transaction's sweep reaped its lease; a redelivered DLQ message changes nothing; a superseded dispatch is recorded as ignored_stale", async () => {
     const config = testConfig();
     expect(config.dlqQueueName).toBe("agentboard-tasks-dlq");
     // Current dispatch: recorded and dead-lettered.
@@ -155,6 +155,41 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     const state = await readState(live.stub);
     expect(state.tasks.get(s1.message.taskId)?.status).toBe("dead_lettered");
     expect(state.run.status).toBe("needs_attention");
+
+    // At-least-once delivery: the same DLQ message again (or the consumer retrying after the coordinator
+    // had committed) keeps the row dead_lettered, writes no ignored event, and the message stays replayable.
+    const again = createMessageBatch(config.dlqQueueName, [current]);
+    const ctxAgain = createExecutionContext();
+    await worker.queue(again, env);
+    expect((await getQueueResult(again, ctxAgain)).explicitAcks).toEqual([current.id]);
+    expect(await env.DB.prepare("SELECT outcome FROM dlq_messages WHERE id = ?").bind(current.id).first()).toEqual({ outcome: "dead_lettered" });
+    expect((await readState(live.stub)).tasks.get(s1.message.taskId)?.status).toBe("dead_lettered");
+    expect((await events(live.stub)).filter((e) => e.action === "task.dead_lettered" || e.action === "task.dead_letter_ignored").map((e) => e.action)).toEqual([
+      "task.dead_lettered",
+    ]);
+    expect((await apiPost(P.admin, `/api/dlq/${current.id}/replay`, { reason: "redelivered dead letter" })).status).toBe(200);
+
+    // A lease whose expiry nobody has observed yet: the DLQ transaction's own sweep reaps it and queues a
+    // redispatch, and the dead-letter for the reaped dispatch still applies and supersedes that redispatch.
+    const reaped = await startManualRun();
+    await completePlan(reaped.stub, planFor("address_change"));
+    const [leased] = await takeDispatches(reaped.stub);
+    if (!leased) throw new Error("no s1");
+    granted(await claimMessage(reaped.stub, leased.message));
+    await setCoordinatorClock(reaped.stub, 3500);
+    const reapedMessage = batchMessage(leased.message, 6);
+    const reapedBatch = createMessageBatch(config.dlqQueueName, [reapedMessage]);
+    const ctxReaped = createExecutionContext();
+    await worker.queue(reapedBatch, env);
+    expect((await getQueueResult(reapedBatch, ctxReaped)).explicitAcks).toEqual([reapedMessage.id]);
+    expect(await env.DB.prepare("SELECT outcome FROM dlq_messages WHERE id = ?").bind(reapedMessage.id).first()).toEqual({ outcome: "dead_lettered" });
+    const reapedTask = (await readState(reaped.stub)).tasks.get(leased.message.taskId);
+    expect([reapedTask?.status, reapedTask?.dispatchId]).toEqual(["dead_lettered", leased.message.dispatchId]);
+    expect((await events(reaped.stub)).map((e) => e.action).filter((a) => a === "task.lease_expired" || a.startsWith("task.dead_letter"))).toEqual([
+      "task.lease_expired",
+      "task.dead_lettered",
+    ]);
+    expect(await takeDispatches(reaped.stub)).toEqual([]);
 
     // Superseded dispatch (the lease expired and the task was redispatched): ignored, task untouched.
     const stale = await startManualRun();
