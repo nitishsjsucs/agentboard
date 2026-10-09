@@ -1,5 +1,6 @@
-/* Design tokens (light theme). */
+/* Design tokens. Light by default; the dark set follows prefers-color-scheme. */
 :root {
+  color-scheme: light;
   --bg: #f5f6f8;
   --surface: #ffffff;
   --surface-muted: #f0f2f5;
@@ -11,6 +12,7 @@
   --accent: #2856c7;
   --accent-hover: #1f46a6;
   --accent-soft: #e6edfb;
+  --on-accent: #ffffff;
   --danger: #b42318;
   --danger-soft: #fdecea;
   --warning: #9a5b00;
@@ -40,5 +42,40 @@
   --radius-lg: 10px;
   --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 8%);
   --shadow-lg: 0 12px 32px rgb(16 24 40 / 18%);
+  --backdrop: rgb(16 24 40 / 35%);
   --nav-height: 52px;
+}
+
+/* Dark theme: only colors change; spacing, type and radii stay shared. Text
+   and status colors keep at least 4.5:1 contrast on --surface and on their
+   soft badge backgrounds. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1116;
+    --surface: #161b22;
+    --surface-muted: #1f2630;
+    --border: #2d3540;
+    --border-strong: #434d5b;
+    --text: #e6edf3;
+    --text-muted: #9da7b3;
+    --text-faint: #7d8794;
+    --accent: #7aa7ff;
+    --accent-hover: #9dbdff;
+    --accent-soft: #1b2a45;
+    --on-accent: #0b1220;
+    --danger: #ff8a80;
+    --danger-soft: #3a1d1d;
+    --warning: #e8b84a;
+    --warning-soft: #352a10;
+    --success: #5bd17a;
+    --success-soft: #12301c;
+    --info: #82b8f0;
+    --info-soft: #14283d;
+    --neutral-soft: #262d36;
+    --mark: #6b5a12;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 55%);
+    --backdrop: rgb(0 0 0 / 55%);
+  }
 }
