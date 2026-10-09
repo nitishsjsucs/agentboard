@@ -167,7 +167,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-08 at commit `83f4c08`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `c29b802`.
 
 | Metric | Value |
 |---|---|
@@ -187,14 +187,14 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
 | Audit events; runs with a valid hash chain | 3230; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7289 ms; 11063 ms |
-| Search latency p50; p95 (local) | 2 ms; 3 ms |
+| Run duration p50; p95 (local wall clock) | 7234 ms; 10952 ms |
+| Search latency p50; p95 (local) | 5 ms; 7 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-08 at commit `83f4c08`.
+Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `c29b802`.
 
 | Metric | Value |
 |---|---|
@@ -206,12 +206,12 @@ Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit
 | Tool-set F1 (macro) | 0.593 |
 | Argument accuracy (gold fields of matched steps) | 1.000 |
 | Unknown-tool rate | 0.000 |
-| Latency p50; p95 | 969 ms; 9041 ms |
+| Latency p50; p95 | 941 ms; 9997 ms |
 | Prompt tokens p50; max | 817; 1368 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-08 at commit `83f4c08`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `c29b802`.
 
 Tagged tests: 61 orchestration + 39 authorization = 100; passing: 100.
 
