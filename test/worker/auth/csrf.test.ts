@@ -1,5 +1,6 @@
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import assetHeaders from "../../../public/_headers?raw";
 import { authHeaders, P } from "../../helpers/auth.ts";
 
 const MUTATIONS: [string, string][] = [
@@ -38,7 +39,7 @@ describe("CSRF guard", { tags: ["authz"] }, () => {
     expect(read.status).toBe(200);
   });
 
-  it("refuses a mutation with a foreign Origin, and /api never emits CORS headers", async () => {
+  it("refuses a mutation with a foreign Origin, /api never emits CORS headers, and neither /api nor the static assets may be framed", async () => {
     const headers = { ...(await authHeaders(P.admin)), "Content-Type": "application/json", "X-AgentBoard-Client": "web" };
     const foreign = await exports.default.fetch("http://127.0.0.1/api/dev/login", {
       method: "POST",
@@ -68,5 +69,24 @@ describe("CSRF guard", { tags: ["authz"] }, () => {
       const response = await exports.default.fetch(`http://127.0.0.1${path}`, { headers: { ...(await authHeaders(P.viewer)), Origin: "https://evil.example" } });
       expect(corsHeaders(response), path).toEqual([]);
     }
+
+    // Anti-framing (clickjacking of the approval and recovery buttons): every /api answer, errors included,
+    // and the static assets through public/_headers (Workers Static Assets applies it to the SPA shell).
+    for (const response of [foreign, allowed, await exports.default.fetch("http://127.0.0.1/api/me", { headers: await authHeaders(P.viewer) }), await exports.default.fetch("http://127.0.0.1/api/nope", { headers: await authHeaders(P.viewer) })]) {
+      expect(response.headers.get("x-frame-options"), response.url).toBe("DENY");
+      expect(response.headers.get("content-security-policy"), response.url).toContain("frame-ancestors 'none'");
+      expect(response.headers.get("x-content-type-options"), response.url).toBe("nosniff");
+      expect(response.headers.get("referrer-policy"), response.url).toBe("no-referrer");
+    }
+    const rules = assetHeaders.split("\n").filter((line) => line.trim() !== "" && !line.startsWith("#"));
+    expect(rules[0]).toBe("/*");
+    expect(rules.slice(1).map((line) => line.trim())).toEqual(
+      expect.arrayContaining([
+        "X-Frame-Options: DENY",
+        expect.stringMatching(/^Content-Security-Policy: default-src 'self';.*frame-ancestors 'none'$/),
+        "X-Content-Type-Options: nosniff",
+        "Referrer-Policy: no-referrer",
+      ]),
+    );
   });
 });

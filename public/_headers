@@ -1,0 +1,9 @@
+# Workers Static Assets applies these to every asset response (the SPA shell and its bundles).
+# The console must never render inside another site's frame: approvals and recovery controls are
+# plain buttons, so framing would allow clickjacking. /api responses get the same protection from
+# the Hono app (src/worker/api/app.ts).
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
