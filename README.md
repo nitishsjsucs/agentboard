@@ -180,7 +180,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `83fb6fb`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `6541d6e`.
 
 | Metric | Value |
 |---|---|
@@ -202,14 +202,14 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
 | Audit events; runs with a valid hash chain | 3228; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 8398 ms; 14025 ms |
-| Search latency p50; p95 (local) | 2 ms; 3 ms |
+| Run duration p50; p95 (local wall clock) | 7296 ms; 10884 ms |
+| Search latency p50; p95 (local) | 2 ms; 5 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `83fb6fb`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `6541d6e`.
 
 | Metric | Value |
 |---|---|
@@ -222,12 +222,12 @@ Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving 
 | Tool-set F1 (macro) | 0.932 |
 | Argument accuracy (gold fields of matched steps) | 0.982 |
 | Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
-| Latency p50; p95 | 3250 ms; 8828 ms |
+| Latency p50; p95 | 3141 ms; 8530 ms |
 | Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-09 at commit `83fb6fb`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `6541d6e`.
 
 Tagged tests: 66 orchestration + 42 authorization = 108; passing: 108.
 
@@ -240,8 +240,8 @@ Not measured. Nothing has been deployed; every number above comes from local run
 Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
-- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events come from that change alone. The measurements at `b3f5ed8` (the first after it) and at `83fb6fb` both counted 573 tool calls and 3228 audit events.
-- Local latencies move between runs of the same code and with the load on the machine. The results above were measured at `83fb6fb` on a laptop on AC power while other projects' processes were running. Every count, outcome and planner quality metric matched the previous measurement at `b3f5ed8` (recorded in commit `baf61df`), including all 100 per-request planner results; only latencies moved (at `b3f5ed8`, on a more heavily loaded machine: planner latency p50 7957 ms and p95 21630 ms; simulation run duration p50 9021 ms and p95 15324 ms; search latency p95 13 ms). That measurement had matched the one at `52d601a` (commit `f3da1c3`) in every count except the 2 catalog reads described above, and that one the measurement at `b7db936` (commit `c499cfb`) in every count.
+- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events come from that change alone. The measurements at `b3f5ed8` (the first after it), `83fb6fb` and `6541d6e` all counted 573 tool calls and 3228 audit events.
+- Local latencies move between runs of the same code and with the load on the machine. The results above were measured by a final verification gate in a fresh clone of `6541d6e` (after `npm ci`, with no local secrets or `.wrangler` state), whose measured code is the same as at `83fb6fb`, on a laptop on AC power while other projects' processes were running. Every count, outcome and planner quality metric matched the previous measurement at `83fb6fb` (recorded in commit `ab705c7`), including all 100 per-request planner results; only latencies moved (at `83fb6fb`: planner latency p50 3250 ms and p95 8828 ms; simulation run duration p50 8398 ms and p95 14025 ms; search latency p95 3 ms). That measurement had matched the one at `b3f5ed8` (commit `baf61df`) in every count and every per-request planner result, that one the measurement at `52d601a` (commit `f3da1c3`) in every count except the 2 catalog reads described above, and that one the measurement at `b7db936` (commit `c499cfb`) in every count.
 - Every failure in the simulation is injected by dev-only fault directives at fixed counts from the seeded dataset (the "Injected" row), and every approval decision and recovery command is issued by the simulation driver acting as an operator. The retry, lease-expiry, refusal, budget, verifier and recovery rows measure how the system responds to those injected faults; none of them is an organic failure.
 - The two duplicate side-effect rows come from the integration's own ledger table (`side_effects`), whose insert carries the same guard as the effects. The domain-table row is the independent check: the rows in the simulated tickets, notifications and grants tables, compared with the distinct (run, step) pairs that have an applied call of that tool in the console's tool-call history. In-place updates (addresses, managers, statuses, revocations) are idempotent by nature, so a duplicate of one would not show up in state.
 - Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. The executor journal never answers either: with the default 2 shards the shard hash always sends a lease-expiry redispatch (attempt + 1) to the other shard (`queue/sharding.ts` says why), so all 6 crashes after a call are recovered by ledger replays. These paths are covered by tests (`idempotency.test.ts` "the idempotency key is stable across attempts and changes with generation ...", in `retries.test.ts` "the DLQ consumer ... dead-letters a task only for its current dispatchId ..." and "DLQ replay redispatches ...", and `executor.test.ts` "journal fast path ...").

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "gitSha": "83fb6fbf42d4f9543071f525f29c83d10b684aa7",
+    "gitSha": "6541d6e676c1f9bdb10f4b4b397854e6ea190cb0",
     "dirty": false,
-    "generatedAt": "2026-10-09T20:04:38.519Z",
+    "generatedAt": "2026-10-09T20:30:18.625Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
@@ -101,11 +101,11 @@
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 8398,
-    "run_duration_ms_p95": 14025.399999999998,
-    "search_latency_ms_p50": 2.231687499996042,
-    "search_latency_ms_p95": 3.306807700017817,
-    "driver_wall_clock_ms": 121463
+    "run_duration_ms_p50": 7296,
+    "run_duration_ms_p95": 10883.799999999992,
+    "search_latency_ms_p50": 2.062083499993605,
+    "search_latency_ms_p95": 4.51761809999882,
+    "driver_wall_clock_ms": 104443
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"

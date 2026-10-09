@@ -42,6 +42,7 @@ Fixes from a second independent review (correctness, security and honesty):
 - Evaluation: `results:check` says when a measured commit is missing from the history instead of reporting that measured code changed.
 - Simulation, planner and test results measured again on the fixed code.
 - README and PROGRESS describe the state of the GitHub repository: CI history, the automated pull requests, the tags and the published commits without trailers.
+- A final verification gate measured everything again in a fresh clone of `6541d6e` (same measured code as `83fb6fb`): every count, outcome and planner quality metric matched, including all 100 per-request planner results; only local latencies moved, and the README now shows the gate's numbers.
 
 History note: commit `7ff7a92` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `b7a3199` were written by a parallel session working in the same tree, not by this build's commit sequence; read them as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags). In the working repository the build commits to, every commit except that README commit carries a `Co-Authored-By: Claude` trailer. The GitHub history is copied from that repository by a separate publish step that removes those trailers, so no commit on GitHub carries one.
 
