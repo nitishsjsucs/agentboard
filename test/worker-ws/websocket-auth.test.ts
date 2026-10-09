@@ -2,7 +2,8 @@ import { listDurableObjectIds } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { newRunId } from "../../src/worker/util/ids.ts";
-import { authHeaders, P } from "../helpers/auth.ts";
+import type { RunSnapshot } from "../../src/shared/api-types.ts";
+import { authHeaders, P, signTestJwt } from "../helpers/auth.ts";
 import { startManualRun } from "../helpers/runs.ts";
 import { openSocket, upgrade } from "../helpers/ws.ts";
 
@@ -93,4 +94,30 @@ describe("WebSocket authorization", { tags: ["authz"] }, () => {
     expect(allowed.status).toBe(101);
     openSocket(allowed).ws.close();
   });
+
+  it("a connected socket is closed once its identity token expires and receives no snapshot after that; a client cannot claim a longer session", async () => {
+    const { stub, runId } = await startManualRun();
+    const shortToken = await signTestJwt(P.viewer, { expiresIn: "2s" });
+    // A forged session header is overwritten by the route with the verified token's expiry.
+    const expiring = openSocket(
+      await upgrade(`/agents/run-coordinator/${runId}`, { "Cf-Access-Jwt-Assertion": shortToken, "x-agentboard-session-expires": String(Date.now() + 3_600_000) }),
+    );
+    expect((await expiring.next("cf_agent_state")).state).toMatchObject({ runId });
+    const live = openSocket(await upgrade(`/agents/run-coordinator/${runId}`, await authHeaders(P.viewer)));
+    await live.next("cf_agent_state");
+    const closed = new Promise<number>((resolve) => expiring.ws.addEventListener("close", (event) => resolve(event.code)));
+
+    await new Promise((resolve) => setTimeout(resolve, 3_100));
+    await stub.control({ type: "pause", actor: { kind: "user", id: P.operator }, reason: "after the token expired" });
+    expect(await closed).toBe(4401);
+    expect(expiring.frames.filter((f) => f.type === "cf_agent_state")).toEqual([]);
+    // A socket with a live token still gets the update.
+    const update = (await live.next("cf_agent_state", (f) => (f.state as RunSnapshot).status === "paused")).state as RunSnapshot;
+    expect(update.status).toBe("paused");
+    live.ws.close();
+
+    // An already expired token is refused at the upgrade (outside the verifier's clock tolerance).
+    const expired = await signTestJwt(P.viewer, { expiresIn: "2 minutes ago" });
+    expect((await upgrade(`/agents/run-coordinator/${runId}`, { "Cf-Access-Jwt-Assertion": expired })).status).toBe(401);
+  }, 15_000);
 });

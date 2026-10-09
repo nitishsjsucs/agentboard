@@ -13,16 +13,18 @@ export type AuthOutcome = { ok: true; identity: Identity } | { ok: false; messag
 export async function authenticate(request: Request, db: D1Database, config: Config): Promise<AuthOutcome> {
   const token = extractAccessToken(request, config);
   if (!token) return { ok: false, message: "missing Access token" };
-  let principal;
+  let claims;
   try {
-    principal = principalFromClaims(await verifyAccessJwt(token, config));
+    claims = await verifyAccessJwt(token, config);
   } catch {
     return { ok: false, message: "invalid Access token" };
   }
+  const principal = principalFromClaims(claims);
   if (!principal) return { ok: false, message: "token carries no email or service name" };
   const binding = await getRoleBinding(db, principal.id);
   const role = binding?.role ?? null;
-  return { ok: true, identity: { principal, role, permissions: permissionsFor(role) } };
+  const expiresAt = typeof claims.exp === "number" ? claims.exp * 1000 : null;
+  return { ok: true, identity: { principal, role, permissions: permissionsFor(role), expiresAt } };
 }
 
 export const identityMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {

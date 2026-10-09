@@ -8,8 +8,13 @@
 // Agents SDK forwards a `/sub/{class}/{name}` tail under any agent route to a
 // sub-agent facet of that class, created on demand; routeAgentRequest checks
 // only the first two segments, so a longer path would reach any agent class.
+//
+// Authorization is checked at the upgrade, and the socket then lives on, so
+// the route forwards the verified token's expiry to the coordinator, which
+// closes the socket (4401) before any broadcast once that time has passed.
 
 import { routeAgentRequest } from "agents";
+import { SESSION_EXPIRES_HEADER } from "./agents/run-coordinator.ts";
 import { authenticate } from "./api/middleware/identity.ts";
 import type { Config } from "./config.ts";
 import { RUN_ID_PATTERN } from "./util/ids.ts";
@@ -29,10 +34,14 @@ export async function handleAgentRoute(request: Request, env: Env, config: Confi
       const auth = await authenticate(upgrade, env.DB, config);
       if (!auth.ok) return refuse(401, "unauthenticated");
       if (!auth.identity.permissions.includes("runs:read")) return refuse(403, "forbidden");
+      if (auth.identity.expiresAt === null) return refuse(401, "unauthenticated");
       if (!RUN_ID_PATTERN.test(route.name)) return refuse(404, "not_found");
       const exists = await env.DB.prepare("SELECT 1 AS present FROM runs WHERE id = ?").bind(route.name).first();
       if (!exists) return refuse(404, "not_found");
-      return undefined;
+      // Always set here (overwriting anything the client sent), so the coordinator can trust it.
+      const headers = new Headers(upgrade.headers);
+      headers.set(SESSION_EXPIRES_HEADER, String(auth.identity.expiresAt));
+      return new Request(upgrade, { headers });
     },
   });
   return routed ?? refuse(404, "not_found");

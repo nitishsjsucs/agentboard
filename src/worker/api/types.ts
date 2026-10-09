@@ -6,6 +6,8 @@ export interface Identity {
   principal: Principal;
   role: Role | null;
   permissions: Permission[];
+  /** Expiry of the verified identity token (epoch ms), or null when it carries no `exp`. */
+  expiresAt: number | null;
 }
 
 export interface AppEnv {
