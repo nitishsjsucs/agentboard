@@ -8,7 +8,7 @@ export interface AiRunner {
   run(
     model: string,
     inputs: Record<string, unknown>,
-    options?: { gateway?: { id: string; metadata?: Record<string, string | number | boolean | null> }; signal?: AbortSignal },
+    options?: { gateway?: { id: string; collectLog?: boolean; metadata?: Record<string, string | number | boolean | null> }; signal?: AbortSignal },
   ): Promise<unknown>;
 }
 
@@ -79,7 +79,9 @@ export class WorkersAiProvider implements LlmProvider {
           ...(req.seed !== undefined ? { seed: req.seed } : {}),
         },
         {
-          ...(this.gatewayId ? { gateway: { id: this.gatewayId, metadata: { runId: req.metadata.runId } } } : {}),
+          // collectLog false: the prompt carries the request text, which the console treats as PII (pii:read),
+          // and AI Gateway logs would keep it outside the console's redaction for anyone who can read the logs.
+          ...(this.gatewayId ? { gateway: { id: this.gatewayId, collectLog: false, metadata: { runId: req.metadata.runId } } } : {}),
           signal: abort,
         },
       ),

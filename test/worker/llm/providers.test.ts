@@ -82,7 +82,7 @@ describe("LLM providers", { tags: ["llm"] }, () => {
     expect(texts).toEqual(['{"steps":["a"]}', '{"steps":["b"]}', '{"steps":["c"]}', '{"steps":["d"]}']);
     expect(calls[0]?.model).toBe("@cf/qwen/qwen3-30b-a3b-fp8");
     expect(calls[0]?.inputs).toMatchObject({ response_format: { type: "json_schema", json_schema: REQUEST.jsonSchema.schema }, temperature: 0, max_tokens: 800, seed: 7 });
-    expect(calls[0]?.options).toEqual({ gateway: { id: "agentboard", metadata: { runId: "run_x" } }, signal: expect.any(AbortSignal) });
+    expect(calls[0]?.options).toEqual({ gateway: { id: "agentboard", collectLog: false, metadata: { runId: "run_x" } }, signal: expect.any(AbortSignal) });
     const withoutGateway = new WorkersAiProvider({ run: async (_m, _i, options) => (calls.push({ model: "x", inputs: {}, options }), "{}") }, "m", "");
     await withoutGateway.generate(REQUEST);
     expect(calls.at(-1)?.options).toEqual({ signal: expect.any(AbortSignal) });
