@@ -59,26 +59,34 @@ The stretch items of section 1.1 are built in the spec's cut order where they do
 | 41 | test(web): UI tests for tool-call traces, role and DLQ panels, the confirm dialog, meters and the audit badge | done (16 `ui` tests; results:check stale until 44) |
 | 42 | feat(web): dark-mode tokens | done (results:check stale until 44) |
 | 43 | feat(mcp): dev-only external /mcp route for MCP Inspector and dev:token --integration | done (results:check stale until 44) |
-| 44 | chore(results): re-measure simulation, planner and test results after the stretch items | next |
-| 45 | docs: README, CHANGELOG and PROGRESS for the stretch items | planned |
+| 44 | chore(results): re-measure simulation, planner and test results after the stretch items | done (measured at `c29b802`) |
+| 45 | docs: README, CHANGELOG and PROGRESS for the stretch items | done |
 
-## What is left (stretch items, cut first per SPEC section 1.1, and human steps)
+## What is left (human steps)
 
-- Stretch, in progress (see the table above): `.github/workflows/preview.yml` (gated, never run against an account) and `.github/workflows/release.yml` (never run; its notes step was run locally for every tag) are built, ADRs 0003 to 0005 are written, 8 more `ui` tests exist (16 in all), dark-mode tokens follow `prefers-color-scheme`, and the external `/mcp` route (`MCP_EXTERNAL=on`, loopback only) with `dev:token --integration` exists. Every stretch item is built; what remains is the re-measurement (commit 44) and the docs commit (45).
-- Not done by the builders (needs Nitish, SPEC section 18): pushing, opening the 8 PRs, GitHub releases for the local tags `v0.1.0` to `v0.4.0`, any deployment, Access setup, Workers AI planner quality.
-- If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until `npm run count:tests`, `npm run eval:sim` and `npm run eval:planner` (with `AGENTBOARD_LLM_PORT=8140 npm run llm:serve` running and `LLM_BASE_URL=http://127.0.0.1:8140`) are re-run on a clean, committed tree and `npm run results:render` is re-run.
+- Every planned commit (1 to 36, plus 33a) and every stretch item of section 1.1 is built: `preview.yml` (gated; never run against an account), `release.yml` (never run on GitHub; its notes step was run locally for every tag), ADRs 0003 to 0005, 16 `ui` tests, dark-mode tokens, and the dev-only external `/mcp` route with `dev:token --integration`. There is no further planned build work in SPEC.md.
+- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, plus PR 9 = commits 37 to 45, the stretch items, whose head passes every CI step); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push, `gh workflow run release.yml -f tag=v0.1.0` and so on); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
+- Decide whether to drop the foreign commit `6ffb555` and the foreign README hunk in `cfde7d4` before opening PRs (deviation 43).
+- If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until the measurements are taken again on a clean, committed tree. The exact procedure used on 2026-10-08 (local time) for commit 44:
+  1. `npm run count:tests`
+  2. `npm run eval:sim` (wrangler dev on 127.0.0.1:8784, inspector 9234; it kills its process group when done)
+  3. `llama-server -m ~/Developer/projects/_models/Qwen3-1.7B-Q4_0-rtn.gguf --host 127.0.0.1 --port 8140 -np 1 -c 8192 -ngl 99 --reasoning off --jinja` in the background, then `LLM_BASE_URL=http://127.0.0.1:8140 LLM_SERVER_FLAGS="-np 1 -c 8192 -ngl 99 --reasoning off --jinja" npm run eval:planner`, then stop llama-server
+  4. `npm run eval:planner -- --provider stub` (sanity file, must score 100%)
+  5. `npm run results:render`, then commit `eval/results` and the README block together.
 
-## Check status (last run, 2026-10-08, at the release commit)
+## Check status (last run 2026-10-08 local time, after commit 44 `f91017e`, with the docs of commit 45 in the tree)
 
 - `npm run types:check`: pass
 - `npm run typecheck`: pass
-- `npm run synth:check`: pass
-- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 34 files, 140 tests)
-- `npm run test:sim`: pass (6 tests; all 100 runs reach their expected status; several consecutive runs of 22 to 34 s)
+- `npm run synth:check`: pass (4 files match; runs 100, employees 60)
+- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 41 files, 150 tests: the 140 from v0.4.0, 8 new `ui` tests and 2 new `integration` tests)
+- `npm run test:sim`: pass (6 tests, about 20 s)
 - `npm run count:tests -- --check`: pass (61 orchestration + 39 authz = 100)
-- `npm run results:check`: pass (results measured at `83f4c08`, clean tree)
+- `npm run results:check`: pass (all three results measured at `c29b802`, clean tree)
 - `npm run build`: pass
-- Measured (in `eval/results/`, rendered in the README): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 100/100 valid chains; eval:planner (Qwen3-1.7B Q4_0, llama-server 0.5.0 build 11146) 84/100 valid plans, 9/100 exact tool sequences; count:tests 100/100 passing.
+- Measured at `c29b802` (in `eval/results/`, rendered in the README; dates in the README are UTC, 2026-10-09): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 100/100 valid chains, 3230 audit events; eval:planner (Qwen3-1.7B Q4_0, llama-server 0.5.0 build 11146) 84/100 valid plans, 9/100 exact tool sequences, F1 0.593, latency p50 941 ms and p95 9997 ms; count:tests 100/100 passing.
+- At commits 41, 42 and 43 `results:check` fails by design (stale measurement, deviation 44). Checks run per commit this round: 37 to 40 (no source changes) `typecheck` and `results:check`, plus offline dry-runs of the deploy paths and a local run of the release-notes step; 41 and 42 `typecheck`, the `web` project and `build`; 43 and 44 the full sequence above.
+- No wrangler, workerd or llama-server process started by this build is left running.
 
 ## Deviations from SPEC.md
 
@@ -94,7 +102,7 @@ The stretch items of section 1.1 are built in the spec's cut order where they do
 10. **`access-jwt.test.ts` #7 lands with commit 23.** "A valid token for an unbound email gets 403 everywhere except `/api/me`" needs the permission-gated run, approval, search, agent and DLQ routes, which arrive in commit 23. Until then the file has the other 7 tests. `/api/me` is implemented in commit 6 (not 7) because the Access and dev-login tests assert through it.
 11. **Small helper files not in the layout:** `src/worker/api/types.ts` (Hono env and `Identity` types) and `scripts/lib/dev-vars.ts` (reads `.dev.vars` for `dev:token`).
 12. **Empty dev secrets count as absent.** The vitest plugin loads a developer's local `.dev.vars`; the `worker-access` project sets `ACCESS_DEV_JWKS` and `DEV_ACCESS_PRIVATE_JWK` to empty strings so its tests are hermetic, and `parseConfig` treats an empty secret as absent.
-13. **Commits are on local `main`; tags are local.** No branches, PRs or pushes are made by the builders (pushing happens after verification). The PR boundaries of section 19 map to commit ranges: PR 1 = commits 1 to 4, PR 2 = 5 to 8, PR 3 = 9 to 12, PR 4 = 13 to 16, PR 5 = 17 to 22, PR 6 = 23 to 25, PR 7 = 26 to 30, PR 8 = 31 to 36. Milestone tags (`v0.1.0` ...) are created locally on the last commit of each milestone; GitHub releases need a push.
+13. **Commits are on local `main`; tags are local.** No branches, PRs or pushes are made by the builders (pushing happens after verification). The PR boundaries of section 19 map to commit ranges: PR 1 = commits 1 to 4, PR 2 = 5 to 8, PR 3 = 9 to 12, PR 4 = 13 to 16, PR 5 = 17 to 22, PR 6 = 23 to 25, PR 7 = 26 to 30, PR 8 = 31 to 36, and after the plan PR 9 = 37 to 45 (fixes and stretch items). Milestone tags (`v0.1.0` ...) are created locally on the last commit of each milestone; GitHub releases need a push.
 14. **Coordinator internals.** Each RPC loads the whole run into an in-memory `RunTx` (`agents/coordinator/transitions.ts`, pure), applies the operation and re-derives status there, then persists dirty rows, hash-chained events and outbox rows inside the same `transactionSync`. DO SQLite columns added beyond section 6.3: `ab_run.cancelled` and `ab_run.finished_at` (cancel is a flag that `deriveRunStatus` reads, so status is still never set by a command), `ab_tasks.checkpoint_done` (a checkpoint parks a step only the first time it becomes ready) and `ab_tasks.created_at` (for the D1 mirror). A run is `rejected` when any approval was rejected by an approver.
 15. **Dispatch rule.** A task that becomes ready is dispatched once when the run allows dispatch (queued, planning, running, awaiting approval). When a transaction moves the run out of `paused` or `needs_attention`, every ready task is redispatched once with a new `dispatchId`, which is how `resume` and the recovery commands satisfy "dispatches each ready task exactly once".
 16. **Typed RPC interface.** Workers' generated `Rpc` types turn members that carry `unknown` (tool arguments and results) into `never`, so callers type coordinator stubs with the explicit `RunCoordinatorRpc` interface in `agents/coordinator/schema.ts`, which the class `implements`.
