@@ -7,23 +7,10 @@ import type { TaskMessage } from "../../../src/worker/queue/messages.ts";
 import { shardName } from "../../../src/worker/queue/sharding.ts";
 import { distinctRuns, inputFromDataset } from "../../helpers/agents.ts";
 import { batchMessage, syntheticMessage, testConfig } from "../../helpers/queue.ts";
-import { coordinator, events, readState } from "../../helpers/runs.ts";
+import { coordinator, events, readState, waitForStatus } from "../../helpers/runs.ts";
 import { apiGet, apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
 import type { ApprovalListItem, Page } from "../../../src/shared/api-types.ts";
-
-/** Polls the coordinator until the run reaches one of `statuses` (through the real queue and agents). */
-export async function waitForStatus(runId: string, statuses: string[], timeoutMs = 20_000): Promise<string> {
-  const stub = await coordinator(runId);
-  const started = Date.now();
-  let status = "";
-  while (Date.now() - started < timeoutMs) {
-    status = (await stub.getSnapshot()).status;
-    if (statuses.includes(status)) return status;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(`run ${runId} stuck in ${status}`);
-}
 
 describe("queue dispatch", { tags: ["orchestration"] }, () => {
   it("through the real queue, a launched address_change run reaches succeeded, with messages routed to the binding and shard computed from role, run id, task id and attempt", async () => {

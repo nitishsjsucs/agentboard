@@ -147,6 +147,30 @@ export async function completePlan(stub: CoordinatorStub, plan: Plan): Promise<v
   if (!result.accepted) throw new Error(`plan completion refused: ${result.reason}`);
 }
 
+/** Polls the coordinator until the run reaches one of `statuses` (through the real queue and agents). */
+export async function waitForStatus(runId: string, statuses: string[], timeoutMs = 20_000): Promise<string> {
+  const stub = await coordinator(runId);
+  const started = Date.now();
+  let status = "";
+  while (Date.now() - started < timeoutMs) {
+    status = (await stub.getSnapshot()).status;
+    if (statuses.includes(status)) return status;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`run ${runId} stuck in ${status}`);
+}
+
+/**
+ * Waits until every run a test launched through the real queue has stopped
+ * moving. A launch whose request text has no stub fixture fails planning
+ * (StubMiss) until its attempts run out and the run needs attention; a test
+ * that returns before then leaves queued planner work running while the test
+ * file's environment is torn down.
+ */
+export async function settleRuns(runIds: readonly string[]): Promise<void> {
+  for (const runId of runIds) await waitForStatus(runId, ["needs_attention", "succeeded", "cancelled", "rejected", "awaiting_approval"]);
+}
+
 /** Output an execute task reports for a tool (the ids a verifier later reads). */
 export function fakeOutput(tool: string | null): Record<string, unknown> {
   if (tool === "itsm.create_ticket") return { ticketId: "TKT-000000000001" };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LaunchRunResponse } from "../../../src/shared/api-types.ts";
 import { apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
+import { settleRuns } from "../../helpers/runs.ts";
 
 describe("launch key scope", { tags: ["authz"] }, () => {
   it("a second requester reusing the first requester's clientRequestId gets a new run, never the first requester's run", async () => {
@@ -18,5 +19,7 @@ describe("launch key scope", { tags: ["authz"] }, () => {
     const again = await apiPost(P.operator, "/api/runs", body);
     expect(again.status).toBe(200);
     expect(await json<LaunchRunResponse>(again)).toMatchObject({ runId: firstRun.runId, deduplicated: true });
+    // Both runs were really launched; let their planner work finish before the file ends.
+    await settleRuns([firstRun.runId, secondRun.runId]);
   });
 });
