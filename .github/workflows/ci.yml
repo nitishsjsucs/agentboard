@@ -27,3 +27,9 @@ jobs:
       - run: npm run count:tests -- --check
       - run: npm run results:check
       - run: npm run build
+      # SPEC section 20: keep an eye on the worker bundle against the Workers size limits.
+      - name: Print the worker bundle size
+        run: |
+          for f in dist/agentboard/index.js dist/agentboard/assets/*.js; do
+            printf '%s: %s bytes, %s bytes gzip\n' "$f" "$(wc -c < "$f" | tr -d ' ')" "$(gzip -9c "$f" | wc -c | tr -d ' ')"
+          done | tee -a "$GITHUB_STEP_SUMMARY"

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "gitSha": "83f4c08f7315259e101a15316bfa864bb22e4f81",
+    "gitSha": "8f04166bdbbf7f309d6272bab5b1e97b2c19a5ce",
     "dirty": false,
-    "generatedAt": "2026-10-08T23:48:08.818Z",
+    "generatedAt": "2026-10-09T00:32:32.774Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 7,
@@ -27,8 +27,8 @@
     "arg_accuracy": 1,
     "unknown_tool_rate": 0,
     "policy_overrides": 45,
-    "latency_ms_p50": 0.06460400000000277,
-    "latency_ms_p95": 0.2066276999999908,
+    "latency_ms_p50": 0.04652100000001269,
+    "latency_ms_p95": 0.1214351000000106,
     "prompt_tokens_p50": 798.5,
     "prompt_tokens_max": 1036,
     "tokens_out_total": 11052,
@@ -49,7 +49,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 3.091540999999978,
+      "latencyMs": 1.838667000000001,
       "promptTokens": [
         790
       ],
@@ -69,7 +69,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.4517089999999939,
+      "latencyMs": 0.23675000000000068,
       "promptTokens": [
         809
       ],
@@ -89,7 +89,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.6765829999999937,
+      "latencyMs": 0.3844169999999991,
       "promptTokens": [
         1033
       ],
@@ -109,7 +109,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.12258299999999167,
+      "latencyMs": 0.07766700000000526,
       "promptTokens": [
         804
       ],
@@ -129,7 +129,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.14949999999998909,
+      "latencyMs": 0.10329199999999616,
       "promptTokens": [
         929
       ],
@@ -149,7 +149,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.46704100000002313,
+      "latencyMs": 0.3132499999999965,
       "promptTokens": [
         797
       ],
@@ -169,7 +169,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.11233300000000668,
+      "latencyMs": 0.07804199999999639,
       "promptTokens": [
         795
       ],
@@ -189,7 +189,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.09687500000001137,
+      "latencyMs": 0.07241700000000151,
       "promptTokens": [
         788
       ],
@@ -209,7 +209,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.0897499999999809,
+      "latencyMs": 0.06816600000000506,
       "promptTokens": [
         802
       ],
@@ -229,7 +229,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.1304580000000044,
+      "latencyMs": 0.09070799999999224,
       "promptTokens": [
         1029
       ],
@@ -249,7 +249,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.11133399999999938,
+      "latencyMs": 0.07579200000000696,
       "promptTokens": [
         938
       ],
@@ -269,7 +269,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.10912500000000591,
+      "latencyMs": 0.07712499999999523,
       "promptTokens": [
         935
       ],
@@ -289,7 +289,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.4117080000000044,
+      "latencyMs": 0.11933300000001168,
       "promptTokens": [
         795
       ],
@@ -309,7 +309,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.10054200000001856,
+      "latencyMs": 0.07133300000000986,
       "promptTokens": [
         790
       ],
@@ -329,7 +329,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.07349999999999568,
+      "latencyMs": 0.07174999999998022,
       "promptTokens": [
         808
       ],
@@ -349,7 +349,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.07270799999997735,
+      "latencyMs": 0.04683400000001825,
       "promptTokens": [
         800
       ],
@@ -369,7 +369,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.12829099999999016,
+      "latencyMs": 0.08108300000000668,
       "promptTokens": [
         791
       ],
@@ -389,7 +389,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.1339580000000069,
+      "latencyMs": 0.09212500000001,
       "promptTokens": [
         1035
       ],
@@ -409,7 +409,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.19583399999999074,
+      "latencyMs": 0.1613749999999925,
       "promptTokens": [
         705
       ],
@@ -429,7 +429,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.0660840000000178,
+      "latencyMs": 0.04041699999999082,
       "promptTokens": [
         789
       ],
@@ -449,7 +449,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06362500000000182,
+      "latencyMs": 0.0413329999999803,
       "promptTokens": [
         788
       ],
@@ -469,7 +469,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.06487500000000068,
+      "latencyMs": 0.04020799999997848,
       "promptTokens": [
         704
       ],
@@ -489,7 +489,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05416700000000674,
+      "latencyMs": 0.03612499999999841,
       "promptTokens": [
         790
       ],
@@ -509,7 +509,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.07325000000000159,
+      "latencyMs": 0.05475000000001273,
       "promptTokens": [
         789
       ],
@@ -529,7 +529,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05525000000000091,
+      "latencyMs": 0.04420799999999758,
       "promptTokens": [
         790
       ],
@@ -549,7 +549,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.08795900000001211,
+      "latencyMs": 0.06475000000000364,
       "promptTokens": [
         1034
       ],
@@ -569,7 +569,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.05854199999998855,
+      "latencyMs": 0.042541999999997415,
       "promptTokens": [
         801
       ],
@@ -589,7 +589,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.09516700000000355,
+      "latencyMs": 0.07374999999998977,
       "promptTokens": [
         1033
       ],
@@ -609,7 +609,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.054000000000002046,
+      "latencyMs": 0.03912500000001273,
       "promptTokens": [
         803
       ],
@@ -629,7 +629,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.053625000000010914,
+      "latencyMs": 0.04066700000001333,
       "promptTokens": [
         708
       ],
@@ -649,7 +649,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.07320799999999394,
+      "latencyMs": 0.05925000000002001,
       "promptTokens": [
         1035
       ],
@@ -669,7 +669,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04954200000000242,
+      "latencyMs": 0.050416999999981726,
       "promptTokens": [
         802
       ],
@@ -689,7 +689,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04729199999999878,
+      "latencyMs": 0.04720900000000938,
       "promptTokens": [
         709
       ],
@@ -709,7 +709,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.08050000000000068,
+      "latencyMs": 0.051000000000016144,
       "promptTokens": [
         787
       ],
@@ -729,7 +729,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.0742089999999962,
+      "latencyMs": 0.052917000000007874,
       "promptTokens": [
         936
       ],
@@ -749,7 +749,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.09645900000001006,
+      "latencyMs": 0.0746249999999975,
       "promptTokens": [
         1028
       ],
@@ -769,7 +769,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06929200000001856,
+      "latencyMs": 0.03741599999997902,
       "promptTokens": [
         789
       ],
@@ -789,7 +789,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06974999999999909,
+      "latencyMs": 0.057292000000018106,
       "promptTokens": [
         932
       ],
@@ -809,7 +809,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.10179200000001742,
+      "latencyMs": 0.06541599999999903,
       "promptTokens": [
         1032
       ],
@@ -829,7 +829,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.07308399999999438,
+      "latencyMs": 0.05195900000001075,
       "promptTokens": [
         936
       ],
@@ -849,7 +849,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.0625,
+      "latencyMs": 0.0514999999999759,
       "promptTokens": [
         705
       ],
@@ -869,7 +869,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.09095800000000054,
+      "latencyMs": 0.060624999999987494,
       "promptTokens": [
         931
       ],
@@ -889,7 +889,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06312499999998522,
+      "latencyMs": 0.045000000000015916,
       "promptTokens": [
         791
       ],
@@ -909,7 +909,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.050958000000008496,
+      "latencyMs": 0.07479200000000219,
       "promptTokens": [
         793
       ],
@@ -929,7 +929,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06524999999999181,
+      "latencyMs": 0.04358299999998394,
       "promptTokens": [
         791
       ],
@@ -949,7 +949,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.047457999999977574,
+      "latencyMs": 0.03479200000001015,
       "promptTokens": [
         790
       ],
@@ -969,7 +969,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.072749999999985,
+      "latencyMs": 0.07070799999999622,
       "promptTokens": [
         1028
       ],
@@ -989,7 +989,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.08616599999999153,
+      "latencyMs": 0.04195899999999142,
       "promptTokens": [
         934
       ],
@@ -1009,7 +1009,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04729199999999878,
+      "latencyMs": 0.03462500000000546,
       "promptTokens": [
         803
       ],
@@ -1029,7 +1029,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.054666999999994914,
+      "latencyMs": 0.041958000000022366,
       "promptTokens": [
         789
       ],
@@ -1049,7 +1049,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.10054099999999266,
+      "latencyMs": 0.03508399999998346,
       "promptTokens": [
         791
       ],
@@ -1069,7 +1069,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04749999999998522,
+      "latencyMs": 0.033749999999997726,
       "promptTokens": [
         802
       ],
@@ -1089,7 +1089,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04441700000000992,
+      "latencyMs": 0.03712500000000318,
       "promptTokens": [
         708
       ],
@@ -1109,7 +1109,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.0624170000000106,
+      "latencyMs": 0.03591700000001197,
       "promptTokens": [
         794
       ],
@@ -1129,7 +1129,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.06758300000001327,
+      "latencyMs": 0.046875,
       "promptTokens": [
         1035
       ],
@@ -1149,7 +1149,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.04341600000000767,
+      "latencyMs": 0.03595799999999372,
       "promptTokens": [
         788
       ],
@@ -1169,7 +1169,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.08691600000000221,
+      "latencyMs": 0.05520900000001916,
       "promptTokens": [
         1033
       ],
@@ -1189,7 +1189,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04824999999999591,
+      "latencyMs": 0.03562500000001023,
       "promptTokens": [
         704
       ],
@@ -1209,7 +1209,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04383299999997803,
+      "latencyMs": 0.04620800000000713,
       "promptTokens": [
         706
       ],
@@ -1229,7 +1229,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.06420900000000529,
+      "latencyMs": 0.034874999999999545,
       "promptTokens": [
         810
       ],
@@ -1249,7 +1249,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.0503750000000025,
+      "latencyMs": 0.037499999999994316,
       "promptTokens": [
         795
       ],
@@ -1269,7 +1269,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04691700000000765,
+      "latencyMs": 0.04070900000002098,
       "promptTokens": [
         709
       ],
@@ -1289,7 +1289,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.07562500000000227,
+      "latencyMs": 0.04704200000000469,
       "promptTokens": [
         1034
       ],
@@ -1309,7 +1309,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06387499999999591,
+      "latencyMs": 0.0442910000000154,
       "promptTokens": [
         930
       ],
@@ -1329,7 +1329,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.06379199999997809,
+      "latencyMs": 0.05729100000002063,
       "promptTokens": [
         1034
       ],
@@ -1349,7 +1349,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.07370800000001054,
+      "latencyMs": 0.04087499999999977,
       "promptTokens": [
         929
       ],
@@ -1369,7 +1369,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.041957999999993945,
+      "latencyMs": 0.037042000000013786,
       "promptTokens": [
         792
       ],
@@ -1389,7 +1389,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.07758300000000418,
+      "latencyMs": 0.0499579999999753,
       "promptTokens": [
         1036
       ],
@@ -1409,7 +1409,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05116699999999241,
+      "latencyMs": 0.037333000000018046,
       "promptTokens": [
         794
       ],
@@ -1429,7 +1429,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.07379199999999742,
+      "latencyMs": 0.048750000000012506,
       "promptTokens": [
         934
       ],
@@ -1449,7 +1449,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06433300000000486,
+      "latencyMs": 0.04045800000000099,
       "promptTokens": [
         929
       ],
@@ -1469,7 +1469,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06674999999998477,
+      "latencyMs": 0.04724999999999113,
       "promptTokens": [
         790
       ],
@@ -1489,7 +1489,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05516699999998309,
+      "latencyMs": 0.05249999999998067,
       "promptTokens": [
         933
       ],
@@ -1509,7 +1509,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.051625000000001364,
+      "latencyMs": 0.030082999999990534,
       "promptTokens": [
         705
       ],
@@ -1529,7 +1529,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04641700000001947,
+      "latencyMs": 0.03412499999998886,
       "promptTokens": [
         808
       ],
@@ -1549,7 +1549,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.04220900000001393,
+      "latencyMs": 0.03804200000001856,
       "promptTokens": [
         790
       ],
@@ -1569,7 +1569,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06537500000001728,
+      "latencyMs": 0.05720800000000281,
       "promptTokens": [
         935
       ],
@@ -1589,7 +1589,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.053541999999993095,
+      "latencyMs": 0.0730829999999969,
       "promptTokens": [
         789
       ],
@@ -1609,7 +1609,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06662500000001614,
+      "latencyMs": 0.06520800000001259,
       "promptTokens": [
         933
       ],
@@ -1629,7 +1629,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06870800000001509,
+      "latencyMs": 0.05229099999999676,
       "promptTokens": [
         930
       ],
@@ -1649,7 +1649,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.04404199999999037,
+      "latencyMs": 0.03583299999999667,
       "promptTokens": [
         790
       ],
@@ -1669,7 +1669,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05608300000000099,
+      "latencyMs": 0.061958000000004176,
       "promptTokens": [
         932
       ],
@@ -1689,7 +1689,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06887500000001978,
+      "latencyMs": 0.04287500000000932,
       "promptTokens": [
         934
       ],
@@ -1709,7 +1709,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05687500000001933,
+      "latencyMs": 0.04091599999998152,
       "promptTokens": [
         928
       ],
@@ -1729,7 +1729,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.04070799999999508,
+      "latencyMs": 0.03545800000000554,
       "promptTokens": [
         790
       ],
@@ -1749,7 +1749,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06999999999999318,
+      "latencyMs": 0.035166000000003805,
       "promptTokens": [
         792
       ],
@@ -1769,7 +1769,7 @@
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.06204199999999105,
+      "latencyMs": 0.04783299999999713,
       "promptTokens": [
         1029
       ],
@@ -1789,7 +1789,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.03870900000001143,
+      "latencyMs": 0.033959000000010064,
       "promptTokens": [
         704
       ],
@@ -1809,7 +1809,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.06029200000000401,
+      "latencyMs": 0.03920800000000213,
       "promptTokens": [
         789
       ],
@@ -1829,7 +1829,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.04424999999997681,
+      "latencyMs": 0.033084000000002334,
       "promptTokens": [
         794
       ],
@@ -1849,7 +1849,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.04720800000001191,
+      "latencyMs": 0.04204200000000924,
       "promptTokens": [
         796
       ],
@@ -1869,7 +1869,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.036000000000001364,
+      "latencyMs": 0.031291999999979225,
       "promptTokens": [
         704
       ],
@@ -1889,7 +1889,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.05662499999999682,
+      "latencyMs": 0.03691699999998832,
       "promptTokens": [
         795
       ],
@@ -1909,7 +1909,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04583299999998758,
+      "latencyMs": 0.029875000000004093,
       "promptTokens": [
         801
       ],
@@ -1929,7 +1929,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.03650000000001796,
+      "latencyMs": 0.03270899999998278,
       "promptTokens": [
         704
       ],
@@ -1949,7 +1949,7 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 0.07433299999999576,
+      "latencyMs": 0.0352500000000191,
       "promptTokens": [
         928
       ],
@@ -1969,7 +1969,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.04066699999998491,
+      "latencyMs": 0.051084000000003016,
       "promptTokens": [
         802
       ],
@@ -1989,7 +1989,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.03624999999999545,
+      "latencyMs": 0.04112499999999386,
       "promptTokens": [
         708
       ],
@@ -2009,7 +2009,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.05324999999999136,
+      "latencyMs": 0.03237500000000182,
       "promptTokens": [
         803
       ],
@@ -2029,7 +2029,7 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 0.03595800000002214,
+      "latencyMs": 0.02458400000000438,
       "promptTokens": [
         704
       ],

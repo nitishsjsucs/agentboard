@@ -3,6 +3,7 @@
 // MCP_EXTERNAL=on in development.
 
 import { createMcpHandler } from "agents/mcp/server";
+import { isLoopbackRequest } from "../auth/access.ts";
 import { verifyIntegrationToken, type IntegrationClaims, type IntegrationKind } from "../auth/integration-tokens.ts";
 import type { Config } from "../config.ts";
 import { buildPeopleOpsServer } from "./server.ts";
@@ -61,4 +62,17 @@ export async function peopleOpsEndpoint(request: Request, env: Env, config: Conf
   return handler.fetch(request, {
     authInfo: { token, clientId: claims.sub, scopes: claims.scope.split(" "), expiresAt: claims.exp, extra: { claims } },
   });
+}
+
+/**
+ * The Worker's own /mcp route, for MCP Inspector in development (SPEC sections
+ * 8.1 and 9). It exists only with MCP_EXTERNAL=on, which loadConfig refuses
+ * outside development, and only for loopback hosts: the dev servers bind
+ * loopback, and a DNS name rebound to 127.0.0.1 fails the check. Otherwise it
+ * answers 404, so the integration is reachable only in-process. Every request
+ * still needs a valid integration token (`npm run dev:token -- --integration`).
+ */
+export async function externalMcpRoute(request: Request, env: Env, config: Config): Promise<Response> {
+  if (!config.mcpExternal || !isLoopbackRequest(request)) return new Response("not found", { status: 404 });
+  return peopleOpsEndpoint(request, env, config);
 }

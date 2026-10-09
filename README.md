@@ -6,7 +6,7 @@ AgentBoard is an operations console for launching, monitoring and controlling ag
 
 **Nothing is deployed.** Every measured number in this README was produced locally by this repository's own scripts. Deploy steps are below; production behavior has not been measured.
 
-The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the two main decisions in [`docs/adr/`](docs/adr), and the milestone demo scripts in [`demos/`](demos).
+The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the main decisions in [`docs/adr/`](docs/adr) (coordinator leases and queues, the integration ledger and call-bound tokens, policy-owned approvals with gating edges, derived run status with recovery cascades, measured results with a staleness check), and the milestone demo scripts in [`demos/`](demos).
 
 ## Architecture
 
@@ -19,7 +19,7 @@ flowchart LR
     AUTH["Identity: Access JWT (prod) or local RS256 JWT (dev/test)"]
     API["Hono API /api/*"]
     ROUTE["/agents/run-coordinator/:runId (read-only WebSocket, Origin allowlist)"]
-    MCPE["People Ops MCP endpoint (in-process)"]
+    MCPE["People Ops MCP endpoint (in-process; external /mcp dev-only)"]
     QC["queue() consumer"]
   end
   subgraph DOs["Durable Objects with SQLite (Agents SDK)"]
@@ -103,14 +103,14 @@ The rules that make it safe under at-least-once delivery:
 | History search | D1 FTS5 | D1 FTS5 (same code) |
 | Identity | `AUTH_MODE=dev`: RS256 JWTs from a locally generated key, verified by the same code as Access; dev login on loopback only | Cloudflare Access JWT in `Cf-Access-Jwt-Assertion` against the team JWKS (verified locally only against an intercepted JWKS) |
 | LLM planning | deterministic stub in tests and the simulation; a local llama-server (Qwen3-1.7B Q4_0) for `eval:planner` | Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway (unit-tested with a fake binding only; never executed) |
-| MCP integrations | in-process Streamable HTTP to the simulated People systems | the same in-process path to the same simulated systems |
+| MCP integrations | in-process Streamable HTTP to the simulated People systems; an external `/mcp` route for MCP Inspector only with `MCP_EXTERNAL=on` on loopback | the same in-process path to the same simulated systems; no external route (`MCP_EXTERNAL=on` is refused at load time) |
 | Fault directives (simulation) | on in tests and the simulation | off, enforced at load time |
 | Preview deployments | not applicable | `preview.yml` deploys each pull request to the shared `preview` environment once the Cloudflare secrets exist (never run; checked offline with `wrangler deploy --dry-run`) |
 | Numbers in this README | all of them | none |
 
 ## Local setup
 
-Requires Node 24 (Node 25.9 also verified) and no Cloudflare login.
+Requires Node 24 or newer and no Cloudflare login. `.nvmrc` pins Node 24 for CI, which has not run yet (nothing is pushed); every local run in this repository, including the measurements below, used Node 25.9.
 
 1. `nvm use && npm ci`
 2. `npm run dev:keys` writes `.dev.vars` with a local RS256 dev keypair and an integration signing key (gitignored).
@@ -122,6 +122,16 @@ Requires Node 24 (Node 25.9 also verified) and no Cloudflare login.
 A bare `wrangler dev` is **unsupported**. Against `wrangler.jsonc` it fails, because the `assets` block has no `directory` (the Vite plugin supplies it at build time); after any `vite build` it would follow `.wrangler/deploy/config.json` to whatever `dist/` holds, which may be stale or a production build. `serve:built` and `eval:sim` build first, assert the built config is the local one, and pass `--config dist/agentboard/wrangler.json` with an absolute `--env-file`.
 
 With the stub planner (the local default), only the synthetic dataset's requests can be planned; the launch form offers them as dev-only samples.
+
+### Inspecting the MCP server (development only)
+
+The agents reach the People Ops MCP server in-process; by default the worker answers 404 on `/mcp`. For debugging with MCP Inspector, add `MCP_EXTERNAL=on` to `.dev.vars` and restart `npm run dev` or `npm run serve:built` (the config loader refuses the flag outside development, and the route answers only on loopback hosts). Then mint a token:
+
+```sh
+npm run dev:token -- --integration --tool hris.get_employee --args '{"employeeId":"E-1001"}'
+```
+
+It is bound to that one read tool and those exact arguments for 60 seconds; write tools are refused. Connect MCP Inspector over Streamable HTTP through its local proxy (the route sends no CORS headers) to `http://127.0.0.1:8784/mcp` (`serve:built`) or `http://127.0.0.1:5173/mcp` (`npm run dev`), with the token as the bearer token. Checked with curl against the built worker (initialize, tools/list, the bound call, a refused call with other arguments, 401 without a token, 404 for a non-loopback host); MCP Inspector itself was not run here.
 
 ## Deploy (not done; needs an account)
 
@@ -143,7 +153,8 @@ The top-level configuration is the local one and has `workers_dev: false`, so an
 
 - `npm test` runs five projects: `worker` (workerd), `worker-ws` (WebSockets, isolation off as the Cloudflare known-issues page requires), `worker-access` (production Access verification against an intercepted JWKS), `web` (React components in happy-dom) and `node` (script math and launchers).
 - `npm run test:sim` drives all 100 synthetic requests through the real API, queue, coordinator, agents and MCP tools in workerd, with the same driver as `eval:sim`.
-- Exactly 100 tests are tagged `orchestration` or `authz` (SPEC section 13.1). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count.
+- Exactly 100 tests are tagged `orchestration` or `authz` (SPEC section 13.1). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 16 React component tests, eval math, launchers and the toolchain gate) carry their own tags and are not part of the 100.
+- `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`, then prints the worker bundle size. It has not run on GitHub yet. `preview.yml` and `release.yml` are described under Deploy and Releases.
 
 ## Releases
 
@@ -151,13 +162,13 @@ Four milestone tags, `v0.1.0` to `v0.4.0`, exist in this repository with a demo 
 
 ## Results
 
-Every number below is written by a script into `eval/results/*.json` and rendered here by `npm run results:render`. CI (`npm run results:check`) fails if this block differs from the JSON, if a measurement ran on a dirty tree, or if the measured code changed after the measurement.
+Every number below is written by a script into `eval/results/*.json` and rendered here by `npm run results:render`. CI (`npm run results:check`) fails if this block differs from the JSON, if a measurement ran on a dirty tree, or if the measured code changed after the measurement. Measurement dates are UTC.
 
 <!-- RESULTS:START -->
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-08 at commit `83f4c08`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `8f04166`.
 
 | Metric | Value |
 |---|---|
@@ -166,7 +177,7 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Outcome match (measured status equals expected) | 100/100 |
 | Duplicate side effects (per idempotency key) | 0 |
 | Logical duplicate side effects (per run and step) | 0 |
-| Tool calls | 575 (ok 544, permanent_error 4, replayed 6, retryable_error 21) |
+| Tool calls | 577 (ok 546, permanent_error 4, replayed 6, retryable_error 21) |
 | Ledger replays (of which logical) | 6 (0) |
 | Task retries; runs recovered by retry | 21; 18 |
 | Lease expiries; recovered | 6; 6 |
@@ -175,16 +186,16 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Budget exhaustions; recoveries | 3; 3 |
 | Silent no-ops detected by the verifier; false positives | 4/4; 0 |
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
-| Audit events; runs with a valid hash chain | 3230; 100/100 |
+| Audit events; runs with a valid hash chain | 3232; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7289 ms; 11063 ms |
+| Run duration p50; p95 (local wall clock) | 7223 ms; 10811 ms |
 | Search latency p50; p95 (local) | 2 ms; 3 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-08 at commit `83f4c08`.
+Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `8f04166`.
 
 | Metric | Value |
 |---|---|
@@ -196,12 +207,12 @@ Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit
 | Tool-set F1 (macro) | 0.593 |
 | Argument accuracy (gold fields of matched steps) | 1.000 |
 | Unknown-tool rate | 0.000 |
-| Latency p50; p95 | 969 ms; 9041 ms |
+| Latency p50; p95 | 916 ms; 8970 ms |
 | Prompt tokens p50; max | 817; 1368 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-08 at commit `83f4c08`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `8f04166`.
 
 Tagged tests: 61 orchestration + 39 authorization = 100; passing: 100.
 
@@ -214,6 +225,7 @@ Not measured. Nothing has been deployed; every number above comes from local run
 Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
+- Tool-call and audit-event totals can differ by a few between runs of the same code. Each planner shard caches the tool catalog, but planner tasks that reach a shard before its cache is filled each fetch it (`tools/list`, recorded as a tool call with its own audit event), and how many do depends on timing.
 - Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. Both paths are covered by tests (`idempotency.test.ts` #8, `retries.test.ts` #5 and #6).
 - Planner argument accuracy is computed only over gold steps the model got right by tool and position, which with this small model are mostly the opening read steps. Read it together with exact match and tool-set F1, which show how far the plans are from the gold sequences.
 - Planning quality of the production model (Workers AI) is not measured.

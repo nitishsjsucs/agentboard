@@ -2,6 +2,21 @@
 
 Milestone releases of AgentBoard. Each milestone has a demo script in `demos/`.
 
+## Unreleased
+
+Stretch items from SPEC section 1.1, built after v0.4.0:
+
+- `npm run deploy` (documented in the deploy steps but missing from `package.json`), plus `build:preview` and `deploy:preview`.
+- `.github/workflows/preview.yml`: per-PR deploys to the shared `preview` environment, gated on the Cloudflare secrets (skipped without them; never run against an account).
+- `.github/workflows/release.yml`: a pushed `v*` tag runs CI on the tagged commit, then publishes a release from its changelog section and demo script; a manual run covers the four existing tags.
+- ADRs 0003 (policy-owned approvals and gating edges), 0004 (derived run status and recovery cascades) and 0005 (measured results with provenance and a staleness check).
+- Eight more UI component tests (16 in all): tool-call traces, the agent-role and DLQ panels, the confirm dialog, budget meters and the audit chain notice.
+- Dark-mode design tokens that follow `prefers-color-scheme`.
+- A dev-only external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`, loopback hosts only) and `npm run dev:token -- --integration` for read-only, call-bound inspector tokens.
+- Simulation, planner and test results measured again on the commit that contains all of the above.
+- CI prints the worker bundle size after the build.
+- Every measurement taken again in a separate session to check that it reproduces: every outcome, recovery and audit-chain count and every planner quality metric matched; only local latencies and the timing-dependent tool-catalog reads (2 more tool calls and 2 more audit events) moved.
+
 ## v0.4.0: Evaluation and release
 
 - One simulation driver for the 100-run workerd simulation (`npm run test:sim`) and `npm run eval:sim` against `wrangler dev` on the built worker.
