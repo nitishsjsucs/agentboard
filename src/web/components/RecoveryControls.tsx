@@ -65,6 +65,11 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
     ...(canSkipTasks && !terminal && canSkip(task) ? [{ command: "skip" as const, task }] : []),
   ]);
   const showBudget = canBudget && !terminal;
+  // A raise must increase at least one field and lower none (the coordinator refuses anything else).
+  const budgetFields = ["maxToolCalls", "maxLlmTokens", "maxAttemptsPerTask", "maxActiveMs"] as const;
+  const isRaise =
+    budgetFields.some((field) => (budget[field] ?? snapshot.budget[field]) > snapshot.budget[field]) &&
+    budgetFields.every((field) => (budget[field] ?? snapshot.budget[field]) >= snapshot.budget[field]);
   if (!runButtons.some((b) => b.show) && taskButtons.length === 0 && !showBudget) {
     return <div className="small muted" data-testid="no-controls">No recovery actions available{terminal ? " (the run is finished)" : ""}.</div>;
   }
@@ -130,13 +135,14 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
           }
           confirmLabel="Confirm"
           danger={action.kind === "run" ? action.command === "cancel" : action.kind === "task" && action.command === "skip"}
+          confirmDisabled={action.kind === "budget" && !isRaise}
           onCancel={() => setAction(null)}
           onConfirm={run}
         >
           {action.kind === "task" && cascadeNote(action) ? <p className="notice">{cascadeNote(action)}</p> : null}
           {action.kind === "budget" ? (
             <div className="grid grid--two" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              {(["maxToolCalls", "maxLlmTokens", "maxAttemptsPerTask", "maxActiveMs"] as const).map((field) => (
+              {budgetFields.map((field) => (
                 <div className="field" key={field}>
                   <label htmlFor={`budget-${field}`}>
                     {field} (now {snapshot.budget[field]})

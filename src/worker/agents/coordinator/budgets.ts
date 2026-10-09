@@ -49,16 +49,23 @@ export function activeDeadline(tx: Pick<RunTx, "state">): number | null {
 
 const RAISABLE = ["maxToolCalls", "maxLlmTokens", "maxActiveMs", "maxAttemptsPerTask"] as const;
 
-/** raise_budget (admin): raises budget fields, clears the deadline flag, unblocks budget_blocked tasks. */
+/**
+ * raise_budget (admin): raises budget fields, clears the deadline flag, unblocks budget_blocked tasks.
+ * At least one field must strictly increase and none may decrease; anything else is `not_a_raise`
+ * (an empty or equal patch would clear the deadline and redispatch tasks the next claim blocks again).
+ */
 export function raiseBudget(tx: RunTx, cmd: Extract<ControlCommand, { type: "raise_budget" }>): ControlResult {
   const run = tx.run;
   const next: Budget = { ...run.budget };
+  let raised = false;
   for (const field of RAISABLE) {
     const value = cmd.budget[field];
     if (value === undefined) continue;
     if (!Number.isInteger(value) || value < run.budget[field]) return { accepted: false, reason: "not_a_raise" };
+    if (value > run.budget[field]) raised = true;
     next[field] = value;
   }
+  if (!raised) return { accepted: false, reason: "not_a_raise" };
   const from = run.budget;
   run.budget = next;
   run.deadlineExceeded = false;

@@ -9,9 +9,11 @@ export interface ConfirmDialogProps {
   /** Every recovery command carries an audited reason (3 to 500 characters). */
   onConfirm: (reason: string) => Promise<void> | void;
   onCancel: () => void;
+  /** Extra condition from the dialog's own fields (for example a budget raise with no field set). */
+  confirmDisabled?: boolean;
 }
 
-export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
           <button type="button" className="btn" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button type="button" className={`btn ${danger ? "btn--danger" : "btn--primary"}`} disabled={!valid || busy} onClick={() => void submit()}>
+          <button type="button" className={`btn ${danger ? "btn--danger" : "btn--primary"}`} disabled={!valid || busy || confirmDisabled} onClick={() => void submit()}>
             {confirmLabel}
           </button>
         </div>
