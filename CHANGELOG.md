@@ -32,6 +32,7 @@ Fixes for the three known minor issues:
 - Run WebSockets are authorized again every five minutes: the coordinator closes a socket that is due with a normal closure, and the client reconnects through the route, which checks the token and the role binding. A removed or downgraded binding now reaches an open socket within five minutes instead of at token expiry.
 - Switching principals on the dev login page waits for the new session before opening the dashboard, which no longer requests the DLQ with the previous principal's permissions.
 - Two tagged tests were added (106 in all) and one React test; simulation, planner and test results measured again on the fixed code.
+- A second simulation run in a clean clone reproduced every count, including the tool-call and audit-event totals; only local latencies moved.
 - README: a note on the `npm audit` advisory for the pinned MCP SDK packages (the affected OAuth client flow is not used).
 
 History note: commit `7ff7a92` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `b7a3199` were written by a parallel session working in the same tree, not by this build's commit sequence. `7ff7a92` is the only commit without the `Co-Authored-By` trailer that every other commit carries; read it as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags).
