@@ -168,6 +168,17 @@ At commits 77 to 86 `results:check` reports the stale measurement by design (dev
 
 The GitHub repository is not this round's doing: an external publish loop (deviation 66) copies local `main` to GitHub about once an hour as an automatically merged pull request. It published `8b87a11` as PR #10 at 20:11 UTC while this round worked on its branch; the commits above reach GitHub only on a later pass after `main` was fast-forwarded.
 
+### Final verification gate (builder 9, 2026-10-09)
+
+The workflow asked for this round ("Try again") as the final gate, trusting no earlier report. It cloned `6541d6e` (commit 89) into a fresh directory, ran `npm ci` and every `ci.yml` step there, re-ran every eval as documented, judged the SPEC section 0 resume claims against the code, those numbers and the GitHub repository, and deleted the clone afterwards. Nothing planned was left.
+
+| # | Commit | Status |
+|---|---|---|
+| 90 | chore(results): record the final verification gate's measurements of 6541d6e | done (`d7811c7`) |
+| 91 | docs: PROGRESS for the final verification gate | done |
+
+Every count, outcome and planner quality metric reproduced exactly, including all 100 per-request planner results and the worker bundle sha256; only local latencies moved, so the README Results block no longer matched what the gate measured. Commit 90 replaces the four result files with the gate's (measured in the clean clone of `6541d6e`, whose measured paths equal `83fb6fb`'s), re-renders the README block, updates the README note on latency variance to cite the `83fb6fb` numbers by commit, and adds a CHANGELOG line. Commit 91 updates this file. Neither changes a measured path, so `results:check` stays green. Both commits are local; GitHub's `main` was still at PR #10 (`8b87a11`) when this round checked it, so commits 77 to 91 reach GitHub only through the publish loop.
+
 ## What is left (human steps)
 
 - Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1, every review finding and the three known minor issues are done. There is no further planned build work in SPEC.md.
@@ -183,9 +194,23 @@ The GitHub repository is not this round's doing: an external publish loop (devia
   3. `llama-server -m ~/Developer/projects/_models/Qwen3-1.7B-Q4_0-rtn.gguf --host 127.0.0.1 --port 8140 -np 1 -c 8192 -ngl 99 --reasoning off --jinja` in the background (the same flags as `npm run llm:serve`), then `LLM_BASE_URL=http://127.0.0.1:8140 LLM_SERVER_FLAGS="-np 1 -c 8192 -ngl 99 --reasoning off --jinja" npm run eval:planner` (it reads the model file, context and slot count from the server and refuses a mismatch), then stop llama-server
   4. `npm run eval:planner -- --provider stub` (sanity file, must score 100%)
   5. `npm run results:render`, then commit `eval/results` and the README block together.
-  Builder 8 used the same procedure on 2026-10-09 for commit 87.
+  Builder 8 used the same procedure on 2026-10-09 for commit 87, and builder 9 (the final gate) in a fresh clone of `6541d6e` for commit 90.
 
-## Check status (last run 2026-10-09 local time by builder 8)
+## Check status (last run 2026-10-09 local time by builder 9)
+
+Builder 9 (the final verification gate), Node 25.9.0, npm 11.12.1, on AC power (Low Power Mode off) while another repository's wrangler dev and workerd processes were running.
+
+- In a fresh clone of `6541d6e` (`git clone` of this repository into `/tmp/gate-agentboard`; no `.dev.vars`, no `.wrangler` state): `npm ci` (281 packages; `npm audit` reports 3 high-severity entries, all GHSA-6qxp-vccf-f47h through the pinned MCP SDK packages and `agents`, as the README describes), `types:check`, `typecheck`, `synth:check` (4 files match; runs 100, employees 60), `npm test` (projects worker, worker-ws, worker-access, web, node; 42 files, 161 tests passed, 0 failed, 0 skipped), `test:sim` (1 file, 6 tests), `count:tests -- --check` (66 orchestration + 42 authz = 108), `results:check` (block matches 3 result files, none dirty or stale) and `build` all exit 0. The CI bundle-size step's method gives `dist/agentboard/index.js` 2489364 bytes (597945 gzip -9), plus the dataset chunk 206969, a library chunk 230860 and the rolldown runtime 1793 bytes; client bundle 384.57 kB (118.05 kB gzip). No `.skip`, `.todo` or `.only` in `test`, `src` or `scripts`.
+- Measurements for commit 90, all in that clone on the clean tree at `6541d6e` with the procedure under "What is left":
+  - `npm run count:tests`: 108 tagged (66 + 42), 108 passing, vitest exit 0 (1 min 21 s, 20:27 to 20:28 UTC).
+  - `npm run eval:sim`: exit 0 in 1 min 54 s (20:28 to 20:30 UTC); bundle sha256 and every count equal to the `83fb6fb` measurement (100 runs, 100/100 outcome match, 573 tool calls, 3228 audit events, 100/100 valid chains, 0 duplicate and logical-duplicate side effects, 0 duplicate and 0 missing domain-table rows, 20/20 known-item search at 1 and at 5); run duration p50 7296 ms and p95 10884 ms, search latency p50 2 ms and p95 5 ms.
+  - `npm run eval:planner` (llama-server b11146-7fe450e19 on 127.0.0.1:8140, `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`): exit 0 in 7 min 20 s (20:30 to 20:38 UTC); every quality metric and all 100 per-request results identical to `83fb6fb` (57/100 first pass, 77/100 after repair, 76/100 with every gold write, 0 policy violations, 34/100 exact, F1 0.932, argument accuracy 0.982, 0 transport errors); latency p50 3141 ms and p95 8530 ms.
+  - `npm run eval:planner -- --provider stub`: 100/100 on every metric.
+- In this working tree after commit 90 (result files and docs only): `types:check`, `typecheck`, `synth:check`, `npm test` (42 files, 161 passed, 0 failed), `test:sim` (6), `count:tests -- --check` (108), `results:check` and `build` all exit 0.
+- No browser check this round: no UI code changed since builder 8's browser check after commit 83.
+- Processes: `eval:sim` stopped its own `wrangler dev`, and this round's llama-server on port 8140 was stopped with SIGTERM after the planner eval; no wrangler, workerd or llama-server process of this repository or its clone is left running, ports 8784, 9234 and 8140 have no listener, and the clone was deleted. The other repository's processes (onboardflow, port 8781) were not touched.
+
+### Builder 8's run
 
 Builder 8, Node 25.9.0, npm 11.12.1, on AC power while other repositories' workerd and llama-server processes were running.
 
@@ -232,7 +257,7 @@ Earlier, in the verification gate's clean clone of `52d601a` (builder 5, 2026-10
 
 ## Resume claim status (SPEC sections 0 and 18)
 
-Each phrase of the SPEC section 0 resume text, its state (re-judged by builder 8 on 2026-10-09 against the code, the measurements and the GitHub repository as of about 20:15 UTC), and what Nitish has to do before using it. Mirror this list in any builder status. The publish loop keeps adding pull requests and CI runs after that time, so check GitHub for later numbers.
+Each phrase of the SPEC section 0 resume text, its state (re-judged by builder 9, the final verification gate, on 2026-10-09 against the code, the gate's own measurements in a fresh clone of `6541d6e`, and the GitHub repository as of about 20:50 UTC: PRs #1 to #10 with 0 reviews each, `ci.yml` 35 runs with 16 failures, `preview.yml` 8 runs with the deploy job skipped, 0 deployments, 0 releases, the four tags with CI passing for `v0.1.0` to `v0.3.0` and failing for `v0.4.0`, and no `Co-Authored-By` trailer in the 89 commits on GitHub's `main`; every one of those matched builder 8's judgement), and what Nitish has to do before using it. Mirror this list in any builder status. The publish loop keeps adding pull requests and CI runs after that time, so check GitHub for later numbers.
 
 | Phrase | State now | Evidence | Action (SPEC section 18) |
 |---|---|---|---|
@@ -244,9 +269,9 @@ Each phrase of the SPEC section 0 resume text, its state (re-judged by builder 8
 | "Cloudflare Agents SDK, Durable Objects, Queues, and MCP, with task leases, bounded execution budgets, retry handling, and duplicate-action prevention" | true locally (workerd, Miniflare queues) | 108 tagged tests, eval:sim | none |
 | "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | In this working repository every commit except `7ff7a92` carries a Claude `Co-Authored-By` trailer; on GitHub none of the 89 published commits does, because the publish step strips them. The README section "History, pull requests and authorship" names Claude Code | name the tool actually used (Claude Code), or do real follow-up work in Cursor or OpenCode. Do not use the "Cursor or OpenCode" wording |
 | "Git pull requests" | not true as a workflow: PRs #1 to #10 exist, but each was opened and merged by the publish loop within 2 to 4 seconds, with no review and before its CI finished; #3 to #6 and #8 were merged with failing CI; commits 1 to 8 were pushed straight to `main`; #7 holds only a commit the publish loop made itself | `gh pr list --state all`, `gh run list` | do not claim a review-based pull-request workflow; claim pull requests only after real ones are reviewed and merged on green CI |
-| "meaningful commits" | true | 91 conventional commits in this working repository after commit 89 (plan commits 1 to 36 and 33a, then 37 to 89, plus the foreign `7ff7a92`); GitHub shows the same commits without trailers plus merge commits and the publish loop's own commit | none |
+| "meaningful commits" | true | 93 conventional commits in this working repository after commit 91 (plan commits 1 to 36 and 33a, then 37 to 91, plus the foreign `7ff7a92`); GitHub shows the same commits without trailers plus merge commits and the publish loop's own commit | none |
 | "Cloudflare preview deployments" | not done: `preview.yml` ran on 8 pull requests and its deploy job was skipped every time; the repository has 0 deployments | `gh run list --workflow preview`, `gh api repos/nitishsjsucs/agentboard/deployments` | keep only after `preview.yml` has deployed a PR (README deploy step 11); wording "per-PR deployments to a preview environment" |
-| "approximately 100 orchestration and authorization test cases" | true: 108 tagged, all passing (measured at `83fb6fb`) | count:tests | read the test names before interviews |
+| "approximately 100 orchestration and authorization test cases" | true: 108 tagged (66 orchestration, 42 authz), all passing (measured by the final gate at `6541d6e`) | count:tests | read the test names before interviews |
 | "four sprint demo releases" | four tags made within one afternoon (14:40, 15:34, 15:59 and 16:54 on 2026-10-08) and pushed to GitHub by the publish loop; no GitHub release exists; the `v0.4.0` tag's CI failed (`results:check`, see "What is left") | `git ls-remote --tags origin`, `gh release list` | use "four incremental releases with demo scripts", and only after the releases are published |
 
 ## Review findings (builder 8)
