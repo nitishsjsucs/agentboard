@@ -134,6 +134,11 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     return new Response("not found", { status: 404 });
   }
 
+  // No sub-agents: the SDK would otherwise create a facet of any class for a `/sub/{class}/{name}` path.
+  override async onBeforeSubAgent(): Promise<Response> {
+    return new Response("not found", { status: 404 });
+  }
+
   override onMessage(): void {
     // Client messages are ignored.
   }

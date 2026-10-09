@@ -40,6 +40,11 @@ export abstract class RoleAgent extends Agent<Env, RoleState> implements RoleAge
     return new Response("not found", { status: 404 });
   }
 
+  // No sub-agents: the SDK would otherwise create a facet of any class for a `/sub/{class}/{name}` path.
+  override async onBeforeSubAgent(): Promise<Response> {
+    return new Response("not found", { status: 404 });
+  }
+
   protected config(): Config {
     const loaded = loadConfig(this.env);
     if (!loaded.ok) throw new Error(`configuration rejected: ${loaded.errors.join("; ")}`);

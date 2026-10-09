@@ -47,6 +47,34 @@ describe("WebSocket authorization", { tags: ["authz"] }, () => {
     const { runId } = await startManualRun();
     const http = await exports.default.fetch(`http://127.0.0.1:8784/agents/run-coordinator/${runId}`, { headers: await authHeaders(P.admin) });
     expect(http.status).toBe(404);
+    // The Agents SDK forwards a `/sub/{class}/{name}` tail under an allowed route to a sub-agent facet of any class;
+    // the route is the coordinator's own path only, so these never reach the coordinator.
+    const other = await startManualRun();
+    for (const tail of ["sub/executor-agent/executor-0", "sub/planner-agent/probe", "sub/verifier-agent/verifier-0", `sub/run-coordinator/${other.runId}`]) {
+      for (const principal of [P.viewer, P.admin]) {
+        const ws = await upgrade(`/agents/run-coordinator/${runId}/${tail}`, await authHeaders(principal));
+        expect(ws.status, `${tail} ws ${principal}`).toBe(404);
+        expect(ws.webSocket).toBeNull();
+      }
+    }
+    // Defense in depth: the coordinator itself refuses sub-agents, closing the socket (4404) before any frame.
+    const direct = await env.RunCoordinator.get(env.RunCoordinator.idFromName(runId)).fetch(`http://127.0.0.1:8784/agents/run-coordinator/${runId}/sub/executor-agent/executor-0`, {
+      headers: { Upgrade: "websocket" },
+    });
+    const socket = direct.webSocket;
+    if (!socket) throw new Error(`no socket (status ${direct.status})`);
+    const frames: string[] = [];
+    const closed = new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("socket was not closed")), 5000);
+      socket.addEventListener("message", (event) => frames.push(String(event.data)));
+      socket.addEventListener("close", (event) => {
+        clearTimeout(timer);
+        resolve(event.code);
+      });
+    });
+    socket.accept();
+    expect(await closed).toBe(4404);
+    expect(frames).toEqual([]);
   });
 
   it("an upgrade whose Origin is not in ALLOWED_ORIGINS is refused with 403, even with a valid dev cookie", async () => {
