@@ -12,7 +12,7 @@ import { claimMessage, completePlan, coordinator, events, granted, planFor, read
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { apiGet, apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
-import type { DlqMessageView, Page } from "../../../src/shared/api-types.ts";
+import type { DlqMessageView, MetricsSummary, Page } from "../../../src/shared/api-types.ts";
 
 describe("retry handling", { tags: ["orchestration"] }, () => {
   it("a retryable failure redispatches with delaySeconds from the capped exponential schedule; a non-retryable failure moves the run to needs_attention without redispatch", async () => {
@@ -212,7 +212,7 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect((await events(stale.stub)).some((e) => e.action === "task.dead_letter_ignored")).toBe(true);
   });
 
-  it("DLQ replay redispatches with a new dispatchId and audits the actor", async () => {
+  it("DLQ replay redispatches with a new dispatchId and audits the actor; a dead letter whose task was recovered otherwise is no longer open and its replay is refused", async () => {
     const config = testConfig();
     const { stub, runId } = await startManualRun();
     await completePlan(stub, planFor("address_change"));
@@ -241,6 +241,28 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect(globalAudit?.actor_id).toBe(P.admin);
     expect(await env.DB.prepare("SELECT replayed_by FROM dlq_messages WHERE id = ?").bind(message.id).first()).toEqual({ replayed_by: P.admin });
     expect((await apiPost(P.admin, `/api/dlq/${message.id}/replay`, { reason: "again" })).status).toBe(409);
+
+    // An operator recovers a dead-lettered task with retry_task instead of a replay: the DLQ row is no
+    // longer open (dashboard count and list), and a late replay is refused rather than silently ignored.
+    const other = await startManualRun();
+    await completePlan(other.stub, planFor("address_change"));
+    const [o1] = await takeDispatches(other.stub);
+    if (!o1) throw new Error("no s1");
+    const otherMessage = batchMessage(o1.message, 6);
+    const otherBatch = createMessageBatch(config.dlqQueueName, [otherMessage]);
+    await worker.queue(otherBatch, env);
+    await getQueueResult(otherBatch, createExecutionContext());
+    const openCount = async () => (await json<MetricsSummary>(await apiGet(P.operator, "/api/metrics/summary"))).dlqOpen;
+    const listedRow = async () => (await json<Page<DlqMessageView>>(await apiGet(P.operator, "/api/dlq"))).items.find((m) => m.id === otherMessage.id);
+    const openBefore = await openCount();
+    expect(await listedRow()).toMatchObject({ outcome: "dead_lettered", taskStatus: "dead_lettered", open: true });
+    const retried = await apiPost(P.operator, `/api/runs/${other.runId}/tasks/${o1.message.taskId}/retry`, { reason: "fixed upstream" });
+    expect(retried.status).toBe(200);
+    expect(await openCount()).toBe(openBefore - 1);
+    expect(await listedRow()).toMatchObject({ outcome: "dead_lettered", replayedAt: null, taskStatus: "ready", open: false });
+    const late = await apiPost(P.admin, `/api/dlq/${otherMessage.id}/replay`, { reason: "late replay" });
+    expect(late.status).toBe(409);
+    expect(await late.json()).toMatchObject({ accepted: false, reason: "invalid_state" });
   });
 
   it("a schema-invalid (poison) message is acked and audited, not retried", async () => {

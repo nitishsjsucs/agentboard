@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { MetricsSummary } from "../../../shared/api-types.ts";
 import { listDirectory } from "../../db/people.ts";
+import { OPEN_DLQ_CONDITION } from "./dlq.ts";
 import { requirePermission } from "../middleware/rbac.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -11,7 +12,8 @@ export const metricsRoutes = new Hono<AppEnv>()
       db.prepare("SELECT status AS k, COUNT(*) AS n FROM runs GROUP BY status"),
       db.prepare("SELECT request_type AS k, COUNT(*) AS n FROM runs GROUP BY request_type"),
       db.prepare("SELECT COUNT(*) AS n FROM approvals WHERE status = 'pending'"),
-      db.prepare("SELECT COUNT(*) AS n FROM dlq_messages WHERE outcome = 'dead_lettered' AND replayed_at IS NULL"),
+      // Dead-lettered tasks with an open dead letter (see OPEN_DLQ_CONDITION); a task counts once.
+      db.prepare(`SELECT COUNT(DISTINCT d.task_id) AS n FROM dlq_messages d JOIN tasks t ON t.id = d.task_id WHERE ${OPEN_DLQ_CONDITION}`),
     ]);
     const toMap = (rows: unknown[] | undefined) => Object.fromEntries(((rows ?? []) as { k: string; n: number }[]).map((r) => [r.k, r.n]));
     const statusCounts = toMap(byStatus?.results);

@@ -284,6 +284,10 @@ export interface DlqMessageView {
   receivedAt: string;
   replayedAt: string | null;
   replayedBy: string | null;
+  /** The task's current status in the D1 mirror; null for a poison message. */
+  taskStatus: TaskStatus | null;
+  /** A dead letter that was not replayed and whose task is still dead_lettered: the only kind a replay can act on. */
+  open: boolean;
 }
 
 export interface MetricsSummary {
