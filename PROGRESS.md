@@ -112,44 +112,59 @@ A final gate that trusted no earlier report: it cloned `52d601a` into a fresh di
 
 Every count, outcome and planner quality metric reproduced exactly (all 100 per-request planner results are identical); only local latencies moved, so the README's Results block no longer matched what the gate measured. Commit 69 replaces the four result files with the gate's (measured in the clean clone of `52d601a`, whose measured paths equal `b7db936`'s), re-renders the README block, adds a README sentence on latency variance that cites the earlier numbers by commit, and adds a CHANGELOG line. Commit 70 updates this file. Neither changes a measured path. PR 10 now covers commits 49 to 70.
 
+### Known-issue fixes (builder 6, 2026-10-09)
+
+This round re-ran every check on `fb9b78e` (all green: typecheck, 155 tests, sim, count check, results check, build), found no planned work left, and fixed the three known minor issues that the earlier rounds had listed under "What is left", each with a test that fails without its fix, then measured everything again.
+
+| # | Commit | Status |
+|---|---|---|
+| 71 | fix(planner): planner tasks on one shard share a catalog read in flight | done (`aae80c2`, deviation 60) |
+| 72 | fix(realtime): run WebSockets are authorized again every five minutes | done (`be6eb22`, deviation 61) |
+| 73 | fix(web): dev login waits for the new session before opening the dashboard | done (`b3f5ed8`, deviation 62) |
+| 74 | chore(results): re-measure simulation, planner and test results after the known-issue fixes | done (`baf61df`, measured at `b3f5ed8`) |
+| 75 | docs: README, CHANGELOG and PROGRESS for the known-issue fixes | done |
+
+These commits would form PR 11 (commits 71 to 75). At commits 71 to 73 `results:check` and `count:tests -- --check` report the stale measurement by design (deviation 44); commit 74 makes them green again. Typecheck and the touched test files ran before each commit, and the full `npm test`, `test:sim`, `types:check`, `synth:check` and `build` ran at 73 before the measurement.
+
 ## What is left (human steps)
 
-- Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1 and every review finding is done. There is no further planned build work in SPEC.md.
-- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 70); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
+- Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1, every review finding and the three known minor issues are done. There is no further planned build work in SPEC.md.
+- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 70, PR 11 = commits 71 to 75); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
 - Decide the resume wording before using it: see "Resume claim status" below. Several phrases of SPEC section 0 are not true yet.
 - Commit `7ff7a92` and the README hunk of `b7a3199` (deviation 43): history was kept and the CHANGELOG now says where they came from (deviation 57). Rewriting them out remains possible only before the first push; it would move the four tags and require re-running count:tests, eval:sim and eval:planner on the new head, because `results:check` diffs against the recorded `gitSha`.
-- Known minor issues, not fixed: (a) right after switching principals on the dev login page, the dashboard can poll once with the previous principal's permissions, so an approver sees one 403 for `/api/dlq` in the browser console (a fresh load sends no such request; the server enforces the permission either way; dev login only); (b) concurrent planner tasks on one shard can each fetch the tool catalog before the shard's cache is filled (deviation 48), so tool-call and audit-event totals vary by a few between simulation runs (575 at `b7db936` and again at the gate, 577 at `cf21c23`); (c) an open run WebSocket does not re-check the principal's role binding, only the token expiry (deviation 51). The earlier item about `EnvironmentTeardownError` is fixed (commit 49).
-- If any file under `src`, `migrations`, `fixtures`, `scripts`, `test` or `seed`, or `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts` changes, `npm run results:check` fails until the measurements are taken again on a clean, committed tree. The exact procedure, used on 2026-10-08 (local time) for commit 66:
+- Known minor issues: the three listed by earlier rounds are fixed (commits 71 to 73): (a) the dashboard's one 403 for `/api/dlq` right after switching principals on the dev login page, (b) the timing-dependent catalog reads that made tool-call and audit-event totals vary between simulation runs, (c) open run WebSockets that kept their authorization until token expiry. None is known now. `npm audit` reports GHSA-6qxp-vccf-f47h (high) for the pinned MCP SDK packages; the affected OAuth client flow is not used (deviation 64), so the pins were kept.
+- If any file under `src`, `migrations`, `fixtures`, `scripts`, `test` or `seed`, or `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts` changes, `npm run results:check` fails until the measurements are taken again on a clean, committed tree. The exact procedure, used on 2026-10-08 (local time) for commit 66 and on 2026-10-09 for commit 74:
   1. `npm run count:tests`
   2. `npm run eval:sim` (wrangler dev on 127.0.0.1:8784, inspector 9234; it kills its process group when done)
   3. `llama-server -m ~/Developer/projects/_models/Qwen3-1.7B-Q4_0-rtn.gguf --host 127.0.0.1 --port 8140 -np 1 -c 8192 -ngl 99 --reasoning off --jinja` in the background (the same flags as `npm run llm:serve`), then `LLM_BASE_URL=http://127.0.0.1:8140 LLM_SERVER_FLAGS="-np 1 -c 8192 -ngl 99 --reasoning off --jinja" npm run eval:planner` (it reads the model file, context and slot count from the server and refuses a mismatch), then stop llama-server
   4. `npm run eval:planner -- --provider stub` (sanity file, must score 100%)
   5. `npm run results:render`, then commit `eval/results` and the README block together.
 
-## Check status (last run 2026-10-08 local time by builder 5, the verification gate)
+## Check status (last run 2026-10-09 local time by builder 6)
 
-In a fresh `git clone` of `52d601a` at `/tmp/gate-agentboard` (no `.dev.vars`, no `.wrangler` state, no `dist`), Node 25.9.0, npm 11.12.1, on battery while another repository's workerd eval ran on port 8781:
+In this repository at the head (commit 75; the measured commit is `b3f5ed8`, and commits 74 and 75 change no measured path), Node 25.9.0, npm 11.12.1, on AC power while three other repositories' workerd processes were running:
 
-- `npm ci`: pass (281 packages; npm audit reports 3 high severity advisories in dependencies, not investigated)
 - `npm run types:check`: pass (exit 0)
 - `npm run typecheck`: pass (exit 0)
 - `npm run synth:check`: pass (4 files match; runs 100, employees 60)
-- `npm test`: pass (exit 0; projects worker, worker-ws, worker-access, web, node; 41 files, 155 tests passed, 0 failed, 0 skipped; 27.7 s; no teardown errors)
+- `npm test`: pass (exit 0; projects worker, worker-ws, worker-access, web, node; 42 files, 158 tests passed, 0 failed, 0 skipped)
 - `npm run test:sim`: pass (1 file, 6 tests)
-- `npm run count:tests -- --check`: pass (63 orchestration + 41 authz = 104)
-- `npm run results:check`: pass (before the gate's re-measurement)
-- `npm run build`: pass (`dist/agentboard/index.js` 2476874 bytes, 594472 gzip; client bundle 384.16 kB)
+- `npm run count:tests -- --check`: pass (64 orchestration + 42 authz = 106)
+- `npm run results:check`: pass (README block matches the result files, none dirty or stale)
+- `npm run build`: pass (`dist/agentboard/index.js` 2479509 bytes, 597698 gzip; client bundle 384.27 kB)
 - No `.skip`, `.todo` or `.only` in `test` or `src`.
-- `npm run eval:sim`: exit 0 in 1 min 53 s; identical to the `b7db936` measurement in every count (100/100 outcome match, 575 tool calls, 3230 audit events, 100/100 chains, 0 duplicate and 0 logical-duplicate side effects, 0 duplicate and 0 missing domain rows, 20/20 known-item search) and in the bundle sha256; run duration p50 7277 ms and p95 10917 ms (was 7293 and 10868), search latency p95 3 ms (was 4).
-- `npm run eval:planner` (llama-server b11146-7fe450e19 on 127.0.0.1:8140, `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`): exit 0 in 7 min 29 s; 57/100 first pass, 77/100 after repair, 76/100 with every gold write, 0 policy violations, 34/100 exact, F1 0.932, argument accuracy 0.982, 0 transport errors, every per-request result identical to `b7db936`; latency p50 3123 ms and p95 8961 ms (was 2663 and 7007).
-- `npm run eval:planner -- --provider stub`: 100/100 on every metric.
-- `npm run count:tests`: 104 tagged, 104 passing, vitest exit 0.
-- In this repository after commit 69 (`f3da1c3`, with only this file uncommitted): `types:check`, `typecheck`, `synth:check` pass; `npm test` exit 0 (41 files, 155 tests passed, 26.5 s); `results:check` pass (README block matches the gate's result files, none dirty or stale); `build` pass; `test:sim` 6/6; `count:tests -- --check` 63 + 41 = 104.
-- Processes: the gate stopped its llama-server (port 8140) and `eval:sim` stopped its `wrangler dev` (ports 8784 and 9234); no wrangler, workerd or llama-server process of this repository is left running. Another repository's `wrangler dev` on port 8781 was not touched.
+- Measurements for commit 74, all on a clean tree at `b3f5ed8` with the procedure under "What is left":
+  - `npm run count:tests`: 106 tagged, 106 passing, vitest exit 0.
+  - `npm run eval:sim`: exit 0 in 2 min 56 s; identical to the `52d601a` measurement in every count except tool calls (573, was 575) and audit events (3228, was 3230): the eval's local D1 holds exactly one `tools/list` call per planner shard (planner-0 and planner-1). Run duration p50 9021 ms and p95 15324 ms, search latency p95 13 ms (was 7277, 10917 and 3 ms; the machine was loaded).
+  - `npm run eval:planner` (llama-server b11146-7fe450e19 on 127.0.0.1:8140, `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`): exit 0 in about 16 min; every quality metric and all 100 per-request results identical to `52d601a` (57/100 first pass, 77/100 after repair, 76/100 with every gold write, 0 policy violations, 34/100 exact, F1 0.932, argument accuracy 0.982, 0 transport errors); latency p50 7957 ms and p95 21630 ms (was 3123 and 8961).
+  - `npm run eval:planner -- --provider stub`: 100/100 on every metric.
+- Processes: this round's llama-server (port 8140) was stopped after the planner eval, and `eval:sim` stopped its `wrangler dev` (ports 8784 and 9234); no wrangler, workerd or llama-server process of this repository is left running. The other repositories' workerd processes were not touched.
+
+Earlier, in the verification gate's clean clone of `52d601a` (builder 5, 2026-10-08), `npm ci` and every `ci.yml` step passed the same way with 155 tests.
 
 ## Resume claim status (SPEC sections 0 and 18)
 
-Each phrase of the SPEC section 0 resume text, its state on 2026-10-08 (re-judged by the verification gate), and what Nitish has to do before using it. Mirror this list in any builder status.
+Each phrase of the SPEC section 0 resume text, its state on 2026-10-08 (re-judged by the verification gate; counts updated on 2026-10-09), and what Nitish has to do before using it. Mirror this list in any builder status.
 
 | Phrase | State now | Evidence | Action (SPEC section 18) |
 |---|---|---|---|
@@ -159,11 +174,11 @@ Each phrase of the SPEC section 0 resume text, its state on 2026-10-08 (re-judge
 | "live execution updates, searchable task histories, approval controls, and D1-backed audit records across approximately 100 simulated agent runs" | true locally (local D1) | eval:sim 100 runs, 100/100 valid audit chains | none beyond "simulated" |
 | "three specialized agents" | two of the three are deterministic workers | only PlannerAgent calls a model | keep and be ready to explain why, or "a planning agent plus execution and verification workers" |
 | "Cloudflare Agents SDK, Durable Objects, Queues, and MCP, with task leases, bounded execution budgets, retry handling, and duplicate-action prevention" | true locally (workerd, Miniflare queues) | 104 tagged tests, eval:sim | none |
-| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 71 of the 72 commits (after commit 70) carry a Claude `Co-Authored-By` trailer; `7ff7a92` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
-| "Git pull requests" | none opened; all commits are on local `main` | deviation 13 | keep only after the PRs exist (PR 1 to 10) |
-| "meaningful commits" | true | 72 conventional commits: plan commits 1 to 36 and 33a, then 37 to 70, plus the foreign `7ff7a92` | none |
+| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 76 of the 77 commits (after commit 75) carry a Claude `Co-Authored-By` trailer; `7ff7a92` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
+| "Git pull requests" | none opened; all commits are on local `main` | deviation 13 | keep only after the PRs exist (PR 1 to 11) |
+| "meaningful commits" | true | 77 conventional commits: plan commits 1 to 36 and 33a, then 37 to 75, plus the foreign `7ff7a92` | none |
 | "Cloudflare preview deployments" | not done: `preview.yml` has never run, no account | Deploy step 11 | keep only after `preview.yml` has deployed a PR; wording "per-PR deployments to a preview environment" |
-| "approximately 100 orchestration and authorization test cases" | true: 104 tagged, all passing (re-measured by the gate) | count:tests | read the test names before interviews |
+| "approximately 100 orchestration and authorization test cases" | true: 106 tagged, all passing (re-measured at `b3f5ed8`) | count:tests | read the test names before interviews |
 | "four sprint demo releases" | four local tags made within one afternoon (14:40, 15:34, 15:59 and 16:54 on 2026-10-08); none is a GitHub release yet | `git for-each-ref refs/tags` | use "four incremental releases with demo scripts", and publish them after the push |
 
 ## Review findings (builder 4)
@@ -258,3 +273,8 @@ All 24 findings were verified first (by reading the code, and for the behavioral
 57. **History kept for `7ff7a92` and `b7a3199`.** Of the honesty review's two options, the non-destructive one was taken: the CHANGELOG's Unreleased section says those changes came from a parallel session and that `7ff7a92` lacks the trailer. Rewriting history is a decision for Nitish before the first push (see "What is left").
 58. **Environmental test failures.** Two full `npm test` runs in this round failed with "Timeout starting cloudflare-pool runner" and tests timing out after 90 to 900 s of wall clock while the Mac was on battery and heavily loaded by another repo's eval. The same tree passed on the following runs, including twice in a row at the head and in a clean clone. No test was changed in response.
 59. **Verification gate results come from a clean clone.** The gate measured in a fresh clone of `52d601a` rather than in this working tree, so that the numbers come from `npm ci` and committed files only, and then copied the four result files into this repository unchanged. They record `gitSha` `52d601a` and `dirty: false`; since commits 69 and 70 change no measured path, `results:check` accepts them here. Only latencies differ from the `b7db936` measurement.
+60. **Shared catalog read (commit 71).** `PlannerAgent` keeps the `tools/list` read in flight in memory (`catalogRead`); a planner task that finds the 5-minute cache empty while a read is in flight awaits that read instead of reading and tracing the catalog itself, and shares its outcome. A failed read fails every waiting task with `agent_exception` (retryable) rather than letting a waiter read again, so no task spends more than one `TOOL_TIMEOUT_MS` on the catalog and the planner lease bound of section 5.2 still holds. Only the task that made the read traces it, as before. A test-only hook, `PlannerAgent.catalogReadOverride` (set through `runInDurableObject`, like deviations 27 and 29), wraps the read so `planner.test.ts` #7 can hold it open; the race did not reproduce without it, because the in-process MCP read finishes before the other task's claim returns. In the simulation, the totals now include exactly one catalog read per shard.
+61. **WebSocket reauthorization (commit 72).** Not in section 10.2. Besides the token expiry (`x-agentboard-session-expires`, deviation 51), the route forwards `x-agentboard-reauthorize-at`, set to `WS_REAUTHORIZE_MS` (5 minutes, a constant in `realtime.ts`, not a config var) after the upgrade and always overwriting a client value. Before every broadcast the coordinator closes a socket whose token has expired with 4401, and a socket past its reauthorization time with 1000. `useAgent` (agents 0.27.0, `isTerminalCloseEvent`) does not reconnect after 1008 or 4000 to 4999, so 4401 stays terminal for expired tokens, while after 1000 the client reconnects through the route, which runs `authenticate` (token and role binding) again. A socket with no broadcast stays open but receives nothing. `handleAgentRoute` takes the interval as an optional fourth parameter so `websocket-auth.test.ts` #6 can use 1.5 s.
+62. **Awaitable session reload (commit 73).** `Session.reload` returns a promise that resolves once the session state holds the new `/api/health` and `/api/me` answers; only the latest load applies its answers. `DevLogin` awaits it before navigating to the dashboard. `src/web/pages/__tests__/DevLogin.test.tsx` (tag `ui`, not in the 106) renders the whole app against a fake dev API.
+63. **106 tagged tests.** Commits 71 and 72 each add one tagged test (`planner.test.ts` #7, orchestration; `websocket-auth.test.ts` #6, authz), so the count is 64 + 42 = 106 after deviation 49's 104. The web project has 17 tests (16 component tests and the dev login page test).
+64. **`npm audit` advisory left as is.** GHSA-6qxp-vccf-f47h (high) covers `@modelcontextprotocol/client` below 2.2.0 and `@modelcontextprotocol/sdk` below 1.31.0 (both direct pins here, also required by `agents`): the SDK's OAuth client could send credentials to an authorization server chosen by the MCP server. The only MCP client here (`mcp/client.ts`) passes `authProvider: { token }`, which the SDK's `isOAuthClientProvider` does not treat as an OAuth provider (it needs `tokens()` and `clientInformation()`), it talks only to the in-process People Ops endpoint, and the Agents SDK's MCP client manager is not used. Upgrading would leave the versions section 2.2 verified, so the pins were kept and the README Limitations section records the advisory.
