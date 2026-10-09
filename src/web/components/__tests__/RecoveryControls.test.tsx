@@ -39,5 +39,17 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     expect(confirm.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "re-run the write" } });
     expect(confirm.disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // The budget dialog confirms only a real raise: some field above its current value, none below.
+    fireEvent.click(screen.getByRole("button", { name: "Raise budget" }));
+    fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "more calls" } });
+    const raise = screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement;
+    expect(raise.disabled).toBe(true);
+    const toolCalls = screen.getByLabelText(/^maxToolCalls/) as HTMLInputElement;
+    fireEvent.change(toolCalls, { target: { value: toolCalls.min } });
+    expect(raise.disabled).toBe(true);
+    fireEvent.change(toolCalls, { target: { value: String(Number(toolCalls.min) + 10) } });
+    expect(raise.disabled).toBe(false);
   });
 });

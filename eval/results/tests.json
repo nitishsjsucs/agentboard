@@ -1,16 +1,17 @@
 {
-  "orchestration": 61,
-  "authz": 39,
-  "total": 100,
-  "passing": 100,
+  "orchestration": 63,
+  "authz": 41,
+  "total": 104,
+  "passing": 104,
   "passingByTag": {
-    "orchestration": 61,
-    "authz": 39
+    "orchestration": 63,
+    "authz": 41
   },
+  "vitestExitCode": 0,
   "meta": {
-    "gitSha": "8f04166bdbbf7f309d6272bab5b1e97b2c19a5ce",
+    "gitSha": "b4d4dd6ccaff095d4ac25a3b9bd76e6fdadab85e",
     "dirty": false,
-    "generatedAt": "2026-10-09T00:33:44.691Z",
+    "generatedAt": "2026-10-09T03:16:11.530Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,

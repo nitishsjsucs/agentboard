@@ -23,6 +23,8 @@ export interface LlmResult {
   latencyMs: number;
   provider: "workers-ai" | "openai-compatible" | "stub";
   model: string;
+  /** The model the server says answered (OpenAI-compatible `model` field), when it reports one. */
+  servedModel?: string;
 }
 
 export interface LlmProvider {

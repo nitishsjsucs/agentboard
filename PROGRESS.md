@@ -72,34 +72,114 @@ Nothing planned was left. This round re-checked the starting state, ran the CI s
 | 47 | chore(results): re-measure simulation, planner and test results to check that they reproduce | done (measured at `8f04166`, deviation 48) |
 | 48 | docs: PROGRESS and CHANGELOG for the verification round | done |
 
+### Review fixes (builder 4)
+
+Three independent reviews (correctness, security, honesty) of `cfd7549` returned 24 findings. Each was verified against the code before it was fixed, and all 24 held; none was rejected (see "Review findings" below). Every change under a measured path is followed by one re-measurement commit, as in deviation 44.
+
+| # | Commit | Status |
+|---|---|---|
+| 49 | test: wait for runs launched through the real queue to settle before the file ends | done (`b86b0a3`) |
+| 50 | test(authz): the RBAC matrix expects each allowed call's own status | done (`d8c31b8`) |
+| 51 | test(retries): assert a nonzero task redispatch delay | done (`9c9761e`) |
+| 52 | fix(policy): access.revoke_all_roles only behind the termination approval | done (`59192f8`, the blocking security finding) |
+| 53 | fix(planning): a plan must contain its request type's required writes | done (`7796532`) |
+| 54 | fix(realtime): accept only the coordinator's own path for run WebSockets | done (`8bd4951`) |
+| 55 | fix(realtime): close run WebSockets whose identity token has expired | done (`d780d50`) |
+| 56 | fix(llm): bound Workers AI calls and the planner's tools/list by their timeouts | done (`ef2c081`) |
+| 57 | fix(llm): turn off AI Gateway log collection for planner prompts | done (`d92753d`) |
+| 58 | fix(planner): count the tokens of a planning attempt whose model call throws | done (`5af42fe`) |
+| 59 | fix(budgets): raise_budget must raise at least one field | done (`f3adcb7`) |
+| 60 | fix(eval): count:tests never counts passes from a stale report | done (`5b80b1e`) |
+| 61 | feat(eval): independent domain-table duplicate check and injected-fault counts in eval:sim | done (`e8c9259`) |
+| 62 | feat(eval): complete-plan metric and server-read provenance in eval:planner | done (`7341171`) |
+| 63 | fix(eval): the results staleness check also covers tests, seeds and build config | done (`3852bb2`) |
+| 64 | chore: require Node 24 in engines, as the README and .nvmrc say | done (`11e4e30`) |
+| 65 | fix(eval): record model file names, not local paths, in the planner provenance | done (`b4d4dd6`, extra: the first planner re-measurement at `11e4e30` recorded absolute model paths, so it was discarded and everything was measured again) |
+| 66 | chore(results): re-measure simulation, planner and test results after the review fixes | done (`4133348`, measured at `b4d4dd6`) |
+| 67 | docs: README, ADRs, eval README and release workflow comment for the review fixes | done (`2c8449e`) |
+| 68 | docs: PROGRESS and CHANGELOG for the review fixes | done |
+
+These commits would form PR 10 (commits 49 to 68). At commits 52 to 65 `results:check` reports the stale measurement by design (deviation 44); commit 66 makes it green again. Commits 49 to 51 change only `test/`, which was not yet a measured path, so every check passes there. For each commit, typecheck and the test files it touches were run before committing; the full `npm test` and `test:sim` also ran at 59, and the whole CI sequence ran at 64 and at the head.
+
 ## What is left (human steps)
 
-- Every planned commit (1 to 36, plus 33a) and every stretch item of section 1.1 is built (builder 3 found no planned work left; see the verification round above): `preview.yml` (gated; never run against an account), `release.yml` (never run on GitHub; its notes step was run locally for every tag), ADRs 0003 to 0005, 16 `ui` tests, dark-mode tokens, and the dev-only external `/mcp` route with `dev:token --integration`. There is no further planned build work in SPEC.md.
-- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, plus PR 9 = commits 37 to 48, the stretch items and the verification round, whose head passes every CI step); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push, `gh workflow run release.yml -f tag=v0.1.0` and so on); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
-- Known minor issues, not fixed because they are cosmetic and any change under `src` forces a full re-measurement: (a) right after switching principals on the dev login page, the dashboard can poll once with the previous principal's permissions, so an approver sees one 403 for `/api/dlq` in the browser console (a fresh load sends no such request; the server enforces the permission either way; dev login only); (b) concurrent planner tasks on one shard can each fetch the tool catalog before the shard's cache is filled (deviation 48), so tool-call and audit-event totals vary by a few between simulation runs; (c) `npm test` prints two `EnvironmentTeardownError` lines from workerd when a test file ends while a queued planner task is still running; no test fails and vitest exits 0.
-- Decide whether to drop the foreign commit `6ffb555` and the foreign README hunk in `cfde7d4` before opening PRs (deviation 43).
-- If any file under `src`, `migrations`, `fixtures`, `scripts`, `wrangler.jsonc` or `package-lock.json` changes, `npm run results:check` fails until the measurements are taken again on a clean, committed tree. The exact procedure, used on 2026-10-08 (local time) for commits 44 and 47:
+- Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1 and every review finding is done. There is no further planned build work in SPEC.md.
+- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 68); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
+- Decide the resume wording before using it: see "Resume claim status" below. Several phrases of SPEC section 0 are not true yet.
+- Commit `6ffb555` and the README hunk of `cfde7d4` (deviation 43): history was kept and the CHANGELOG now says where they came from (deviation 57). Rewriting them out remains possible only before the first push; it would move the four tags and require re-running count:tests, eval:sim and eval:planner on the new head, because `results:check` diffs against the recorded `gitSha`.
+- Known minor issues, not fixed: (a) right after switching principals on the dev login page, the dashboard can poll once with the previous principal's permissions, so an approver sees one 403 for `/api/dlq` in the browser console (a fresh load sends no such request; the server enforces the permission either way; dev login only); (b) concurrent planner tasks on one shard can each fetch the tool catalog before the shard's cache is filled (deviation 48), so tool-call and audit-event totals vary by a few between simulation runs (575 this time, 577 at `8f04166`); (c) an open run WebSocket does not re-check the principal's role binding, only the token expiry (deviation 51). The earlier item about `EnvironmentTeardownError` is fixed (commit 49).
+- If any file under `src`, `migrations`, `fixtures`, `scripts`, `test` or `seed`, or `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts` changes, `npm run results:check` fails until the measurements are taken again on a clean, committed tree. The exact procedure, used on 2026-10-08 (local time) for commit 66:
   1. `npm run count:tests`
   2. `npm run eval:sim` (wrangler dev on 127.0.0.1:8784, inspector 9234; it kills its process group when done)
-  3. `llama-server -m ~/Developer/projects/_models/Qwen3-1.7B-Q4_0-rtn.gguf --host 127.0.0.1 --port 8140 -np 1 -c 8192 -ngl 99 --reasoning off --jinja` in the background, then `LLM_BASE_URL=http://127.0.0.1:8140 LLM_SERVER_FLAGS="-np 1 -c 8192 -ngl 99 --reasoning off --jinja" npm run eval:planner`, then stop llama-server
+  3. `llama-server -m ~/Developer/projects/_models/Qwen3-1.7B-Q4_0-rtn.gguf --host 127.0.0.1 --port 8140 -np 1 -c 8192 -ngl 99 --reasoning off --jinja` in the background (the same flags as `npm run llm:serve`), then `LLM_BASE_URL=http://127.0.0.1:8140 LLM_SERVER_FLAGS="-np 1 -c 8192 -ngl 99 --reasoning off --jinja" npm run eval:planner` (it reads the model file, context and slot count from the server and refuses a mismatch), then stop llama-server
   4. `npm run eval:planner -- --provider stub` (sanity file, must score 100%)
   5. `npm run results:render`, then commit `eval/results` and the README block together.
 
-## Check status (last run 2026-10-08 local time by builder 3, on commit 47 `cda439f` with the docs of commit 48 in the tree)
+## Check status (last run 2026-10-08 local time by builder 4, on commit 67 `2c8449e`; commit 68 changes only PROGRESS.md and CHANGELOG.md)
 
-- Starting state of this round (commit 45 `8f04166`): every check below passed before any change.
+- Starting state of this round (`cfd7549`): `npm test` passed on 1 run here and printed one `EnvironmentTeardownError`; the correctness review saw it exit 1 on 1 of 3 runs (fixed by commit 49; afterwards 3 consecutive runs and every later run printed none).
 - `npm run types:check`: pass
 - `npm run typecheck`: pass
 - `npm run synth:check`: pass (4 files match; runs 100, employees 60)
-- `npm test`: pass (projects worker, worker-ws, worker-access, web, node; 41 files, 150 tests: the 140 from v0.4.0, 8 more `ui` tests and 2 `integration` tests for the `/mcp` route)
-- `npm run test:sim`: pass (6 tests, about 20 s)
-- `npm run count:tests -- --check`: pass (61 orchestration + 39 authz = 100)
-- `npm run results:check`: pass (all three results measured at `8f04166`, clean measured paths)
-- `npm run build`: pass
-- The same sequence, after `npm ci --prefer-offline`, passed in a clean clone of `cda439f` (no `.dev.vars`, no `.wrangler` state), and the new bundle-size step printed `index.js` 2469115 bytes, 591979 gzip.
-- Measured at `8f04166` (in `eval/results/`, rendered in the README; dates in the README are UTC, 2026-10-09): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 577 tool calls, 100/100 valid chains, 3232 audit events, 20/20 known-item search at 1; eval:planner (Qwen3-1.7B Q4_0, llama-server 0.5.0 build 11146, port 8140) 84/100 valid plans, 0 policy violations, 9/100 exact tool sequences, F1 0.593, latency p50 916 ms and p95 8970 ms; stub sanity 100/100; count:tests 100/100 passing. The earlier measurement at `c29b802` matched on every count except the timing-dependent catalog reads (deviation 48).
-- History: at commits 41, 42 and 43 `results:check` fails by design (stale measurement, deviation 44); every other commit passes every check.
-- No wrangler, workerd or llama-server process started by this build is left running (another repo's `wrangler dev` on port 8781 belongs to a different build and was not touched).
+- `npm test`: pass twice in a row (projects worker, worker-ws, worker-access, web, node; 41 files, 155 tests: the 150 from before, 4 new tagged tests and 1 new `llm` test for the Workers AI timeout; no teardown errors; about 36 s)
+- `npm run test:sim`: pass (6 tests)
+- `npm run count:tests -- --check`: pass (63 orchestration + 41 authz = 104)
+- `npm run results:check`: pass (all three results measured at `b4d4dd6`, clean measured paths)
+- `npm run build`: pass (`index.js` 2476874 bytes, 594472 gzip)
+- The same sequence, after `npm ci --prefer-offline`, passed in a clean clone of `2c8449e` (no `.dev.vars`, no `.wrangler` state), on Node 25.9.
+- Measured at `b4d4dd6` (in `eval/results/`, rendered in the README; dates there are UTC, 2026-10-09): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 0 duplicate and 0 missing domain-table rows (tickets 31, notifications 85, new grants 31), 575 tool calls, 3230 audit events, 100/100 valid chains, 20/20 known-item search at 1; eval:planner (Qwen3-1.7B Q4_0, server build b11146-7fe450e19, port 8140) 57/100 valid first pass, 77/100 after one repair, 76/100 valid with every gold write, 0 policy violations, 34/100 exact tool sequences, F1 0.932, argument accuracy 0.982, latency p50 2663 ms and p95 7007 ms; stub sanity 100/100; count:tests 104/104 passing, vitest exit 0. A first planner run of the same code at `11e4e30` gave the same quality numbers (it was discarded only because it recorded absolute model paths).
+- Environment note: two full `npm test` runs in the middle of this round failed with "Timeout starting cloudflare-pool runner" and single tests timing out after 90 to 900 s of wall clock, while the Mac was on battery at 35% and another repo's eval was running workerd. The same tree passed on the next run and on every run after; nothing in the code changed between them (deviation 58).
+- No wrangler, workerd or llama-server process started by this round is left running (another repo's `wrangler dev` on port 8781 belongs to a different build and was not touched).
+
+## Resume claim status (SPEC sections 0 and 18)
+
+Each phrase of the SPEC section 0 resume text, its state on 2026-10-08, and what Nitish has to do before using it. Mirror this list in any builder status.
+
+| Phrase | State now | Evidence | Action (SPEC section 18) |
+|---|---|---|---|
+| "operations console for launching, monitoring, and controlling agents" | true locally | launch, live run detail, recovery controls, approvals; checked in a browser (deviation 38, 48) | none |
+| "serving the People organization" | not true: the People organization is simulated | 60 synthetic employees in a simulated D1 database | use "for a simulated People-operations org" |
+| "React/TypeScript console on Cloudflare Workers" | runs only on local workerd; nothing is deployed | README "What runs where" | keep "on Cloudflare Workers" only while a deployment is live (deploy steps in the README) |
+| "live execution updates, searchable task histories, approval controls, and D1-backed audit records across approximately 100 simulated agent runs" | true locally (local D1) | eval:sim 100 runs, 100/100 valid audit chains | none beyond "simulated" |
+| "three specialized agents" | two of the three are deterministic workers | only PlannerAgent calls a model | keep and be ready to explain why, or "a planning agent plus execution and verification workers" |
+| "Cloudflare Agents SDK, Durable Objects, Queues, and MCP, with task leases, bounded execution budgets, retry handling, and duplicate-action prevention" | true locally (workerd, Miniflare queues) | 104 tagged tests, eval:sim | none |
+| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 69 of the 70 commits (after commit 68) carry a Claude `Co-Authored-By` trailer; `6ffb555` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
+| "Git pull requests" | none opened; all commits are on local `main` | deviation 13 | keep only after the PRs exist (PR 1 to 10) |
+| "meaningful commits" | true | 70 conventional commits: plan commits 1 to 36 and 33a, then 37 to 68, plus the foreign `6ffb555` | none |
+| "Cloudflare preview deployments" | not done: `preview.yml` has never run, no account | Deploy step 11 | keep only after `preview.yml` has deployed a PR; wording "per-PR deployments to a preview environment" |
+| "approximately 100 orchestration and authorization test cases" | true: 104 tagged, all passing | count:tests | read the test names before interviews |
+| "four sprint demo releases" | four local tags made within one afternoon (14:40, 15:34, 15:59 and 16:54 on 2026-10-08); none is a GitHub release yet | `git for-each-ref refs/tags` | use "four incremental releases with demo scripts", and publish them after the push |
+
+## Review findings (builder 4)
+
+All 24 findings were verified first (by reading the code, and for the behavioral ones by reproducing them: the ungated revoke plan validated, the read-only manager change plan validated, the sub-agent WebSocket path answered 101, the expired-token socket stayed open, the repair call's tokens were lost, the empty budget patch was accepted). Each new or changed test was also run against the unfixed code and failed there. None was rejected as false.
+
+| Lens | Severity | Finding | Disposition |
+|---|---|---|---|
+| correctness | important | `npm test` flaky: tests return while launched runs still plan | fixed, commits 49 and 50 (`settleRuns`) |
+| correctness | important | a read-only plan is valid and the run "succeeds" | fixed, commit 53 (`REQUIRED_WRITES`, `missing_required_step`; deviation 50); measured, commit 66 |
+| correctness | important | Workers AI ignores `timeoutMs`; `tools/list` unbounded | fixed, commit 56 |
+| correctness | minor | retries #1 delay assertion is vacuous (base 0) | fixed, commit 51 |
+| correctness | minor | `raise_budget` accepts an empty or equal patch | fixed, commit 59 |
+| correctness | minor | RBAC matrix passes an allowed 500 | fixed, commit 50 |
+| correctness | minor | LLM usage lost when the repair call throws | fixed, commit 58 (deviation 53) |
+| correctness | minor | count:tests can read a stale report | fixed, commit 60 |
+| correctness | minor | eval:sim reads one DLQ page | fixed, commit 61 |
+| security | blocking | `access.revoke_all_roles` without the gated termination needs no approval | fixed, commit 52 (option b, `missing_gate`; deviation 50); SPEC 8.2's "behind its approval gate" is now enforced |
+| security | important | `/sub/{class}/{name}` WebSocket path reaches any agent class | fixed, commit 54 (exact path check plus `onBeforeSubAgent` refusals; deviation 52) |
+| security | minor | WebSocket authorization only at upgrade | fixed for token expiry, commit 55; role-binding re-check on open sockets not done (optional in the finding; README Limitations; deviation 51) |
+| security | minor | AI Gateway logs keep request text | fixed, commit 57 (`collectLog: false`; README deploy step 4) |
+| honesty | important | planner validity headline hides single-step plans | fixed: commit 53 (validator), commit 62 (`valid_with_gold_writes`), commit 67 (README bullet) |
+| honesty | important | unknown-tool rate and policy violations are 0 by construction | fixed, commits 62 and 67 (row label, README bullet, ADR 0003, eval/README) |
+| honesty | important | simulation failures are injected, not organic | fixed, commits 61 and 67 (injected counts rendered, sentence in the block, README bullet) |
+| honesty | important | PROGRESS omits the resume-wording decisions | fixed, commit 68 ("Resume claim status" above) |
+| honesty | important | `6ffb555` lacks the trailer; `cfde7d4` swept in a README hunk | resolved by keeping history with a CHANGELOG note (option b; deviation 57); rewriting stays Nitish's choice before the push |
+| honesty | minor | planner provenance asserted, not read; `llm:serve` lacked `-ngl 99` | fixed, commits 62 and 65 |
+| honesty | minor | staleness check misses tests, seeds and build config | fixed, commit 63 (deviation 55) |
+| honesty | minor | duplicate side-effect zeros come only from the ledger's own table | fixed, commit 61 (independent domain-table check) and commit 67 (README bullet) |
+| honesty | minor | README cites retries tests by SPEC number | fixed, commit 67 (cited by name) |
+| honesty | minor | `engines.node` says `>=22.12` | fixed, commit 64 |
+| honesty | minor | release.yml claims tagged commits passed CI | fixed, commit 67 (comment and README reworded; dispatched releases skip CI and the tags' own CI runs must be checked) |
 
 ## Deviations from SPEC.md
 
@@ -151,3 +231,13 @@ Nothing planned was left. This round re-checked the starting state, ran the CI s
 46. **External `/mcp` route details.** Beyond section 8.1's `MCP_EXTERNAL=on` gate, the route also answers 404 unless the request hostname is loopback (like the dev routes; it also defeats a DNS name rebound to 127.0.0.1, and the agents handler's `allowedHostnames` would refuse such a host with 403 anyway). `dev:token -- --integration` mints an executor-shaped token for one read tool and its exact (schema-validated) arguments with a 60 s pseudo-lease (`sub` `mcp-inspector`, run and task ids `run_inspector` and `tsk_inspector`); it refuses write tools, so nothing applied through the external route can bypass a coordinator lease. The claim builder lives in `src/worker/mcp/inspector-token.ts` (not in the layout) so the Node script and the worker test share it. `test/worker/mcp/external-route.test.ts` (2 tests, tag `integration`, outside the 100) covers the 404 cases, the bound read, an args mismatch, an unbound write and a write token without its `_meta`.
 47. **CI prints the worker bundle size (commit 46).** Section 20 says "CI prints the size of the built `index.js`", but the final CI shape in section 17 does not list the step and `ci.yml` lacked it. After `npm run build` CI now prints the raw and gzip size of `dist/agentboard/index.js` and its lazily loaded chunks, also into the job summary. It is outside the measured paths, so `results:check` is unaffected. Locally: `index.js` 2469115 bytes (591979 gzip), plus a dataset chunk (206969 bytes) and two library chunks (230860 and 1793 bytes).
 48. **Re-measurement to check reproducibility (commit 47).** Builder 3 took every measurement again on `8f04166`, whose measured paths equal `c29b802`'s, with the procedure under "What is left". Everything reproduced: the simulation's outcome, retry, replay, lease, refusal, approval, budget, verifier, recovery, search and chain counts are identical, and so are all planner quality metrics (temperature 0, seed 7). Only local latencies moved, plus 2 tool calls and 2 audit events (575 to 577, 3230 to 3232). The cause is timing: `PlannerAgent` checks `ab_catalog_cache`, awaits `tools/list`, then fills the cache, so planner tasks that interleave on one shard before the first fetch finishes each fetch (and trace) the catalog; the new run had 6 such reads. This is harmless (each read is traced and budgeted) and the README now says these two totals vary between runs; a single-flight cache would make them stable but changes `src`, so it was left. After the commit, the full CI sequence (`npm ci --prefer-offline`, then every `ci.yml` step) passed in a clean clone of `cda439f` with no `.dev.vars` and no `.wrangler` state, on Node 25.9 (no Node 24 is installed on this Mac, so the README no longer implies Node 24 was verified). The UI was checked in a browser against `serve:built` in dark and light mode: dev login, launching a sample manager change, the live run detail reaching `awaiting_approval`, approving it as another principal, the run reaching `succeeded`, the verified audit chain (32 events) and search highlights.
+49. **104 tagged tests instead of 100.** SPEC section 13.1 plans exactly 100 (61 orchestration, 39 authz). The review fixes added four tagged tests for new behavior: `plan-guard.test.ts` #2 (authz, the ungated revoke), `websocket-auth.test.ts` #5 (authz, socket closed at token expiry), `planner.test.ts` #5 (orchestration, missing required write) and #6 (orchestration, tokens of a failed model call). Where the topic was the same, existing tests were extended instead (`websocket-auth.test.ts` #3 sub-agent paths, `budgets.test.ts` #5 empty and equal patches, `retries.test.ts` #1 nonzero delay, every RBAC matrix call's expected status, `planner.test.ts` #3 now also expects `missing_required_step`). Measured: 63 + 41 = 104, all passing; "approximately 100" still holds. One untagged `llm` test (Workers AI timeout) was also added.
+50. **Plan-level policy rules beyond section 11.3.** `policy.ts` adds `REQUIRED_WRITES` per request type, checked by `checkPlanPolicy` as the repairable issue `missing_required_step`, and `missing_gate` for `access.revoke_all_roles` without `hris.set_employment_status` to `terminated` in the same plan. `missing_gate` counts as a policy violation, so `policyViolations` and the eval's `policy_violations` include it (section 14.2 counts only `tool_not_allowed` and `off_subject`). Offboarding also requires `itsm.create_ticket` (the laptop return), because every offboarding request template asks for it; the review's table listed only the status change and the revoke. No type requires `notify.send`, which is not the requested change. The planner prompt names the required writes in one line after rule 4; the stub fixtures are built from the live prompt (deviation 25), so they follow. This prompt line is part of why the measured planner quality rose (README "Reading the results").
+51. **WebSocket session expiry.** Not in section 10.2. `authenticate` returns the token's expiry; the route refuses a token without `exp` and forwards the expiry in `x-agentboard-session-expires`, always overwriting a client value; `RunCoordinator` sends no protocol frames to a connection without a live session, keeps the expiry in connection state (it survives hibernation) and, before every snapshot broadcast, closes expired sockets with code 4401. Role bindings are not re-checked on open sockets.
+52. **Sub-agents refused.** The Agents SDK's sub-agent routing postdates the spec. The route accepts only the exact path `/agents/run-coordinator/<runId>`, and `RunCoordinator` and the role agents override `onBeforeSubAgent` to answer 404.
+53. **Planner failure accounting.** A failed model call throws `PlanningError` with the tokens and calls so far; `PlannerAgent` logs the calls with error `llm_error` and rethrows; the role skeleton's `agent_exception` report carries the error's `llmTokens`. The failure code stays `agent_exception`, so `retries.test.ts` #3 is unchanged. `LlmResult` gains an optional `servedModel` (section 11.1 has no such field).
+54. **Eval additions beyond section 14.** `simulation.json`: `domain_inserts`, `domain_inserts_expected`, `domain_duplicate_inserts`, `domain_missing_inserts` (eval:sim exits non-zero unless both are 0), `injected_by_modifier`, `injected_transient_twice`; the dev side-effects route returns the domain counts. `planner-*.json`: `valid_with_gold_writes`, `server` (from `/props` and `/v1/models`), `served_models` and per-request `servedModel` (file names only); `gguf`, `quant` and `llama_cpp_build` now come from the server, and the eval exits before measuring unless the server serves the expected file in one 8192-token slot. `tests.json`: `vitestExitCode`, which must be 0.
+55. **Measured paths widened.** Beyond section 14's list, `MEASURED_PATHS` (the dirty check and `results:check`) includes `test`, `seed`, `vite.config.ts`, `vitest.config.ts` and `package.json`, so a change to a tagged test or the build configuration also makes the results stale. ADR 0005 and eval/README.md say so.
+56. **Budget raises.** `BudgetPatchSchema` requires at least one budget field (400 otherwise), the coordinator refuses a patch that raises nothing as `not_a_raise`, and `ConfirmDialog` takes `confirmDisabled` so the raise dialog cannot confirm a non-raise.
+57. **History kept for `6ffb555` and `cfde7d4`.** Of the honesty review's two options, the non-destructive one was taken: the CHANGELOG's Unreleased section says those changes came from a parallel session and that `6ffb555` lacks the trailer. Rewriting history is a decision for Nitish before the first push (see "What is left").
+58. **Environmental test failures.** Two full `npm test` runs in this round failed with "Timeout starting cloudflare-pool runner" and tests timing out after 90 to 900 s of wall clock while the Mac was on battery and heavily loaded by another repo's eval. The same tree passed on the following runs, including twice in a row at the head and in a clean clone. No test was changed in response.

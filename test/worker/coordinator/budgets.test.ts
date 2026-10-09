@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_BUDGET } from "../../../src/shared/domain.ts";
 import { plannerMaxOutputTokens } from "../../../src/worker/agents/coordinator/budgets.ts";
 import type { ClaimResult, ToolCallTrace } from "../../../src/worker/agents/coordinator/schema.ts";
+import { apiPost } from "../../helpers/api.ts";
+import { P } from "../../helpers/auth.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import {
   claimMessage,
@@ -170,7 +172,7 @@ describe("execution budgets", { tags: ["orchestration"] }, () => {
   });
 
   it("an admin budget raise unblocks budget_blocked tasks and dispatches them; duplicate reports and traces never double count usage", async () => {
-    const { stub } = await startManualRun({ budget: { ...DEFAULT_BUDGET, maxToolCalls: 2 } });
+    const { stub, runId } = await startManualRun({ budget: { ...DEFAULT_BUDGET, maxToolCalls: 2 } });
     const [planDispatch] = await takeDispatches(stub);
     if (!planDispatch) throw new Error("no plan dispatch");
     const planLease = await claimMessage(stub, planDispatch.message);
@@ -189,8 +191,15 @@ describe("execution budgets", { tags: ["orchestration"] }, () => {
     expect(await claimMessage(stub, s2.message)).toEqual({ ok: false, reason: "budget_exhausted" });
     expect((await readState(stub)).run.status).toBe("needs_attention");
 
-    // Operators cannot raise; the coordinator also refuses a lowering.
+    // Operators cannot raise; the coordinator also refuses a lowering, an empty patch and a patch that changes nothing,
+    // which would otherwise clear the deadline and redispatch tasks the next claim blocks again.
     expect(await stub.control({ type: "raise_budget", budget: { maxToolCalls: 1 }, actor: ADMIN, reason: "lower" })).toMatchObject({ accepted: false, reason: "not_a_raise" });
+    expect(await stub.control({ type: "raise_budget", budget: {}, actor: ADMIN, reason: "empty" })).toMatchObject({ accepted: false, reason: "not_a_raise" });
+    expect(await stub.control({ type: "raise_budget", budget: { maxToolCalls: 2 }, actor: ADMIN, reason: "same" })).toMatchObject({ accepted: false, reason: "not_a_raise" });
+    expect((await readState(stub)).tasks.get(s2.message.taskId)?.status).toBe("budget_blocked");
+    expect(await takeDispatches(stub)).toEqual([]);
+    const emptyPatch = await apiPost(P.admin, `/api/runs/${runId}/budget`, { reason: "no field" }, "PATCH");
+    expect(emptyPatch.status).toBe(400);
     const raised = await stub.control({ type: "raise_budget", budget: { maxToolCalls: 24 }, actor: ADMIN, reason: "more calls" });
     expect(raised.accepted).toBe(true);
     const state = await readState(stub);

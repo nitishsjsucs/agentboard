@@ -7,7 +7,7 @@
 // transaction awaits. Only after the commit does it broadcast the snapshot.
 
 import { Agent } from "agents";
-import type { Connection } from "agents";
+import type { Connection, ConnectionContext } from "agents";
 import type { AgentRole } from "../../shared/domain.ts";
 import { eventHash, GENESIS_HASH } from "../audit/hash-chain.ts";
 import { redactForViewer } from "../audit/redaction.ts";
@@ -59,6 +59,25 @@ import {
 import { isWriteTool } from "../planning/tool-registry.ts";
 
 type Row = Record<string, string | number | boolean | null>;
+
+/**
+ * Set by the WebSocket route (realtime.ts) on every upgrade it lets through:
+ * the verified identity token's expiry in epoch ms. Clients cannot reach the
+ * coordinator except through that route, which overwrites any client value.
+ */
+export const SESSION_EXPIRES_HEADER = "x-agentboard-session-expires";
+
+/** WebSocket close code for a socket whose identity token has expired. */
+export const SESSION_EXPIRED_CLOSE = 4401;
+
+interface SessionState {
+  sessionExpiresAt: number;
+}
+
+function sessionExpiry(request: Request): number | null {
+  const value = Number(request.headers.get(SESSION_EXPIRES_HEADER));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
 
 export interface PersistedEvent {
   seq: number;
@@ -130,7 +149,37 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     if (source !== "server") throw new Error("read-only");
   }
 
+  // A connection without a live session gets no protocol frames (no snapshot) and is closed in onConnect.
+  override shouldSendProtocolMessages(_connection: Connection, ctx: ConnectionContext): boolean {
+    const expiresAt = sessionExpiry(ctx.request);
+    return expiresAt !== null && expiresAt > Date.now();
+  }
+
+  override onConnect(connection: Connection, ctx: ConnectionContext): void {
+    const expiresAt = sessionExpiry(ctx.request);
+    if (expiresAt === null || expiresAt <= Date.now()) {
+      connection.close(SESSION_EXPIRED_CLOSE, "session_expired");
+      return;
+    }
+    // Connection state survives hibernation; the SDK keeps its own flags beside it.
+    connection.setState({ sessionExpiresAt: expiresAt } satisfies SessionState);
+  }
+
+  /** Closes every socket whose identity token has expired, so it receives no further snapshot. */
+  protected closeExpiredConnections(): void {
+    const now = Date.now();
+    for (const connection of this.getConnections<SessionState>()) {
+      const expiresAt = connection.state?.sessionExpiresAt;
+      if (typeof expiresAt !== "number" || expiresAt <= now) connection.close(SESSION_EXPIRED_CLOSE, "session_expired");
+    }
+  }
+
   override async onRequest(): Promise<Response> {
+    return new Response("not found", { status: 404 });
+  }
+
+  // No sub-agents: the SDK would otherwise create a facet of any class for a `/sub/{class}/{name}` path.
+  override async onBeforeSubAgent(): Promise<Response> {
     return new Response("not found", { status: 404 });
   }
 
@@ -296,8 +345,9 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
     reapExpired(tx);
   }
 
-  /** After the commit, and only then: broadcast the snapshot (once per version). */
+  /** After the commit, and only then: broadcast the snapshot (once per version) to sockets whose session is live. */
   protected publishSnapshot(state: RunState): void {
+    this.closeExpiredConnections();
     if (state.run.version !== this.broadcastVersion) {
       this.broadcastVersion = state.run.version;
       this.setState(this.snapshotOf(state));

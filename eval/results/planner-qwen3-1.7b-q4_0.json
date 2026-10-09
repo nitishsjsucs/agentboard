@@ -1,38 +1,51 @@
 {
   "meta": {
-    "gitSha": "8f04166bdbbf7f309d6272bab5b1e97b2c19a5ce",
+    "gitSha": "b4d4dd6ccaff095d4ac25a3b9bd76e6fdadab85e",
     "dirty": false,
-    "generatedAt": "2026-10-09T00:32:24.907Z",
+    "generatedAt": "2026-10-09T03:24:15.979Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 7,
     "provider": "openai-compatible",
     "model": "qwen3-1.7b-q4_0",
     "label": "qwen3-1.7b-q4_0",
-    "llama_cpp_build": "0.5.0 (build 11146, commit 7fe450e19)",
+    "llama_cpp_build": "b11146-7fe450e19",
     "gguf": "Qwen3-1.7B-Q4_0-rtn.gguf",
     "quant": "Q4_0",
     "server_flags": "-np 1 -c 8192 -ngl 99 --reasoning off --jinja",
+    "server": {
+      "model_file": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "n_ctx": 8192,
+      "total_slots": 1,
+      "build_info": "b11146-7fe450e19",
+      "models": [
+        "Qwen3-1.7B-Q4_0-rtn.gguf"
+      ]
+    },
+    "served_models": [
+      "Qwen3-1.7B-Q4_0-rtn.gguf"
+    ],
     "base_url": "http://127.0.0.1:8140",
     "temperature": 0,
     "sanity": false
   },
   "metrics": {
     "n": 100,
-    "valid_first_pass": 84,
-    "valid_after_repair": 84,
+    "valid_first_pass": 57,
+    "valid_after_repair": 77,
+    "valid_with_gold_writes": 76,
     "policy_violations": 0,
-    "tool_sequence_exact": 9,
-    "tool_set_f1_macro": 0.5931948051948048,
-    "arg_accuracy": 1,
+    "tool_sequence_exact": 34,
+    "tool_set_f1_macro": 0.9320115440115435,
+    "arg_accuracy": 0.9816933638443935,
     "unknown_tool_rate": 0,
-    "policy_overrides": 3,
-    "latency_ms_p50": 915.8017294999954,
-    "latency_ms_p95": 8969.624766350005,
-    "prompt_tokens_p50": 817,
-    "prompt_tokens_max": 1368,
-    "tokens_out_total": 12025,
-    "plan_invalid": 16,
+    "policy_overrides": 26,
+    "latency_ms_p50": 2662.6286250000267,
+    "latency_ms_p95": 7007.063162799995,
+    "prompt_tokens_p50": 905,
+    "prompt_tokens_max": 1357,
+    "tokens_out_total": 22997,
+    "plan_invalid": 23,
     "request_errors": 0
   },
   "perRequest": [
@@ -49,31 +62,36 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1994.539625,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3266.228667,
       "promptTokens": [
-        810
+        820
       ],
-      "tokensOut": 146,
+      "tokensOut": 238,
       "error": null
     },
     {
       "ref": "syn-0002",
       "requestType": "privileged_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 766.0402089999998,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2446.8623330000005,
       "promptTokens": [
-        820
+        830,
+        905
       ],
-      "tokensOut": 39,
+      "tokensOut": 180,
       "error": null
     },
     {
@@ -83,18 +101,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 6295.584832999999,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5546.183834,
       "promptTokens": [
-        1042,
-        1331
+        1065,
+        1319
       ],
-      "tokensOut": 487,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
@@ -104,37 +124,42 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 533.7870840000014,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1885.4534999999996,
       "promptTokens": [
-        818
+        828
       ],
-      "tokensOut": 37,
+      "tokensOut": 148,
       "error": null
     },
     {
       "ref": "syn-0005",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 783.6105000000007,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 4701.090709000002,
       "promptTokens": [
-        947
+        962,
+        1158
       ],
-      "tokensOut": 37,
+      "tokensOut": 351,
       "error": null
     },
     {
@@ -143,18 +168,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 716.8032920000005,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1985.3577910000022,
       "promptTokens": [
-        811
+        821
       ],
-      "tokensOut": 37,
+      "tokensOut": 141,
       "error": null
     },
     {
@@ -170,11 +197,13 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1674.694375000001,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1732.2069999999985,
       "promptTokens": [
-        809
+        819
       ],
-      "tokensOut": 139,
+      "tokensOut": 141,
       "error": null
     },
     {
@@ -184,38 +213,43 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0,
+      "f1": 0.8571428571428571,
       "matchedFields": 0,
       "equalFields": 0,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 508.3752919999988,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1774.3624170000003,
       "promptTokens": [
-        806
+        816
       ],
-      "tokensOut": 37,
+      "tokensOut": 145,
       "error": null
     },
     {
       "ref": "syn-0009",
       "requestType": "privileged_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 505.145625000001,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3841.8234999999986,
       "promptTokens": [
-        818
+        828,
+        1114
       ],
-      "tokensOut": 37,
-      "error": null
+      "tokensOut": 310,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0010",
@@ -224,78 +258,89 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.888888888888889,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 4,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 3798.84375,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5253.5978749999995,
       "promptTokens": [
-        1037,
-        1241
+        1060,
+        1314
       ],
-      "tokensOut": 316,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
       "ref": "syn-0011",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 0.888888888888889,
+      "matchedFields": 4,
+      "equalFields": 4,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 518.0585830000018,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 4541.936625000002,
       "promptTokens": [
-        953
+        968,
+        1169
       ],
-      "tokensOut": 37,
+      "tokensOut": 360,
       "error": null
     },
     {
       "ref": "syn-0012",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 509.5359169999974,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 4505.284124999998,
       "promptTokens": [
-        950
+        965,
+        1161
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
       "ref": "syn-0013",
       "requestType": "address_change",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 524.2200420000008,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2198.881459000004,
       "promptTokens": [
-        804
+        814,
+        889
       ],
-      "tokensOut": 37,
+      "tokensOut": 175,
       "error": null
     },
     {
@@ -304,22 +349,47 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 9,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 522.0500420000026,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1625.0825840000034,
       "promptTokens": [
-        805
+        815
       ],
-      "tokensOut": 37,
+      "tokensOut": 137,
       "error": null
     },
     {
       "ref": "syn-0015",
+      "requestType": "privileged_access",
+      "validFirstPass": false,
+      "validAfterRepair": true,
+      "policyViolation": false,
+      "exact": false,
+      "f1": 0.8571428571428571,
+      "matchedFields": 1,
+      "equalFields": 1,
+      "steps": 4,
+      "unknownTools": 0,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2192.3369170000005,
+      "promptTokens": [
+        830,
+        905
+      ],
+      "tokensOut": 179,
+      "error": null
+    },
+    {
+      "ref": "syn-0016",
       "requestType": "privileged_access",
       "validFirstPass": true,
       "validAfterRepair": true,
@@ -331,31 +401,13 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 3176.308083,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1704.9164999999994,
       "promptTokens": [
-        820
+        825
       ],
-      "tokensOut": 240,
-      "error": null
-    },
-    {
-      "ref": "syn-0016",
-      "requestType": "privileged_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
-      "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
-      "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 581.9940410000017,
-      "promptTokens": [
-        815
-      ],
-      "tokensOut": 37,
+      "tokensOut": 146,
       "error": null
     },
     {
@@ -371,9 +423,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1821.2645000000011,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1670.5102499999994,
       "promptTokens": [
-        802
+        812
       ],
       "tokensOut": 139,
       "error": null
@@ -391,10 +445,12 @@
       "steps": 6,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 6479.725875,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5896.754833999999,
       "promptTokens": [
-        1043,
-        1333
+        1066,
+        1356
       ],
       "tokensOut": 489,
       "error": "plan_invalid"
@@ -405,18 +461,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 874.4675830000015,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1586.5985839999994,
       "promptTokens": [
-        710
+        720
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -432,10 +490,12 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 4126.188457999997,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3544.8673749999944,
       "promptTokens": [
-        808,
-        1051
+        818,
+        1061
       ],
       "tokensOut": 294,
       "error": "plan_invalid"
@@ -453,9 +513,11 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2027.2196670000048,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1731.455750000001,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 145,
       "error": null
@@ -466,18 +528,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 664.0637080000015,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1452.7779999999984,
       "promptTokens": [
-        709
+        719
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -493,9 +557,11 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2007.315042000002,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1801.3425839999982,
       "promptTokens": [
-        809
+        819
       ],
       "tokensOut": 147,
       "error": null
@@ -506,25 +572,27 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 679.5911669999987,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1727.2464590000018,
       "promptTokens": [
-        805
+        815
       ],
-      "tokensOut": 37,
+      "tokensOut": 140,
       "error": null
     },
     {
       "ref": "syn-0025",
       "requestType": "access_revocation",
-      "validFirstPass": false,
-      "validAfterRepair": false,
+      "validFirstPass": true,
+      "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
       "f1": 0.8571428571428571,
@@ -533,13 +601,14 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 4183.2279590000035,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1772.5032499999943,
       "promptTokens": [
-        807,
-        1050
+        817
       ],
-      "tokensOut": 294,
-      "error": "plan_invalid"
+      "tokensOut": 146,
+      "error": null
     },
     {
       "ref": "syn-0026",
@@ -548,18 +617,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 7297.920167000004,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5214.999207999994,
       "promptTokens": [
-        1043,
-        1327
+        1066,
+        1320
       ],
-      "tokensOut": 478,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
@@ -569,17 +640,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 888.6943329999995,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1809.442332999999,
       "promptTokens": [
-        814
+        824
       ],
-      "tokensOut": 39,
+      "tokensOut": 146,
       "error": null
     },
     {
@@ -589,39 +662,44 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 7866.084332999999,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5315.548874999993,
       "promptTokens": [
-        1043,
-        1327
+        1066,
+        1320
       ],
-      "tokensOut": 478,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
       "ref": "syn-0029",
       "requestType": "privileged_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 613.9403749999983,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3854.3529160000035,
       "promptTokens": [
-        816
+        826,
+        1033
       ],
-      "tokensOut": 35,
-      "error": null
+      "tokensOut": 296,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0030",
@@ -636,9 +714,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 1881.4579169999997,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1453.7798329999932,
       "promptTokens": [
-        713
+        723
       ],
       "tokensOut": 116,
       "error": null
@@ -650,18 +730,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 9462.613833000003,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5437.434500000003,
       "promptTokens": [
-        1043,
-        1364
+        1066,
+        1320
       ],
-      "tokensOut": 551,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
@@ -671,17 +753,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 949.9233339999919,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1948.4540410000045,
       "promptTokens": [
-        813
+        823
       ],
-      "tokensOut": 39,
+      "tokensOut": 149,
       "error": null
     },
     {
@@ -697,9 +781,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 1,
-      "latencyMs": 1754.5067909999925,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1510.5202089999948,
       "promptTokens": [
-        713
+        723
       ],
       "tokensOut": 116,
       "error": null
@@ -717,9 +803,11 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2724.1922090000007,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1919.6538750000036,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 146,
       "error": null
@@ -727,21 +815,24 @@
     {
       "ref": "syn-0035",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 977.8837090000015,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 4923.067875000008,
       "promptTokens": [
-        950
+        965,
+        1161
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
@@ -751,18 +842,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.888888888888889,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 4,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 6167.6622500000085,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6723.656667000003,
       "promptTokens": [
-        1036,
-        1240
+        1059,
+        1313
       ],
-      "tokensOut": 316,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
@@ -778,9 +871,11 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2846.355666000003,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2469.271584000002,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 147,
       "error": null
@@ -788,22 +883,25 @@
     {
       "ref": "syn-0038",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 906.1172919999954,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5737.582832999993,
       "promptTokens": [
-        948
+        963,
+        1159
       ],
-      "tokensOut": 37,
-      "error": null
+      "tokensOut": 352,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0039",
@@ -812,39 +910,44 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.8000000000000002,
-      "matchedFields": 5,
-      "equalFields": 5,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
       "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 7383.162209000002,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6897.418250000002,
       "promptTokens": [
-        1041,
-        1275
+        1064,
+        1318
       ],
-      "tokensOut": 377,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
       "ref": "syn-0040",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 961.0458749999962,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6601.925959,
       "promptTokens": [
-        953
+        968,
+        1265
       ],
-      "tokensOut": 37,
-      "error": null
+      "tokensOut": 395,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0041",
@@ -852,38 +955,43 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 970.5893750000105,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2032.2205829999875,
       "promptTokens": [
-        707
+        717
       ],
-      "tokensOut": 39,
+      "tokensOut": 113,
       "error": null
     },
     {
       "ref": "syn-0042",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 949.9751669999969,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6463.291875000024,
       "promptTokens": [
-        951
+        966,
+        1162
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
@@ -899,9 +1007,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2758.0084999999963,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2675.8177500000165,
       "promptTokens": [
-        803
+        813
       ],
       "tokensOut": 139,
       "error": null
@@ -913,17 +1023,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0,
+      "f1": 0.8571428571428571,
       "matchedFields": 0,
       "equalFields": 0,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1031.713459000006,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2376.6129159999837,
       "promptTokens": [
-        809
+        819
       ],
-      "tokensOut": 39,
+      "tokensOut": 147,
       "error": null
     },
     {
@@ -932,18 +1044,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1067.08875000001,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2350.210041000013,
       "promptTokens": [
-        805
+        815
       ],
-      "tokensOut": 37,
+      "tokensOut": 141,
       "error": null
     },
     {
@@ -953,17 +1067,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0,
+      "f1": 0.8571428571428571,
       "matchedFields": 0,
       "equalFields": 0,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 926.0219999999972,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2593.9088749999937,
       "promptTokens": [
-        807
+        817
       ],
-      "tokensOut": 39,
+      "tokensOut": 147,
       "error": null
     },
     {
@@ -973,18 +1089,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.888888888888889,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 4,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 6,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 6355.729541999986,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 7016.4372079999885,
       "promptTokens": [
-        1038,
-        1242
+        1061,
+        1310
       ],
-      "tokensOut": 316,
+      "tokensOut": 406,
       "error": "plan_invalid"
     },
     {
@@ -994,38 +1112,43 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 946.2955829999992,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3479.722999999998,
       "promptTokens": [
-        953
+        968
       ],
-      "tokensOut": 37,
+      "tokensOut": 198,
       "error": null
     },
     {
       "ref": "syn-0049",
       "requestType": "privileged_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 875.3375000000087,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5317.542083000008,
       "promptTokens": [
-        814
+        824,
+        1074
       ],
-      "tokensOut": 39,
-      "error": null
+      "tokensOut": 297,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0050",
@@ -1033,18 +1156,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 803.9109999999928,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2391.6693340000056,
       "promptTokens": [
-        805
+        815
       ],
-      "tokensOut": 37,
+      "tokensOut": 141,
       "error": null
     },
     {
@@ -1053,18 +1178,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 795.5384999999951,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2347.127374999982,
       "promptTokens": [
-        806
+        816
       ],
-      "tokensOut": 37,
+      "tokensOut": 141,
       "error": null
     },
     {
@@ -1074,17 +1201,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 1011.3817920000001,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2500.776582999999,
       "promptTokens": [
-        815
+        825
       ],
-      "tokensOut": 39,
+      "tokensOut": 148,
       "error": null
     },
     {
@@ -1093,38 +1222,43 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 774.072874999998,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1900.8070830000215,
       "promptTokens": [
-        712
+        722
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
       "ref": "syn-0054",
       "requestType": "address_change",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 766.6514999999927,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3020.7933749999793,
       "promptTokens": [
-        804
+        814,
+        889
       ],
-      "tokensOut": 37,
+      "tokensOut": 175,
       "error": null
     },
     {
@@ -1134,18 +1268,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 10856.589000000007,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 7006.569791999995,
       "promptTokens": [
-        1045,
-        1368
+        1068,
+        1322
       ],
-      "tokensOut": 555,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
@@ -1161,9 +1297,11 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2685.428125000006,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2257.127084000007,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 145,
       "error": null
@@ -1175,18 +1313,20 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 6,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 9246.423666999995,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 7021.818708000006,
       "promptTokens": [
-        1043,
-        1333
+        1066,
+        1326
       ],
-      "tokensOut": 489,
+      "tokensOut": 428,
       "error": "plan_invalid"
     },
     {
@@ -1195,38 +1335,43 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 1003.8399159999972,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1874.8149590000103,
       "promptTokens": [
-        707
+        717
       ],
-      "tokensOut": 39,
+      "tokensOut": 116,
       "error": null
     },
     {
       "ref": "syn-0059",
       "requestType": "manager_change",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 0.8,
+      "matchedFields": 3,
+      "equalFields": 3,
+      "steps": 2,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 828.2471250000235,
+      "policyOverrides": 1,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1795.3435000000172,
       "promptTokens": [
-        708
+        718,
+        793
       ],
-      "tokensOut": 37,
+      "tokensOut": 110,
       "error": null
     },
     {
@@ -1236,37 +1381,42 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 837.3112079999992,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2295.170458000008,
       "promptTokens": [
-        822
+        832
       ],
-      "tokensOut": 37,
+      "tokensOut": 150,
       "error": null
     },
     {
       "ref": "syn-0061",
       "requestType": "address_change",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 837.5310829999798,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2851.8766250000044,
       "promptTokens": [
-        805
+        815,
+        890
       ],
-      "tokensOut": 37,
+      "tokensOut": 176,
       "error": null
     },
     {
@@ -1275,18 +1425,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 679.4950839999947,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1850.2693750000035,
       "promptTokens": [
-        710
+        720
       ],
-      "tokensOut": 35,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -1296,38 +1448,43 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 8957.622333000007,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6813.511041999998,
       "promptTokens": [
-        1043,
-        1327
+        1066,
+        1320
       ],
-      "tokensOut": 478,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
       "ref": "syn-0064",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 890.7376660000009,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5639.368957999977,
       "promptTokens": [
-        950
+        965,
+        1161
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
@@ -1337,38 +1494,43 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 9197.671000000002,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6882.5707500000135,
       "promptTokens": [
-        1042,
-        1326
+        1065,
+        1319
       ],
-      "tokensOut": 478,
+      "tokensOut": 417,
       "error": "plan_invalid"
     },
     {
       "ref": "syn-0066",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 0.888888888888889,
+      "matchedFields": 4,
+      "equalFields": 4,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 925.4861669999955,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5680.037834000017,
       "promptTokens": [
-        946
+        961,
+        1157
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
@@ -1378,17 +1540,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0,
+      "f1": 0.8571428571428571,
       "matchedFields": 0,
       "equalFields": 0,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 966.8987920000218,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3723.0518750000047,
       "promptTokens": [
-        810
+        820
       ],
-      "tokensOut": 37,
+      "tokensOut": 238,
       "error": null
     },
     {
@@ -1398,78 +1562,89 @@
       "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.9090909090909091,
-      "matchedFields": 2,
-      "equalFields": 2,
-      "steps": 6,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 6,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 10570.056749999989,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 8129.802834000002,
       "promptTokens": [
-        1043,
-        1364
+        1066,
+        1357
       ],
-      "tokensOut": 551,
+      "tokensOut": 491,
       "error": "plan_invalid"
     },
     {
       "ref": "syn-0069",
       "requestType": "address_change",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 833.3003749999916,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2918.745750000002,
       "promptTokens": [
-        803
+        813,
+        888
       ],
-      "tokensOut": 37,
+      "tokensOut": 175,
       "error": null
     },
     {
       "ref": "syn-0070",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 862.6595839999791,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 5721.34825000001,
       "promptTokens": [
-        952
+        967,
+        1163
       ],
-      "tokensOut": 39,
+      "tokensOut": 352,
       "error": null
     },
     {
       "ref": "syn-0071",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 0.888888888888889,
+      "matchedFields": 4,
+      "equalFields": 2,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 738.5930839999928,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6152.923167000001,
       "promptTokens": [
-        945
+        960,
+        1156
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
@@ -1485,9 +1660,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2664.164791999996,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2500.673749999987,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 142,
       "error": null
@@ -1495,21 +1672,24 @@
     {
       "ref": "syn-0073",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1144.6816659999895,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6264.204667000013,
       "promptTokens": [
-        951
+        966,
+        1162
       ],
-      "tokensOut": 39,
+      "tokensOut": 351,
       "error": null
     },
     {
@@ -1518,18 +1698,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 881.5320000000065,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2069.3274170000223,
       "promptTokens": [
-        711
+        721
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -1539,17 +1721,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 714.5469580000208,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2599.634458000015,
       "promptTokens": [
-        819
+        829
       ],
-      "tokensOut": 35,
+      "tokensOut": 148,
       "error": null
     },
     {
@@ -1559,38 +1743,43 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0,
+      "f1": 0.8571428571428571,
       "matchedFields": 0,
       "equalFields": 0,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 1096.603334000014,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2583.010332999984,
       "promptTokens": [
-        807
+        817
       ],
-      "tokensOut": 39,
+      "tokensOut": 147,
       "error": null
     },
     {
       "ref": "syn-0077",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 842.1605419999978,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 7302.604457999987,
       "promptTokens": [
-        952
+        967,
+        1264
       ],
-      "tokensOut": 37,
-      "error": null
+      "tokensOut": 395,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0078",
@@ -1598,18 +1787,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 811.5477079999982,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2470.815583000018,
       "promptTokens": [
-        805
+        815
       ],
-      "tokensOut": 37,
+      "tokensOut": 141,
       "error": null
     },
     {
@@ -1619,37 +1810,42 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 781.1974159999809,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3561.0800000000163,
       "promptTokens": [
-        952
+        967
       ],
-      "tokensOut": 37,
+      "tokensOut": 198,
       "error": null
     },
     {
       "ref": "syn-0080",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 0.888888888888889,
+      "matchedFields": 4,
+      "equalFields": 4,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 830.1009999999951,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6082.448583999998,
       "promptTokens": [
-        948
+        963,
+        1159
       ],
-      "tokensOut": 37,
+      "tokensOut": 351,
       "error": null
     },
     {
@@ -1665,9 +1861,11 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2615.3029170000227,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2649.439500000037,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 147,
       "error": null
@@ -1679,17 +1877,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 931.5185829999973,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3521.69991700002,
       "promptTokens": [
-        947
+        962
       ],
-      "tokensOut": 37,
+      "tokensOut": 199,
       "error": null
     },
     {
@@ -1699,37 +1899,42 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 812.4696669999976,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3556.710625000007,
       "promptTokens": [
-        955
+        970
       ],
-      "tokensOut": 37,
+      "tokensOut": 199,
       "error": null
     },
     {
       "ref": "syn-0084",
       "requestType": "onboarding_access",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 0.888888888888889,
+      "matchedFields": 4,
+      "equalFields": 2,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 780.3315409999923,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6145.0555830000085,
       "promptTokens": [
-        945
+        960,
+        1156
       ],
-      "tokensOut": 37,
+      "tokensOut": 352,
       "error": null
     },
     {
@@ -1745,11 +1950,13 @@
       "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2711.955957999977,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3941.936416999961,
       "promptTokens": [
-        809
+        819
       ],
-      "tokensOut": 146,
+      "tokensOut": 238,
       "error": null
     },
     {
@@ -1765,9 +1972,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2688.2133329999924,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2418.1648750000168,
       "promptTokens": [
-        804
+        814
       ],
       "tokensOut": 141,
       "error": null
@@ -1775,22 +1984,25 @@
     {
       "ref": "syn-0087",
       "requestType": "offboarding",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.33333333333333337,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "f1": 1,
+      "matchedFields": 7,
+      "equalFields": 7,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 816.8031250000058,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 7379.445166999998,
       "promptTokens": [
-        1037
+        1060,
+        1314
       ],
-      "tokensOut": 37,
-      "error": null
+      "tokensOut": 417,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0088",
@@ -1798,18 +2010,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 784.5759169999801,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1994.3453749999753,
       "promptTokens": [
-        710
+        720
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -1818,38 +2032,43 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 717.541459,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2428.511916999996,
       "promptTokens": [
-        806
+        816
       ],
-      "tokensOut": 37,
+      "tokensOut": 140,
       "error": null
     },
     {
       "ref": "syn-0090",
       "requestType": "address_change",
-      "validFirstPass": true,
+      "validFirstPass": false,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 10,
+      "equalFields": 10,
+      "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 700.8199580000073,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3087.0793330000015,
       "promptTokens": [
-        804
+        814,
+        889
       ],
-      "tokensOut": 37,
+      "tokensOut": 175,
       "error": null
     },
     {
@@ -1865,9 +2084,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2367.4470000000147,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2388.8422919999575,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 141,
       "error": null
@@ -1878,18 +2099,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 847.1471669999883,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 1902.3983749999898,
       "promptTokens": [
-        711
+        721
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -1905,9 +2128,11 @@
       "steps": 3,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 2399.482500000013,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2419.592000000004,
       "promptTokens": [
-        808
+        818
       ],
       "tokensOut": 140,
       "error": null
@@ -1919,17 +2144,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 861.966207999998,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2798.3223330000183,
       "promptTokens": [
-        813
+        823
       ],
-      "tokensOut": 37,
+      "tokensOut": 148,
       "error": null
     },
     {
@@ -1938,18 +2165,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 741.2475419999973,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2065.70862499997,
       "promptTokens": [
-        709
+        719
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     },
     {
@@ -1959,17 +2188,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.4,
+      "f1": 0.888888888888889,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 5,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 726.7813749999914,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 3879.988416999986,
       "promptTokens": [
-        944
+        959
       ],
-      "tokensOut": 37,
+      "tokensOut": 198,
       "error": null
     },
     {
@@ -1979,17 +2210,19 @@
       "validAfterRepair": true,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 643.9072920000181,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2801.210916000011,
       "promptTokens": [
-        817
+        827
       ],
-      "tokensOut": 35,
+      "tokensOut": 149,
       "error": null
     },
     {
@@ -1998,39 +2231,44 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 641.1332089999923,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2178.132709000027,
       "promptTokens": [
-        711
+        721
       ],
-      "tokensOut": 35,
+      "tokensOut": 116,
       "error": null
     },
     {
       "ref": "syn-0099",
       "requestType": "privileged_access",
-      "validFirstPass": true,
-      "validAfterRepair": true,
+      "validFirstPass": false,
+      "validAfterRepair": false,
       "policyViolation": false,
       "exact": false,
-      "f1": 0.5,
+      "f1": 0.8571428571428571,
       "matchedFields": 1,
       "equalFields": 1,
-      "steps": 1,
+      "steps": 4,
       "unknownTools": 0,
       "policyOverrides": 0,
-      "latencyMs": 848.5026659999858,
+      "validWithGoldWrites": false,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 6044.685499999963,
       "promptTokens": [
-        817
+        827,
+        1113
       ],
-      "tokensOut": 37,
-      "error": null
+      "tokensOut": 310,
+      "error": "plan_invalid"
     },
     {
       "ref": "syn-0100",
@@ -2038,18 +2276,20 @@
       "validFirstPass": true,
       "validAfterRepair": true,
       "policyViolation": false,
-      "exact": false,
-      "f1": 0.5,
-      "matchedFields": 1,
-      "equalFields": 1,
-      "steps": 1,
+      "exact": true,
+      "f1": 1,
+      "matchedFields": 6,
+      "equalFields": 6,
+      "steps": 3,
       "unknownTools": 0,
-      "policyOverrides": 0,
-      "latencyMs": 759.9067499999946,
+      "policyOverrides": 1,
+      "validWithGoldWrites": true,
+      "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
+      "latencyMs": 2225.69070799998,
       "promptTokens": [
-        710
+        720
       ],
-      "tokensOut": 37,
+      "tokensOut": 116,
       "error": null
     }
   ]

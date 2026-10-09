@@ -24,6 +24,16 @@ export interface RoleState {
 
 export type GrantedClaim = Extract<ClaimResult, { ok: true }>;
 
+/**
+ * LLM tokens an exception from role work says it already spent (the
+ * planner's PlanningError carries them), so the failure report still counts
+ * them against the run's budget.
+ */
+export function usageOfError(error: unknown): CompletionReport["usage"] {
+  const tokens = error instanceof Error ? (error as Error & { llmTokens?: unknown }).llmTokens : undefined;
+  return typeof tokens === "number" && tokens > 0 ? { llmTokens: tokens } : {};
+}
+
 export interface RoleAgentRpc {
   handleTask(message: TaskMessage): Promise<HandleOutcome>;
 }
@@ -37,6 +47,11 @@ export abstract class RoleAgent extends Agent<Env, RoleState> implements RoleAge
   }
 
   override async onRequest(): Promise<Response> {
+    return new Response("not found", { status: 404 });
+  }
+
+  // No sub-agents: the SDK would otherwise create a facet of any class for a `/sub/{class}/{name}` path.
+  override async onBeforeSubAgent(): Promise<Response> {
     return new Response("not found", { status: 404 });
   }
 
@@ -67,7 +82,7 @@ export abstract class RoleAgent extends Agent<Env, RoleState> implements RoleAge
         retryable: true,
         code: "agent_exception",
         message: error instanceof Error ? error.message : String(error),
-        usage: {},
+        usage: usageOfError(error),
       };
     }
     // null means the work deliberately reports nothing (the crash_after_call simulation).

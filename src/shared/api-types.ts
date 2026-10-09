@@ -66,13 +66,17 @@ export type ControlRequest = z.infer<typeof ControlRequestSchema>;
 export const DecisionRequestSchema = z.strictObject({ decision: z.enum(["approve", "reject"]), note: reason });
 export type DecisionRequest = z.infer<typeof DecisionRequestSchema>;
 
-export const BudgetPatchSchema = z.strictObject({
-  maxToolCalls: z.number().int().min(1).max(200).optional(),
-  maxLlmTokens: z.number().int().min(0).max(100_000).optional(),
-  maxActiveMs: z.number().int().min(1000).max(86_400_000).optional(),
-  maxAttemptsPerTask: z.number().int().min(1).max(10).optional(),
-  reason,
-});
+export const BudgetPatchSchema = z
+  .strictObject({
+    maxToolCalls: z.number().int().min(1).max(200).optional(),
+    maxLlmTokens: z.number().int().min(0).max(100_000).optional(),
+    maxActiveMs: z.number().int().min(1000).max(86_400_000).optional(),
+    maxAttemptsPerTask: z.number().int().min(1).max(10).optional(),
+    reason,
+  })
+  .refine((patch) => patch.maxToolCalls !== undefined || patch.maxLlmTokens !== undefined || patch.maxActiveMs !== undefined || patch.maxAttemptsPerTask !== undefined, {
+    message: "name at least one budget field to raise",
+  });
 export type BudgetPatch = z.infer<typeof BudgetPatchSchema>;
 
 export const RunListQuerySchema = z.object({

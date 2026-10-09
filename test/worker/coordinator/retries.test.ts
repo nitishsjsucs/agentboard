@@ -2,10 +2,13 @@ import { createExecutionContext, createMessageBatch, getQueueResult } from "clou
 import { env } from "cloudflare:workers";
 import { describe, expect, it, vi } from "vitest";
 import worker from "../../../src/worker/index.ts";
+import { claim } from "../../../src/worker/agents/coordinator/leases.ts";
+import { SYSTEM } from "../../../src/worker/agents/coordinator/schema.ts";
+import { applyDerivedStatus, complete, dispatchReady, initRun, newRunState, promote, RunTx } from "../../../src/worker/agents/coordinator/transitions.ts";
 import { backoff, taskBackoff } from "../../../src/worker/queue/backoff.ts";
 import { handleQueueBatch, type ConsumerDeps } from "../../../src/worker/queue/consumer.ts";
 import { batchMessage, testConfig } from "../../helpers/queue.ts";
-import { claimMessage, completePlan, coordinator, events, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { claimMessage, completePlan, coordinator, events, granted, planFor, readState, report, runInput, startManualRun, takeDispatches } from "../../helpers/runs.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { apiGet, apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
@@ -40,6 +43,35 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     const state = await readState(stub);
     expect(state.tasks.get(s2.message.taskId)?.status).toBe("failed");
     expect(state.run.status).toBe("needs_attention");
+
+    // The test project runs with RETRY_BASE_DELAY_S=0, so the delays above are 0. Drive the same pure
+    // transitions the coordinator runs in each RPC with a 2 s base: the redispatch carries 2 s, then 4 s.
+    const cfg = { leaseTtlMs: 3000, plannerLeaseTtlMs: 6000, approvalTtlMs: 60_000, retryBaseDelayS: 2, retryMaxDelayS: 30, faultInjection: false };
+    const pure = newRunState(runInput(), 1_000);
+    const transaction = (op: (tx: RunTx) => void): RunTx => {
+      const tx = new RunTx(pure, 1_000, cfg);
+      applyDerivedStatus(tx);
+      op(tx);
+      promote(tx);
+      applyDerivedStatus(tx);
+      dispatchReady(tx);
+      return tx;
+    };
+    let dispatched = transaction((tx) => initRun(tx, SYSTEM)).dispatches;
+    expect(dispatched.map((d) => [d.attempt, d.delaySeconds])).toEqual([[1, 0]]);
+    for (const expectedDelay of [2, 4]) {
+      const dispatch = dispatched[0];
+      if (!dispatch) throw new Error("no dispatch");
+      transaction((tx) => {
+        const decision = claim(tx, { taskId: dispatch.taskId, owner: "planner-0", dispatchId: dispatch.dispatchId }, null);
+        if (!decision.ok) throw new Error(`claim refused: ${decision.reason}`);
+      });
+      const task = pure.tasks.get(dispatch.taskId);
+      dispatched = transaction((tx) => {
+        complete(tx, { taskId: dispatch.taskId, leaseId: task?.leaseId ?? "", epoch: task?.leaseEpoch ?? 0, outcome: "failed", retryable: true, code: "upstream_timeout", usage: {} });
+      }).dispatches;
+      expect(dispatched.map((d) => [d.taskId, d.attempt, d.delaySeconds])).toEqual([[dispatch.taskId, dispatch.attempt + 1, expectedDelay]]);
+    }
   });
 
   it("a consumer exception before the claim retries the message with backoff and consumes no task attempt", async () => {

@@ -32,7 +32,14 @@ const ms = (value: unknown) => (typeof value === "number" ? `${Math.round(value)
 const day = (iso: string) => iso.slice(0, 10);
 const short = (sha: string) => sha.slice(0, 7);
 
-type Sim = { metrics: Record<string, unknown> & { runs_by_status: Record<string, number>; recovery_actions_by_type: Record<string, number>; tool_calls_by_outcome: Record<string, number> } };
+type Sim = {
+  metrics: Record<string, unknown> & {
+    runs_by_status: Record<string, number>;
+    recovery_actions_by_type: Record<string, number>;
+    tool_calls_by_outcome: Record<string, number>;
+    injected_by_modifier: Record<string, number>;
+  };
+};
 type Planner = { metrics: Record<string, number | null>; meta: Meta & { label: string; gguf: string; quant: string; server_flags: string; llama_cpp_build: string } };
 type Tests = { orchestration: number; authz: number; total: number; passing: number };
 
@@ -48,6 +55,13 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
     metas.push({ name: "simulation.json", meta: sim.meta });
     const m = sim.metrics;
     const status = m.runs_by_status;
+    const injected = m.injected_by_modifier as Record<string, number> | undefined;
+    const faults = injected
+      ? ["transient_error", "duplicate_delivery", "crash_after_call", "permanent_error", "silent_noop", "budget_exhausted"]
+          .map((k) => `${k} ${injected[k] ?? 0}${k === "transient_error" ? ` (${m["injected_transient_twice"]} of them twice)` : ""}`)
+          .join(", ")
+      : "not recorded";
+    const parked = injected ? ["pause_resume", "cancel"].map((k) => `${k} ${injected[k] ?? 0}`).join(", ") : "not recorded";
     lines.push(
       "",
       `Command: \`npm run eval:sim\` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured ${day(sim.meta.generatedAt)} at commit \`${short(sim.meta.gitSha)}\`.`,
@@ -55,10 +69,12 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
       "| Metric | Value |",
       "|---|---|",
       `| Runs executed | ${m["runs_total"]} |`,
+      `| Injected by the seeded dataset: fault directives; checkpoint runs the driver pauses or cancels | ${faults}; ${parked} |`,
       `| Outcome distribution | ${Object.entries(status).sort().map(([k, v]) => `${k} ${v}`).join(", ")} |`,
       `| Outcome match (measured status equals expected) | ${m["outcome_match"]}/100 |`,
       `| Duplicate side effects (per idempotency key) | ${m["duplicate_side_effects"]} |`,
       `| Logical duplicate side effects (per run and step) | ${m["logical_duplicate_effects"]} |`,
+      `| Duplicate; missing rows in the simulated domain tables (tickets, notifications, new grants) against applied steps | ${m["domain_duplicate_inserts"]}; ${m["domain_missing_inserts"]} |`,
       `| Tool calls | ${m["tool_calls_total"]} (${Object.entries(m.tool_calls_by_outcome).sort().map(([k, v]) => `${k} ${v}`).join(", ")}) |`,
       `| Ledger replays (of which logical) | ${m["replayed_calls"]} (${m["logical_replays"]}) |`,
       `| Task retries; runs recovered by retry | ${m["task_retries"]}; ${m["runs_recovered_by_retry"]} |`,
@@ -73,7 +89,7 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
       `| Run duration p50; p95 (local wall clock) | ${ms(m["run_duration_ms_p50"])}; ${ms(m["run_duration_ms_p95"])} |`,
       `| Search latency p50; p95 (local) | ${ms(m["search_latency_ms_p50"])}; ${ms(m["search_latency_ms_p95"])} |`,
       "",
-      "This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.",
+      "This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.",
     );
   } else {
     lines.push("", "Not measured yet.");
@@ -90,18 +106,19 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
     const n = Number(m["n"]);
     lines.push(
       "",
-      `Command: \`npm run eval:planner\` against llama-server (${data.meta.llama_cpp_build}) serving \`${data.meta.gguf}\` (${data.meta.quant}) with \`${data.meta.server_flags}\`, temperature 0, seed 7, one request at a time. Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`.`,
+      `Command: \`npm run eval:planner\` against llama-server (${data.meta.llama_cpp_build}) serving \`${data.meta.gguf}\` (${data.meta.quant}), launched with \`${data.meta.server_flags}\` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`.`,
       "",
       "| Metric | Value |",
       "|---|---|",
       `| Valid plans, first pass | ${pct(Number(m["valid_first_pass"]), n)} |`,
       `| Valid plans after one repair | ${pct(Number(m["valid_after_repair"]), n)} |`,
+      `| Valid plans that contain every write of the gold plan | ${pct(Number(m["valid_with_gold_writes"]), n)} |`,
       `| Invalid after the repair; requests that failed at the transport (timeout or connection) | ${m["plan_invalid"]}; ${m["request_errors"]} |`,
       `| Plans rejected for policy violations | ${m["policy_violations"]} |`,
       `| Tool sequence exactly equal to gold | ${pct(Number(m["tool_sequence_exact"]), n)} |`,
       `| Tool-set F1 (macro) | ${Number(m["tool_set_f1_macro"]).toFixed(3)} |`,
       `| Argument accuracy (gold fields of matched steps) | ${Number(m["arg_accuracy"]).toFixed(3)} |`,
-      `| Unknown-tool rate | ${Number(m["unknown_tool_rate"]).toFixed(3)} |`,
+      `| Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | ${Number(m["unknown_tool_rate"]).toFixed(3)} |`,
       `| Latency p50; p95 | ${ms(m["latency_ms_p50"])}; ${ms(m["latency_ms_p95"])} |`,
       `| Prompt tokens p50; max | ${m["prompt_tokens_p50"]}; ${m["prompt_tokens_max"]} |`,
     );

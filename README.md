@@ -89,7 +89,8 @@ The rules that make it safe under at-least-once delivery:
 - **Leases with fencing.** A claim is granted only for the task's current `dispatchId`; a redelivery of a live dispatch is refused `in_flight`, a superseded one `stale_dispatch`. Completions and traces carry the lease epoch, and one report per lease is accepted. The sweep, not a timer, reaps expired leases; the Agents SDK `schedule()` only wakes the coordinator.
 - **Call-bound integration tokens.** After each lease grant the coordinator mints an HS256 token bound to that one call (tool, canonical arguments hash, idempotency key, run, task, step, epoch, lease expiry). The MCP endpoint and every tool handler check it.
 - **An integration ledger.** Writes apply at most once per plan step, across retries and generations: ownership-guarded, correlation-guarded D1 batches, lock takeover, and logical replay of an earlier generation's result.
-- **Only reads before an approval.** Gating edges make every other write depend on the approval-gated step's verification, so a rejection never leaves a write behind. Rejection does not compensate steps that already ran; by construction only reads run before an approval gate.
+- **Only reads before an approval.** Gating edges make every other write depend on the approval-gated step's verification, so a rejection never leaves a write behind. `access.revoke_all_roles` has no approval of its own, so a plan may use it only together with the gated termination step (`hris.set_employment_status` to `terminated`), and it always waits for that approval. Rejection does not compensate steps that already ran; by construction only reads run before an approval gate.
+- **Plans must do the work.** Besides the allowlist, subject pinning and gating rules, a plan must contain the writes its request type exists for (for example `hris.update_manager` for a manager change), so a read-only plan can never reach `succeeded` without making the change or asking for its approval.
 
 ## What runs where
 
@@ -138,7 +139,7 @@ It is bound to that one read tool and those exact arguments for 60 seconds; writ
 1. `npx wrangler login`
 2. `npx wrangler d1 create agentboard` and `npx wrangler d1 create agentboard-people`; put the ids into `env.production`.
 3. `npx wrangler queues create agentboard-tasks` and `npx wrangler queues create agentboard-tasks-dlq`.
-4. Create AI Gateway `agentboard` in the dashboard (or set `AI_GATEWAY_ID` to an empty string).
+4. Create AI Gateway `agentboard` in the dashboard (or set `AI_GATEWAY_ID` to an empty string). The planner's prompts carry the request text, which the console hides from roles without `pii:read`; the provider sends `collectLog: false` so the gateway does not log them. Keep it that way, or restrict who can read the gateway's logs.
 5. `openssl rand -base64 48 | npx wrangler secret put INTEGRATION_SIGNING_KEY --env production`
 6. `npx wrangler d1 migrations apply agentboard --remote --env production` and the same for `agentboard-people`; seed with `npx wrangler d1 execute agentboard-people --remote --env production --file seed/people.sql`; create the admin binding with `node scripts/bootstrap-admin.ts --email <you>` and execute its SQL with `--env production`.
 7. `npm run deploy` (`CLOUDFLARE_ENV=production vite build && wrangler deploy`).
@@ -153,31 +154,33 @@ The top-level configuration is the local one and has `workers_dev: false`, so an
 
 - `npm test` runs five projects: `worker` (workerd), `worker-ws` (WebSockets, isolation off as the Cloudflare known-issues page requires), `worker-access` (production Access verification against an intercepted JWKS), `web` (React components in happy-dom) and `node` (script math and launchers).
 - `npm run test:sim` drives all 100 synthetic requests through the real API, queue, coordinator, agents and MCP tools in workerd, with the same driver as `eval:sim`.
-- Exactly 100 tests are tagged `orchestration` or `authz` (SPEC section 13.1). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 16 React component tests, eval math, launchers and the toolchain gate) carry their own tags and are not part of the 100.
+- 104 tests are tagged `orchestration` or `authz`: the 100 planned in SPEC section 13.1, plus 4 added with the fixes of an independent review (`plan-guard.test.ts` #2, `planner.test.ts` #5 and #6, `websocket-auth.test.ts` #5). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 16 React component tests, eval math, launchers and the toolchain gate) carry their own tags and are not part of that count.
 - `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`, then prints the worker bundle size. It has not run on GitHub yet. `preview.yml` and `release.yml` are described under Deploy and Releases.
 
 ## Releases
 
-Four milestone tags, `v0.1.0` to `v0.4.0`, exist in this repository with a demo script each in `demos/` and a section each in `CHANGELOG.md`; no GitHub release has been published yet. `.github/workflows/release.yml` publishes one: pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. The four existing tags predate the workflow (GitHub runs the workflow file of the tagged commit), so their releases are created by running it by hand, for example `gh workflow run release.yml -f tag=v0.1.0`; an existing release is left untouched.
+Four milestone tags, `v0.1.0` to `v0.4.0`, exist in this repository with a demo script each in `demos/` and a section each in `CHANGELOG.md`; no GitHub release has been published yet. `.github/workflows/release.yml` publishes one: pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. The four existing tags predate the workflow (GitHub runs the workflow file of the tagged commit), so their releases are created by running it by hand, for example `gh workflow run release.yml -f tag=v0.1.0`; an existing release is left untouched. A release run by hand does not run CI. The tagged commits were checked only locally so far; pushing the tags runs each tagged commit's own `ci.yml` (its `push` trigger has no branch filter), so check that those runs passed before publishing a release by hand.
 
 ## Results
 
-Every number below is written by a script into `eval/results/*.json` and rendered here by `npm run results:render`. CI (`npm run results:check`) fails if this block differs from the JSON, if a measurement ran on a dirty tree, or if the measured code changed after the measurement. Measurement dates are UTC.
+Every number below is written by a script into `eval/results/*.json` and rendered here by `npm run results:render`. CI (`npm run results:check`) fails if this block differs from the JSON, if a measurement ran on a dirty tree, or if anything under `src`, `migrations`, `fixtures`, `scripts`, `test` or `seed`, or `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts`, changed after the measured commit. Measurement dates are UTC.
 
 <!-- RESULTS:START -->
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `8f04166`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `b4d4dd6`.
 
 | Metric | Value |
 |---|---|
 | Runs executed | 100 |
+| Injected by the seeded dataset: fault directives; checkpoint runs the driver pauses or cancels | transient_error 18 (3 of them twice), duplicate_delivery 10, crash_after_call 6, permanent_error 4, silent_noop 4, budget_exhausted 3; pause_resume 3, cancel 2 |
 | Outcome distribution | awaiting_approval 3, cancelled 4, rejected 6, succeeded 87 |
 | Outcome match (measured status equals expected) | 100/100 |
 | Duplicate side effects (per idempotency key) | 0 |
 | Logical duplicate side effects (per run and step) | 0 |
-| Tool calls | 577 (ok 546, permanent_error 4, replayed 6, retryable_error 21) |
+| Duplicate; missing rows in the simulated domain tables (tickets, notifications, new grants) against applied steps | 0; 0 |
+| Tool calls | 575 (ok 544, permanent_error 4, replayed 6, retryable_error 21) |
 | Ledger replays (of which logical) | 6 (0) |
 | Task retries; runs recovered by retry | 21; 18 |
 | Lease expiries; recovered | 6; 6 |
@@ -186,35 +189,36 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Budget exhaustions; recoveries | 3; 3 |
 | Silent no-ops detected by the verifier; false positives | 4/4; 0 |
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
-| Audit events; runs with a valid hash chain | 3232; 100/100 |
+| Audit events; runs with a valid hash chain | 3230; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7223 ms; 10811 ms |
-| Search latency p50; p95 (local) | 2 ms; 3 ms |
+| Run duration p50; p95 (local wall clock) | 7293 ms; 10868 ms |
+| Search latency p50; p95 (local) | 2 ms; 4 ms |
 
-This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
+This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (0.5.0 (build 11146, commit 7fe450e19)) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0) with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`, temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `8f04166`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `b4d4dd6`.
 
 | Metric | Value |
 |---|---|
-| Valid plans, first pass | 84/100 (84%) |
-| Valid plans after one repair | 84/100 (84%) |
-| Invalid after the repair; requests that failed at the transport (timeout or connection) | 16; 0 |
+| Valid plans, first pass | 57/100 (57%) |
+| Valid plans after one repair | 77/100 (77%) |
+| Valid plans that contain every write of the gold plan | 76/100 (76%) |
+| Invalid after the repair; requests that failed at the transport (timeout or connection) | 23; 0 |
 | Plans rejected for policy violations | 0 |
-| Tool sequence exactly equal to gold | 9/100 (9%) |
-| Tool-set F1 (macro) | 0.593 |
-| Argument accuracy (gold fields of matched steps) | 1.000 |
-| Unknown-tool rate | 0.000 |
-| Latency p50; p95 | 916 ms; 8970 ms |
-| Prompt tokens p50; max | 817; 1368 |
+| Tool sequence exactly equal to gold | 34/100 (34%) |
+| Tool-set F1 (macro) | 0.932 |
+| Argument accuracy (gold fields of matched steps) | 0.982 |
+| Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
+| Latency p50; p95 | 2663 ms; 7007 ms |
+| Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-09 at commit `8f04166`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `b4d4dd6`.
 
-Tagged tests: 61 orchestration + 39 authorization = 100; passing: 100.
+Tagged tests: 63 orchestration + 41 authorization = 104; passing: 104.
 
 ### Production
 
@@ -226,8 +230,12 @@ Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
 - Tool-call and audit-event totals can differ by a few between runs of the same code. Each planner shard caches the tool catalog, but planner tasks that reach a shard before its cache is filled each fetch it (`tools/list`, recorded as a tool call with its own audit event), and how many do depends on timing.
-- Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. Both paths are covered by tests (`idempotency.test.ts` #8, `retries.test.ts` #5 and #6).
-- Planner argument accuracy is computed only over gold steps the model got right by tool and position, which with this small model are mostly the opening read steps. Read it together with exact match and tool-set F1, which show how far the plans are from the gold sequences.
+- Every failure in the simulation is injected by dev-only fault directives at fixed counts from the seeded dataset (the "Injected" row), and every approval decision and recovery command is issued by the simulation driver acting as an operator. The retry, lease-expiry, refusal, budget, verifier and recovery rows measure how the system responds to those injected faults; none of them is an organic failure.
+- The two duplicate side-effect rows come from the integration's own ledger table (`side_effects`), whose insert carries the same guard as the effects. The domain-table row is the independent check: the rows in the simulated tickets, notifications and grants tables, compared with the distinct (run, step) pairs that have an applied call of that tool in the console's tool-call history. In-place updates (addresses, managers, statuses, revocations) are idempotent by nature, so a duplicate of one would not show up in state.
+- Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. Both paths are covered by tests (`idempotency.test.ts` "the idempotency key is stable across attempts and changes with generation ...", and in `retries.test.ts` "the DLQ consumer ... dead-letters a task only for its current dispatchId ..." and "DLQ replay redispatches ...").
+- A valid plan passes the schema, the request type's allowlist, subject pinning, the gating rules, the request type's required writes and the rule that `access.revoke_all_roles` needs the gated termination step. "Valid with every write of the gold plan" also requires the notification and every other write the gold plan has. The required-writes rule is new: before it (results measured at `8f04166`), 84/100 plans were valid but 66 of those were a single read step that would have reached `succeeded` without doing the work. The planner prompt now also names the required writes, so the jump in quality since then comes from both the rule (with its repair message) and the prompt.
+- The output schema enumerates the request type's allowed tools and llama-server enforces it, so the unknown-tool rate and off-allowlist rejections are 0 by construction. Only off-subject arguments and ungated revokes can be rejected as policy violations here, and the dataset contains no injected requests; `plan-guard.test.ts` covers injection.
+- Planner argument accuracy is computed only over gold steps the model got right by tool and position. Read it together with exact match and tool-set F1, which show how far the plans are from the gold sequences.
 - Planning quality of the production model (Workers AI) is not measured.
 
 ## Limitations and claim boundaries
@@ -237,6 +245,7 @@ Reading the results:
 - The 100-run simulation uses the stub planner; planning quality is measured separately by `eval:planner` against a small local model. Workers AI and AI Gateway are untested here (no account).
 - Every class runs in one Worker that holds the integration signing key, so call-bound tokens defend against confused or buggy call paths (wrong tool, tampered arguments, replay into another task or after the lease), not against arbitrary code running inside the Worker.
 - Rejection does not compensate steps that already ran; by construction only reads run before an approval gate.
+- A run WebSocket is authorized at the upgrade and closed (code 4401) at the first snapshot after its identity token expires. A removed or downgraded role binding takes effect on an open socket only at that expiry or on reconnect; every HTTP request re-checks the binding.
 - Local latencies come from `wrangler dev` on a laptop and say nothing about production.
 - D1 export does not support FTS5 virtual tables: to back up, drop `search_fts`, export, recreate it, then rebuild with `INSERT INTO search_fts(search_fts) VALUES('rebuild')`.
 

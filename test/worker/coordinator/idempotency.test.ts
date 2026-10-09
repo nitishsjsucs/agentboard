@@ -13,7 +13,7 @@ import { P } from "../../helpers/auth.ts";
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { batchMessage, testConfig } from "../../helpers/queue.ts";
 import { binding, call, executorToken, writeMeta } from "../../helpers/mcp.ts";
-import { claimMessage, completePlan, coordinator, events, granted, planFor, readState, report, startManualRun, takeDispatches } from "../../helpers/runs.ts";
+import { claimMessage, completePlan, coordinator, events, granted, planFor, readState, report, settleRuns, startManualRun, takeDispatches } from "../../helpers/runs.ts";
 
 async function plannedDatasetRun(sim: SimDirectives | null = null) {
   const run = datasetRun("syn-0006");
@@ -119,6 +119,8 @@ describe("duplicate-action prevention: delivery, crash and reports", { tags: ["o
     const conflict = await apiPost(P.operator, "/api/runs", { ...body, requestText: "A different request entirely, same key." });
     expect(conflict.status).toBe(409);
     expect(await conflict.json()).toMatchObject({ error: { code: "conflict", reason: "idempotency_conflict" } });
+    // The run was really launched; let its planner work finish before the file ends.
+    await settleRuns([runId]);
   });
 
   it("duplicate completion reports for the same lease are ignored", async () => {

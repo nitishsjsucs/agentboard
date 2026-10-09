@@ -7,7 +7,7 @@
 // tests.json or from the numbers in the README's results block.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resultMeta, ROOT } from "./lib/meta.ts";
 
@@ -56,17 +56,32 @@ if (process.argv.includes("--check")) {
   process.exit(0);
 }
 
-// Run every tagged test once with the JSON reporter and count passes.
+// Run every tagged test once with the JSON reporter and count passes. The previous
+// report is removed first, so a run that dies before writing one can never be
+// counted from a stale file.
 const runFile = join(RAW, "tagged-run.json");
+rmSync(runFile, { force: true });
+const runStartedAt = Date.now();
+let runExit = 0;
 try {
   execFileSync("npx", ["vitest", "run", ...PROJECTS, "--reporter=json", `--outputFile=${runFile}`], { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] });
-} catch {
-  // Failures are counted from the report below.
+} catch (error) {
+  // Test failures are counted from the report below; a missing report is fatal.
+  runExit = (error as { status?: number }).status ?? 1;
 }
 interface Report {
+  startTime: number;
   testResults: { name: string; assertionResults: { ancestorTitles: string[]; title: string; status: string }[] }[];
 }
+if (!existsSync(runFile)) {
+  console.error(`count:tests: vitest exited ${runExit} without writing ${runFile}`);
+  process.exit(1);
+}
 const report = JSON.parse(readFileSync(runFile, "utf8")) as Report;
+if (!(report.startTime >= runStartedAt - 1000)) {
+  console.error(`count:tests: ${runFile} predates this run (startTime ${report.startTime}, run started ${runStartedAt})`);
+  process.exit(1);
+}
 const status = new Map<string, string>();
 // `vitest list` names a test "describe > test"; the JSON reporter gives ancestor titles and the title.
 for (const file of report.testResults) for (const t of file.assertionResults) status.set(`${file.name}::${[...t.ancestorTitles, t.title].join(" > ")}`, t.status);
@@ -75,8 +90,9 @@ const output = {
   ...counts,
   passing: passing(orchestration) + passing(authz),
   passingByTag: { orchestration: passing(orchestration), authz: passing(authz) },
+  vitestExitCode: runExit,
   meta: resultMeta("n/a", "n/a"),
 };
 writeFileSync(OUTPUT, `${JSON.stringify(output, null, 2)}\n`);
 console.log(JSON.stringify(output, null, 2));
-if (output.passing !== output.total) process.exit(1);
+if (output.passing !== output.total || runExit !== 0) process.exit(1);

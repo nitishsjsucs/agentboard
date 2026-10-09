@@ -61,6 +61,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
       latencyMs: Date.now() - started,
       provider: this.name,
       model: this.model,
+      ...(typeof completion.model === "string" && completion.model ? { servedModel: completion.model } : {}),
     };
   }
 }

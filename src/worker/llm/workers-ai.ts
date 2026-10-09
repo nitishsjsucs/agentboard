@@ -1,11 +1,39 @@
 // Workers AI through AI Gateway (SPEC section 11.2). Production and preview
 // only; never executed locally (it needs an account). Unit-tested with a fake Ai.
 
-import { estimateTokens, stripThinking, type LlmProvider, type LlmRequest, type LlmResult } from "./provider.ts";
+import { estimateTokens, stripThinking, timeoutSignal, type LlmProvider, type LlmRequest, type LlmResult } from "./provider.ts";
 
 /** The slice of the Ai binding this provider uses. */
 export interface AiRunner {
-  run(model: string, inputs: Record<string, unknown>, options?: { gateway?: { id: string; metadata?: Record<string, string | number | boolean | null> } }): Promise<unknown>;
+  run(
+    model: string,
+    inputs: Record<string, unknown>,
+    options?: { gateway?: { id: string; collectLog?: boolean; metadata?: Record<string, string | number | boolean | null> }; signal?: AbortSignal },
+  ): Promise<unknown>;
+}
+
+/**
+ * Settles with `work`, or rejects as soon as `signal` aborts. The signal is
+ * also handed to the binding, but the bound must hold even if a call ignores
+ * it: PLANNER_LEASE_TTL_MS assumes every model call ends within LLM_TIMEOUT_MS.
+ */
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal, timeoutMs: number): Promise<T> {
+  const reason = () => new Error(signal.reason instanceof Error && signal.reason.name !== "TimeoutError" ? signal.reason.message : `workers-ai provider: no response within ${timeoutMs} ms`);
+  if (signal.aborted) return Promise.reject(reason());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(reason());
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 /** Normalizes the Workers AI output union (choices[0].message.content, response, or a string) to text. */
@@ -33,21 +61,32 @@ export class WorkersAiProvider implements LlmProvider {
     this.gatewayId = gatewayId;
   }
 
-  async generate(req: LlmRequest): Promise<LlmResult> {
+  /** Bounded by `req.timeoutMs` (LLM_TIMEOUT_MS) and the caller's signal. */
+  async generate(req: LlmRequest, signal?: AbortSignal): Promise<LlmResult> {
     const started = Date.now();
-    const output = await this.ai.run(
-      this.model,
-      {
-        messages: [
-          { role: "system", content: req.system },
-          { role: "user", content: req.user },
-        ],
-        response_format: { type: "json_schema", json_schema: req.jsonSchema.schema },
-        temperature: req.temperature,
-        max_tokens: req.maxOutputTokens,
-        ...(req.seed !== undefined ? { seed: req.seed } : {}),
-      },
-      this.gatewayId ? { gateway: { id: this.gatewayId, metadata: { runId: req.metadata.runId } } } : undefined,
+    const abort = timeoutSignal(req.timeoutMs, signal);
+    const output = await untilAborted(
+      this.ai.run(
+        this.model,
+        {
+          messages: [
+            { role: "system", content: req.system },
+            { role: "user", content: req.user },
+          ],
+          response_format: { type: "json_schema", json_schema: req.jsonSchema.schema },
+          temperature: req.temperature,
+          max_tokens: req.maxOutputTokens,
+          ...(req.seed !== undefined ? { seed: req.seed } : {}),
+        },
+        {
+          // collectLog false: the prompt carries the request text, which the console treats as PII (pii:read),
+          // and AI Gateway logs would keep it outside the console's redaction for anyone who can read the logs.
+          ...(this.gatewayId ? { gateway: { id: this.gatewayId, collectLog: false, metadata: { runId: req.metadata.runId } } } : {}),
+          signal: abort,
+        },
+      ),
+      abort,
+      req.timeoutMs,
     );
     const text = stripThinking(workersAiText(output));
     const usage = (output as { usage?: { prompt_tokens?: number; completion_tokens?: number } } | null)?.usage;
