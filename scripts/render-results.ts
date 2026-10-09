@@ -154,6 +154,14 @@ if (process.argv.includes("--check")) {
   if (existing !== block) problems.push("the README results block differs from what eval/results renders (run npm run results:render)");
   for (const { name, meta } of metas) {
     if (meta.dirty) problems.push(`${name} was measured on a dirty tree`);
+    // A commit id that is not in this history (for example after the history was rewritten)
+    // cannot be diffed; say so instead of calling the code changed.
+    try {
+      execFileSync("git", ["cat-file", "-e", `${meta.gitSha}^{commit}`], { cwd: ROOT, stdio: "ignore" });
+    } catch {
+      problems.push(`${name}: measured commit ${meta.gitSha.slice(0, 7)} is not in this repository's history (a shallow clone, or rewritten history)`);
+      continue;
+    }
     try {
       execFileSync("git", ["diff", "--quiet", meta.gitSha, "HEAD", "--", ...MEASURED_PATHS], { cwd: ROOT, stdio: "ignore" });
     } catch {
