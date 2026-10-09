@@ -101,13 +101,24 @@ Three independent reviews (correctness, security, honesty) of `cfd7549` returned
 
 These commits would form PR 10 (commits 49 to 68). At commits 52 to 65 `results:check` reports the stale measurement by design (deviation 44); commit 66 makes it green again. Commits 49 to 51 change only `test/`, which was not yet a measured path, so every check passes there. For each commit, typecheck and the test files it touches were run before committing; the full `npm test` and `test:sim` also ran at 59, and the whole CI sequence ran at 64 and at the head.
 
+### Verification gate (builder 5)
+
+A final gate that trusted no earlier report: it cloned `7467022` into a fresh directory, ran `npm ci` and every `ci.yml` step there, ran all evals as documented, and judged the SPEC section 0 resume claims against the code and those numbers.
+
+| # | Commit | Status |
+|---|---|---|
+| 69 | chore(results): record the verification gate's measurements of 7467022 | done |
+| 70 | docs: PROGRESS for the verification gate | done |
+
+Every count, outcome and planner quality metric reproduced exactly (all 100 per-request planner results are identical); only local latencies moved, so the README's Results block no longer matched what the gate measured. Commit 69 replaces the four result files with the gate's (measured in the clean clone of `7467022`, whose measured paths equal `b4d4dd6`'s), re-renders the README block, adds a README sentence on latency variance that cites the earlier numbers by commit, and adds a CHANGELOG line. Commit 70 updates this file. Neither changes a measured path. PR 10 now covers commits 49 to 70.
+
 ## What is left (human steps)
 
 - Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1 and every review finding is done. There is no further planned build work in SPEC.md.
-- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 68); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
+- Not done by the builders (needs Nitish, SPEC section 18): pushing; opening the PRs (PR 1 to 8 as in deviation 13, PR 9 = commits 37 to 48, PR 10 = commits 49 to 70); GitHub releases for the local tags `v0.1.0` to `v0.4.0` (after the push: pushing the tags runs each tagged commit's own `ci.yml`, so check those runs, then `gh workflow run release.yml -f tag=v0.1.0` and so on; a hand-run release does not run CI itself); any deployment, Access setup, the preview secrets, and Workers AI planner quality.
 - Decide the resume wording before using it: see "Resume claim status" below. Several phrases of SPEC section 0 are not true yet.
 - Commit `6ffb555` and the README hunk of `cfde7d4` (deviation 43): history was kept and the CHANGELOG now says where they came from (deviation 57). Rewriting them out remains possible only before the first push; it would move the four tags and require re-running count:tests, eval:sim and eval:planner on the new head, because `results:check` diffs against the recorded `gitSha`.
-- Known minor issues, not fixed: (a) right after switching principals on the dev login page, the dashboard can poll once with the previous principal's permissions, so an approver sees one 403 for `/api/dlq` in the browser console (a fresh load sends no such request; the server enforces the permission either way; dev login only); (b) concurrent planner tasks on one shard can each fetch the tool catalog before the shard's cache is filled (deviation 48), so tool-call and audit-event totals vary by a few between simulation runs (575 this time, 577 at `8f04166`); (c) an open run WebSocket does not re-check the principal's role binding, only the token expiry (deviation 51). The earlier item about `EnvironmentTeardownError` is fixed (commit 49).
+- Known minor issues, not fixed: (a) right after switching principals on the dev login page, the dashboard can poll once with the previous principal's permissions, so an approver sees one 403 for `/api/dlq` in the browser console (a fresh load sends no such request; the server enforces the permission either way; dev login only); (b) concurrent planner tasks on one shard can each fetch the tool catalog before the shard's cache is filled (deviation 48), so tool-call and audit-event totals vary by a few between simulation runs (575 at `b4d4dd6` and again at the gate, 577 at `8f04166`); (c) an open run WebSocket does not re-check the principal's role binding, only the token expiry (deviation 51). The earlier item about `EnvironmentTeardownError` is fixed (commit 49).
 - If any file under `src`, `migrations`, `fixtures`, `scripts`, `test` or `seed`, or `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts` changes, `npm run results:check` fails until the measurements are taken again on a clean, committed tree. The exact procedure, used on 2026-10-08 (local time) for commit 66:
   1. `npm run count:tests`
   2. `npm run eval:sim` (wrangler dev on 127.0.0.1:8784, inspector 9234; it kills its process group when done)
@@ -115,25 +126,30 @@ These commits would form PR 10 (commits 49 to 68). At commits 52 to 65 `results:
   4. `npm run eval:planner -- --provider stub` (sanity file, must score 100%)
   5. `npm run results:render`, then commit `eval/results` and the README block together.
 
-## Check status (last run 2026-10-08 local time by builder 4, on commit 67 `2c8449e`; commit 68 changes only PROGRESS.md and CHANGELOG.md)
+## Check status (last run 2026-10-08 local time by builder 5, the verification gate)
 
-- Starting state of this round (`cfd7549`): `npm test` passed on 1 run here and printed one `EnvironmentTeardownError`; the correctness review saw it exit 1 on 1 of 3 runs (fixed by commit 49; afterwards 3 consecutive runs and every later run printed none).
-- `npm run types:check`: pass
-- `npm run typecheck`: pass
+In a fresh `git clone` of `7467022` at `/tmp/gate-agentboard` (no `.dev.vars`, no `.wrangler` state, no `dist`), Node 25.9.0, npm 11.12.1, on battery while another repository's workerd eval ran on port 8781:
+
+- `npm ci`: pass (281 packages; npm audit reports 3 high severity advisories in dependencies, not investigated)
+- `npm run types:check`: pass (exit 0)
+- `npm run typecheck`: pass (exit 0)
 - `npm run synth:check`: pass (4 files match; runs 100, employees 60)
-- `npm test`: pass twice in a row (projects worker, worker-ws, worker-access, web, node; 41 files, 155 tests: the 150 from before, 4 new tagged tests and 1 new `llm` test for the Workers AI timeout; no teardown errors; about 36 s)
-- `npm run test:sim`: pass (6 tests)
+- `npm test`: pass (exit 0; projects worker, worker-ws, worker-access, web, node; 41 files, 155 tests passed, 0 failed, 0 skipped; 27.7 s; no teardown errors)
+- `npm run test:sim`: pass (1 file, 6 tests)
 - `npm run count:tests -- --check`: pass (63 orchestration + 41 authz = 104)
-- `npm run results:check`: pass (all three results measured at `b4d4dd6`, clean measured paths)
-- `npm run build`: pass (`index.js` 2476874 bytes, 594472 gzip)
-- The same sequence, after `npm ci --prefer-offline`, passed in a clean clone of `2c8449e` (no `.dev.vars`, no `.wrangler` state), on Node 25.9.
-- Measured at `b4d4dd6` (in `eval/results/`, rendered in the README; dates there are UTC, 2026-10-09): eval:sim 100/100 outcome match, 0 duplicate and 0 logical-duplicate side effects, 0 duplicate and 0 missing domain-table rows (tickets 31, notifications 85, new grants 31), 575 tool calls, 3230 audit events, 100/100 valid chains, 20/20 known-item search at 1; eval:planner (Qwen3-1.7B Q4_0, server build b11146-7fe450e19, port 8140) 57/100 valid first pass, 77/100 after one repair, 76/100 valid with every gold write, 0 policy violations, 34/100 exact tool sequences, F1 0.932, argument accuracy 0.982, latency p50 2663 ms and p95 7007 ms; stub sanity 100/100; count:tests 104/104 passing, vitest exit 0. A first planner run of the same code at `11e4e30` gave the same quality numbers (it was discarded only because it recorded absolute model paths).
-- Environment note: two full `npm test` runs in the middle of this round failed with "Timeout starting cloudflare-pool runner" and single tests timing out after 90 to 900 s of wall clock, while the Mac was on battery at 35% and another repo's eval was running workerd. The same tree passed on the next run and on every run after; nothing in the code changed between them (deviation 58).
-- No wrangler, workerd or llama-server process started by this round is left running (another repo's `wrangler dev` on port 8781 belongs to a different build and was not touched).
+- `npm run results:check`: pass (before the gate's re-measurement)
+- `npm run build`: pass (`dist/agentboard/index.js` 2476874 bytes, 594472 gzip; client bundle 384.16 kB)
+- No `.skip`, `.todo` or `.only` in `test` or `src`.
+- `npm run eval:sim`: exit 0 in 1 min 53 s; identical to the `b4d4dd6` measurement in every count (100/100 outcome match, 575 tool calls, 3230 audit events, 100/100 chains, 0 duplicate and 0 logical-duplicate side effects, 0 duplicate and 0 missing domain rows, 20/20 known-item search) and in the bundle sha256; run duration p50 7277 ms and p95 10917 ms (was 7293 and 10868), search latency p95 3 ms (was 4).
+- `npm run eval:planner` (llama-server b11146-7fe450e19 on 127.0.0.1:8140, `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`): exit 0 in 7 min 29 s; 57/100 first pass, 77/100 after repair, 76/100 with every gold write, 0 policy violations, 34/100 exact, F1 0.932, argument accuracy 0.982, 0 transport errors, every per-request result identical to `b4d4dd6`; latency p50 3123 ms and p95 8961 ms (was 2663 and 7007).
+- `npm run eval:planner -- --provider stub`: 100/100 on every metric.
+- `npm run count:tests`: 104 tagged, 104 passing, vitest exit 0.
+- In this repository after commit 69 (`011861a`, with only this file uncommitted): `types:check`, `typecheck`, `synth:check` pass; `npm test` exit 0 (41 files, 155 tests passed, 26.5 s); `results:check` pass (README block matches the gate's result files, none dirty or stale); `build` pass; `test:sim` 6/6; `count:tests -- --check` 63 + 41 = 104.
+- Processes: the gate stopped its llama-server (port 8140) and `eval:sim` stopped its `wrangler dev` (ports 8784 and 9234); no wrangler, workerd or llama-server process of this repository is left running. Another repository's `wrangler dev` on port 8781 was not touched.
 
 ## Resume claim status (SPEC sections 0 and 18)
 
-Each phrase of the SPEC section 0 resume text, its state on 2026-10-08, and what Nitish has to do before using it. Mirror this list in any builder status.
+Each phrase of the SPEC section 0 resume text, its state on 2026-10-08 (re-judged by the verification gate), and what Nitish has to do before using it. Mirror this list in any builder status.
 
 | Phrase | State now | Evidence | Action (SPEC section 18) |
 |---|---|---|---|
@@ -143,11 +159,11 @@ Each phrase of the SPEC section 0 resume text, its state on 2026-10-08, and what
 | "live execution updates, searchable task histories, approval controls, and D1-backed audit records across approximately 100 simulated agent runs" | true locally (local D1) | eval:sim 100 runs, 100/100 valid audit chains | none beyond "simulated" |
 | "three specialized agents" | two of the three are deterministic workers | only PlannerAgent calls a model | keep and be ready to explain why, or "a planning agent plus execution and verification workers" |
 | "Cloudflare Agents SDK, Durable Objects, Queues, and MCP, with task leases, bounded execution budgets, retry handling, and duplicate-action prevention" | true locally (workerd, Miniflare queues) | 104 tagged tests, eval:sim | none |
-| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 69 of the 70 commits (after commit 68) carry a Claude `Co-Authored-By` trailer; `6ffb555` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
+| "AI-assisted development workflow using Cursor or OpenCode" | false: the build used Claude Code | 71 of the 72 commits (after commit 70) carry a Claude `Co-Authored-By` trailer; `6ffb555` lacks it | name the tool actually used, or do real follow-up work in Cursor or OpenCode |
 | "Git pull requests" | none opened; all commits are on local `main` | deviation 13 | keep only after the PRs exist (PR 1 to 10) |
-| "meaningful commits" | true | 70 conventional commits: plan commits 1 to 36 and 33a, then 37 to 68, plus the foreign `6ffb555` | none |
+| "meaningful commits" | true | 72 conventional commits: plan commits 1 to 36 and 33a, then 37 to 70, plus the foreign `6ffb555` | none |
 | "Cloudflare preview deployments" | not done: `preview.yml` has never run, no account | Deploy step 11 | keep only after `preview.yml` has deployed a PR; wording "per-PR deployments to a preview environment" |
-| "approximately 100 orchestration and authorization test cases" | true: 104 tagged, all passing | count:tests | read the test names before interviews |
+| "approximately 100 orchestration and authorization test cases" | true: 104 tagged, all passing (re-measured by the gate) | count:tests | read the test names before interviews |
 | "four sprint demo releases" | four local tags made within one afternoon (14:40, 15:34, 15:59 and 16:54 on 2026-10-08); none is a GitHub release yet | `git for-each-ref refs/tags` | use "four incremental releases with demo scripts", and publish them after the push |
 
 ## Review findings (builder 4)
@@ -241,3 +257,4 @@ All 24 findings were verified first (by reading the code, and for the behavioral
 56. **Budget raises.** `BudgetPatchSchema` requires at least one budget field (400 otherwise), the coordinator refuses a patch that raises nothing as `not_a_raise`, and `ConfirmDialog` takes `confirmDisabled` so the raise dialog cannot confirm a non-raise.
 57. **History kept for `6ffb555` and `cfde7d4`.** Of the honesty review's two options, the non-destructive one was taken: the CHANGELOG's Unreleased section says those changes came from a parallel session and that `6ffb555` lacks the trailer. Rewriting history is a decision for Nitish before the first push (see "What is left").
 58. **Environmental test failures.** Two full `npm test` runs in this round failed with "Timeout starting cloudflare-pool runner" and tests timing out after 90 to 900 s of wall clock while the Mac was on battery and heavily loaded by another repo's eval. The same tree passed on the following runs, including twice in a row at the head and in a clean clone. No test was changed in response.
+59. **Verification gate results come from a clean clone.** The gate measured in a fresh clone of `7467022` rather than in this working tree, so that the numbers come from `npm ci` and committed files only, and then copied the four result files into this repository unchanged. They record `gitSha` `7467022` and `dirty: false`; since commits 69 and 70 change no measured path, `results:check` accepts them here. Only latencies differ from the `b4d4dd6` measurement.
