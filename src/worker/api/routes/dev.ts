@@ -64,13 +64,23 @@ export function devRoutes(): Hono<AppEnv> {
   // Side-effect counters for the evaluation (admin only; dev mode and loopback only, like every dev route).
   app.get("/api/dev/people/side-effects", identityMiddleware, requirePermission("dlq:replay"), async (c) => {
     const db = c.env.PEOPLE_DB;
-    const [total, keys, logical] = await db.batch([
+    const [total, keys, logical, tickets, notifications, grants] = await db.batch([
       db.prepare("SELECT COUNT(*) AS n FROM side_effects"),
       db.prepare("SELECT COUNT(*) AS n FROM (SELECT idempotency_key FROM side_effects GROUP BY idempotency_key HAVING COUNT(*) > 1)"),
       db.prepare("SELECT COUNT(*) AS n FROM (SELECT run_id, step_id FROM side_effects GROUP BY run_id, step_id HAVING COUNT(*) > 1)"),
+      // Rows the tools inserted into the simulated domain tables, counted independently of the ledger's side_effects
+      // (seeded grants have G- ids; access.grant_role inserts GRT- ids; no tickets or notifications are seeded).
+      db.prepare("SELECT COUNT(*) AS n FROM tickets"),
+      db.prepare("SELECT COUNT(*) AS n FROM notifications"),
+      db.prepare("SELECT COUNT(*) AS n FROM access_grants WHERE id LIKE 'GRT-%'"),
     ]);
     const n = (r: D1Result | undefined) => ((r?.results ?? [])[0] as { n: number } | undefined)?.n ?? 0;
-    return c.json({ total: n(total), duplicateKeys: n(keys), logicalDuplicates: n(logical) });
+    return c.json({
+      total: n(total),
+      duplicateKeys: n(keys),
+      logicalDuplicates: n(logical),
+      domainInserts: { tickets: n(tickets), notifications: n(notifications), grants: n(grants) },
+    });
   });
   return app;
 }

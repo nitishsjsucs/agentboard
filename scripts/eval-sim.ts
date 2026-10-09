@@ -111,7 +111,7 @@ try {
   const count = (values: string[]) => values.reduce<Record<string, number>>((acc, v) => ((acc[v] = (acc[v] ?? 0) + 1), acc), {});
 
   let tasksTotal = 0;
-  const calls: ToolCallView[] = [];
+  const calls: (ToolCallView & { runId: string })[] = [];
   const eventsByRun = new Map<string, AuditEventView[]>();
   let chainsValid = 0;
   for (const run of simRuns) {
@@ -119,7 +119,7 @@ try {
     tasksTotal += detail.tasks.length;
     for (let cursor: string | null = ""; cursor !== null; ) {
       const page: Page<ToolCallView> = await get(`/api/runs/${run.id}/tool-calls${cursor ? `?cursor=${cursor}` : ""}`);
-      calls.push(...page.items);
+      calls.push(...page.items.map((c) => ({ ...c, runId: run.id })));
       cursor = page.nextCursor;
     }
     const audit = await get<{ events: AuditEventView[]; chain: { valid: boolean } }>(`/api/runs/${run.id}/audit`);
@@ -137,7 +137,12 @@ try {
     (eventsByRun.get(e.runId ?? "") ?? []).some((later) => later.seq > e.seq && later.taskId === e.taskId && later.action === "task.succeeded"),
   );
   const refusals = allEvents.filter((e) => e.action === "task.claim_refused" && ["duplicate", "stale_dispatch", "in_flight"].includes(String(detail(e)["reason"])));
-  const dlq: DlqMessageView[] = (await get<Page<DlqMessageView>>("/api/dlq")).items;
+  const dlq: DlqMessageView[] = [];
+  for (let cursor: string | null = ""; cursor !== null; ) {
+    const page: Page<DlqMessageView> = await get(`/api/dlq${cursor ? `?cursor=${cursor}` : ""}`);
+    dlq.push(...page.items);
+    cursor = page.nextCursor;
+  }
   const approvalCount = async (status: string) => {
     let total = 0;
     for (let cursor: string | null = ""; cursor !== null; ) {
@@ -154,7 +159,31 @@ try {
   const verifyFailures = allEvents.filter((e) => e.action === "verify.failed");
   const detections = verifyFailures.filter((e) => noopSteps.has(`${e.runId}:${String(detail(e)["stepId"])}`));
   const recoveryActions = ["run.paused", "run.resumed", "run.cancelled", "task.retried", "task.skipped", "budget.raised", "task.lease_released", "dlq.replayed", "approval.decided"];
-  const sideEffects = await get<{ total: number; duplicateKeys: number; logicalDuplicates: number }>("/api/dev/people/side-effects");
+  const sideEffects = await get<{
+    total: number;
+    duplicateKeys: number;
+    logicalDuplicates: number;
+    domainInserts: { tickets: number; notifications: number; grants: number };
+  }>("/api/dev/people/side-effects");
+
+  // An independent duplicate check on the simulated domain tables, outside the integration's own ledger:
+  // every plan step that inserts a row (a ticket, a notification, a new grant) may insert it at most once, so
+  // the rows in each table must equal the distinct (run, step) pairs with an applied (ok or replayed) call of
+  // that tool in the console's tool-call history. A grant of a role the employee already holds inserts nothing.
+  const appliedSteps = (tool: string, inserts: (c: ToolCallView) => boolean = () => true) =>
+    new Set(calls.filter((c) => c.tool === tool && (c.outcome === "ok" || c.outcome === "replayed") && inserts(c)).map((c) => `${c.runId}:${c.stepId}`)).size;
+  const domainExpected = {
+    tickets: appliedSteps("itsm.create_ticket"),
+    notifications: appliedSteps("notify.send"),
+    grants: appliedSteps("access.grant_role", (c) => (c.result as { alreadyHeld?: unknown } | null)?.alreadyHeld !== true),
+  };
+  const domainKeys = ["tickets", "notifications", "grants"] as const;
+  const domainDuplicates = domainKeys.reduce((sum, k) => sum + Math.max(0, sideEffects.domainInserts[k] - domainExpected[k]), 0);
+  const domainMissing = domainKeys.reduce((sum, k) => sum + Math.max(0, domainExpected[k] - sideEffects.domainInserts[k]), 0);
+
+  // What the seeded dataset injects: fault directives and driver-scripted operator actions (SPEC section 12.2).
+  const injectedByModifier = count(dataset.runs.flatMap((r) => (r.modifier ? [r.modifier] : [])));
+  const transientTwice = dataset.runs.filter((r) => r.modifier === "transient_error" && (r.sim?.faults ?? []).length > 1).length;
 
   // 6. The 20 known-item queries: hits collapsed to one per run, in rank order.
   const searchLatencies: number[] = [];
@@ -188,6 +217,12 @@ try {
     side_effects_total: sideEffects.total,
     duplicate_side_effects: sideEffects.duplicateKeys,
     logical_duplicate_effects: sideEffects.logicalDuplicates,
+    domain_inserts: sideEffects.domainInserts,
+    domain_inserts_expected: domainExpected,
+    domain_duplicate_inserts: domainDuplicates,
+    domain_missing_inserts: domainMissing,
+    injected_by_modifier: injectedByModifier,
+    injected_transient_twice: transientTwice,
     task_retries: retried.length,
     runs_recovered_by_retry: [...runsWithRetry].filter((id) => statusOf(id) === "succeeded").length,
     lease_expiries: expiries.length,
@@ -225,7 +260,15 @@ try {
   };
   writeFileSync(OUTPUT, `${JSON.stringify(output, null, 2)}\n`);
   console.log(JSON.stringify(metrics, null, 2));
-  if (simRuns.length !== 100 || outcomeMatch !== 100 || metrics.duplicate_side_effects !== 0 || metrics.logical_duplicate_effects !== 0 || report.timedOut) {
+  if (
+    simRuns.length !== 100 ||
+    outcomeMatch !== 100 ||
+    metrics.duplicate_side_effects !== 0 ||
+    metrics.logical_duplicate_effects !== 0 ||
+    metrics.domain_duplicate_inserts !== 0 ||
+    metrics.domain_missing_inserts !== 0 ||
+    report.timedOut
+  ) {
     console.error(`eval:sim: measured outcomes differ from expected-by-construction (${mismatches.length} mismatches)`);
     exitCode = 1;
   }
