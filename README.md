@@ -169,7 +169,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `7467022`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `52d601a`.
 
 | Metric | Value |
 |---|---|
@@ -198,7 +198,7 @@ This distribution is fixed by the dataset design; outcome match is the measured 
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `7467022`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `52d601a`.
 
 | Metric | Value |
 |---|---|
@@ -216,7 +216,7 @@ Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving 
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-09 at commit `7467022`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `52d601a`.
 
 Tagged tests: 63 orchestration + 41 authorization = 104; passing: 104.
 
@@ -230,11 +230,11 @@ Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
 - Tool-call and audit-event totals can differ by a few between runs of the same code. Each planner shard caches the tool catalog, but planner tasks that reach a shard before its cache is filled each fetch it (`tools/list`, recorded as a tool call with its own audit event), and how many do depends on timing.
-- Local latencies move between runs of the same code. The results above are a re-measurement in a clean clone of `7467022` (whose measured paths equal `b4d4dd6`'s), taken on battery while another repository's workerd eval was running. Every count, outcome and planner quality metric matched the earlier measurement at `b4d4dd6` (recorded in commit `4133348`), including all 100 per-request planner results; only latencies moved (at `b4d4dd6`: planner latency p50 2663 ms and p95 7007 ms; simulation run duration p50 7293 ms and p95 10868 ms; search latency p95 4 ms).
+- Local latencies move between runs of the same code. The results above are a re-measurement in a clean clone of `52d601a` (whose measured paths equal `b7db936`'s), taken on battery while another repository's workerd eval was running. Every count, outcome and planner quality metric matched the earlier measurement at `b7db936` (recorded in commit `c499cfb`), including all 100 per-request planner results; only latencies moved (at `b7db936`: planner latency p50 2663 ms and p95 7007 ms; simulation run duration p50 7293 ms and p95 10868 ms; search latency p95 4 ms).
 - Every failure in the simulation is injected by dev-only fault directives at fixed counts from the seeded dataset (the "Injected" row), and every approval decision and recovery command is issued by the simulation driver acting as an operator. The retry, lease-expiry, refusal, budget, verifier and recovery rows measure how the system responds to those injected faults; none of them is an organic failure.
 - The two duplicate side-effect rows come from the integration's own ledger table (`side_effects`), whose insert carries the same guard as the effects. The domain-table row is the independent check: the rows in the simulated tickets, notifications and grants tables, compared with the distinct (run, step) pairs that have an applied call of that tool in the console's tool-call history. In-place updates (addresses, managers, statuses, revocations) are idempotent by nature, so a duplicate of one would not show up in state.
 - Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. Both paths are covered by tests (`idempotency.test.ts` "the idempotency key is stable across attempts and changes with generation ...", and in `retries.test.ts` "the DLQ consumer ... dead-letters a task only for its current dispatchId ..." and "DLQ replay redispatches ...").
-- A valid plan passes the schema, the request type's allowlist, subject pinning, the gating rules, the request type's required writes and the rule that `access.revoke_all_roles` needs the gated termination step. "Valid with every write of the gold plan" also requires the notification and every other write the gold plan has. The required-writes rule is new: before it (results measured at `8f04166`), 84/100 plans were valid but 66 of those were a single read step that would have reached `succeeded` without doing the work. The planner prompt now also names the required writes, so the jump in quality since then comes from both the rule (with its repair message) and the prompt.
+- A valid plan passes the schema, the request type's allowlist, subject pinning, the gating rules, the request type's required writes and the rule that `access.revoke_all_roles` needs the gated termination step. "Valid with every write of the gold plan" also requires the notification and every other write the gold plan has. The required-writes rule is new: before it (results measured at `cf21c23`), 84/100 plans were valid but 66 of those were a single read step that would have reached `succeeded` without doing the work. The planner prompt now also names the required writes, so the jump in quality since then comes from both the rule (with its repair message) and the prompt.
 - The output schema enumerates the request type's allowed tools and llama-server enforces it, so the unknown-tool rate and off-allowlist rejections are 0 by construction. Only off-subject arguments and ungated revokes can be rejected as policy violations here, and the dataset contains no injected requests; `plan-guard.test.ts` covers injection.
 - Planner argument accuracy is computed only over gold steps the model got right by tool and position. Read it together with exact match and tool-set F1, which show how far the plans are from the gold sequences.
 - Planning quality of the production model (Workers AI) is not measured.
