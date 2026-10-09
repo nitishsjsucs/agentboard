@@ -14,6 +14,8 @@ Stretch items from SPEC section 1.1, built after v0.4.0:
 - Dark-mode design tokens that follow `prefers-color-scheme`.
 - A dev-only external `/mcp` route for MCP Inspector (`MCP_EXTERNAL=on`, loopback hosts only) and `npm run dev:token -- --integration` for read-only, call-bound inspector tokens.
 - Simulation, planner and test results measured again on the commit that contains all of the above.
+- CI prints the worker bundle size after the build.
+- Every measurement taken again in a separate session to check that it reproduces: every outcome, recovery and audit-chain count and every planner quality metric matched; only local latencies and the timing-dependent tool-catalog reads (2 more tool calls and 2 more audit events) moved.
 
 ## v0.4.0: Evaluation and release
 
