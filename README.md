@@ -110,7 +110,7 @@ The rules that make it safe under at-least-once delivery:
 
 ## Local setup
 
-Requires Node 24 (Node 25.9 also verified) and no Cloudflare login.
+Requires Node 24 or newer and no Cloudflare login. `.nvmrc` pins Node 24 for CI, which has not run yet (nothing is pushed); every local run in this repository, including the measurements below, used Node 25.9.
 
 1. `nvm use && npm ci`
 2. `npm run dev:keys` writes `.dev.vars` with a local RS256 dev keypair and an integration signing key (gitignored).
@@ -154,7 +154,7 @@ The top-level configuration is the local one and has `workers_dev: false`, so an
 - `npm test` runs five projects: `worker` (workerd), `worker-ws` (WebSockets, isolation off as the Cloudflare known-issues page requires), `worker-access` (production Access verification against an intercepted JWKS), `web` (React components in happy-dom) and `node` (script math and launchers).
 - `npm run test:sim` drives all 100 synthetic requests through the real API, queue, coordinator, agents and MCP tools in workerd, with the same driver as `eval:sim`.
 - Exactly 100 tests are tagged `orchestration` or `authz` (SPEC section 13.1). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 16 React component tests, eval math, launchers and the toolchain gate) carry their own tags and are not part of the 100.
-- `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`. `preview.yml` and `release.yml` are described under Deploy and Releases.
+- `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`, then prints the worker bundle size. It has not run on GitHub yet. `preview.yml` and `release.yml` are described under Deploy and Releases.
 
 ## Releases
 
