@@ -169,7 +169,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `52d601a`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-09 at commit `b3f5ed8`.
 
 | Metric | Value |
 |---|---|
@@ -180,7 +180,7 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Duplicate side effects (per idempotency key) | 0 |
 | Logical duplicate side effects (per run and step) | 0 |
 | Duplicate; missing rows in the simulated domain tables (tickets, notifications, new grants) against applied steps | 0; 0 |
-| Tool calls | 575 (ok 544, permanent_error 4, replayed 6, retryable_error 21) |
+| Tool calls | 573 (ok 542, permanent_error 4, replayed 6, retryable_error 21) |
 | Ledger replays (of which logical) | 6 (0) |
 | Task retries; runs recovered by retry | 21; 18 |
 | Lease expiries; recovered | 6; 6 |
@@ -189,16 +189,16 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Budget exhaustions; recoveries | 3; 3 |
 | Silent no-ops detected by the verifier; false positives | 4/4; 0 |
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
-| Audit events; runs with a valid hash chain | 3230; 100/100 |
+| Audit events; runs with a valid hash chain | 3228; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7277 ms; 10917 ms |
-| Search latency p50; p95 (local) | 2 ms; 3 ms |
+| Run duration p50; p95 (local wall clock) | 9021 ms; 15324 ms |
+| Search latency p50; p95 (local) | 8 ms; 13 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `52d601a`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-09 at commit `b3f5ed8`.
 
 | Metric | Value |
 |---|---|
@@ -211,14 +211,14 @@ Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving 
 | Tool-set F1 (macro) | 0.932 |
 | Argument accuracy (gold fields of matched steps) | 0.982 |
 | Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
-| Latency p50; p95 | 3123 ms; 8961 ms |
+| Latency p50; p95 | 7957 ms; 21630 ms |
 | Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-09 at commit `52d601a`.
+Command: `npm run count:tests`. Measured 2026-10-09 at commit `b3f5ed8`.
 
-Tagged tests: 63 orchestration + 41 authorization = 104; passing: 104.
+Tagged tests: 64 orchestration + 42 authorization = 106; passing: 106.
 
 ### Production
 
@@ -229,8 +229,8 @@ Not measured. Nothing has been deployed; every number above comes from local run
 Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
-- Tool-call and audit-event totals can differ by a few between runs of the same code. Each planner shard caches the tool catalog, but planner tasks that reach a shard before its cache is filled each fetch it (`tools/list`, recorded as a tool call with its own audit event), and how many do depends on timing.
-- Local latencies move between runs of the same code. The results above are a re-measurement in a clean clone of `52d601a` (whose measured paths equal `b7db936`'s), taken on battery while another repository's workerd eval was running. Every count, outcome and planner quality metric matched the earlier measurement at `b7db936` (recorded in commit `c499cfb`), including all 100 per-request planner results; only latencies moved (at `b7db936`: planner latency p50 2663 ms and p95 7007 ms; simulation run duration p50 7293 ms and p95 10868 ms; search latency p95 4 ms).
+- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events now come from that change alone.
+- Local latencies move between runs of the same code and with the load on the machine. The results above were measured at `b3f5ed8` on a laptop that was charging from a nearly empty battery while three other repositories' workerd processes were running. Every count, outcome and planner quality metric matched the previous measurement at `52d601a` (recorded in commit `f3da1c3`), including all 100 per-request planner results, except the 2 catalog reads described above; only latencies moved (at `52d601a`: planner latency p50 3123 ms and p95 8961 ms; simulation run duration p50 7277 ms and p95 10917 ms; search latency p95 3 ms). That measurement had in turn matched the one at `b7db936` (commit `c499cfb`) in every count.
 - Every failure in the simulation is injected by dev-only fault directives at fixed counts from the seeded dataset (the "Injected" row), and every approval decision and recovery command is issued by the simulation driver acting as an operator. The retry, lease-expiry, refusal, budget, verifier and recovery rows measure how the system responds to those injected faults; none of them is an organic failure.
 - The two duplicate side-effect rows come from the integration's own ledger table (`side_effects`), whose insert carries the same guard as the effects. The domain-table row is the independent check: the rows in the simulated tickets, notifications and grants tables, compared with the distinct (run, step) pairs that have an applied call of that tool in the console's tool-call history. In-place updates (addresses, managers, statuses, revocations) are idempotent by nature, so a duplicate of one would not show up in state.
 - Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. Both paths are covered by tests (`idempotency.test.ts` "the idempotency key is stable across attempts and changes with generation ...", and in `retries.test.ts` "the DLQ consumer ... dead-letters a task only for its current dispatchId ..." and "DLQ replay redispatches ...").
