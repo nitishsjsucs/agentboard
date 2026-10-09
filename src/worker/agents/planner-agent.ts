@@ -86,7 +86,9 @@ export class PlannerAgent extends RoleAgent {
     const cached = this.sql<{ fetched_at: number; tools_json: string }>`SELECT fetched_at, tools_json FROM ab_catalog_cache ORDER BY fetched_at DESC LIMIT 1`[0];
     if (cached && Date.now() - cached.fetched_at < CATALOG_TTL_MS) return JSON.parse(cached.tools_json) as CatalogEntry[];
     const started = Date.now();
-    const tools = await withPeopleOps(this.env, this.config(), token, async (client: Client) => (await client.listTools()).tools);
+    // Bounded like every other MCP call, so the planner's lease covers the catalog read (SPEC section 5.2).
+    const timeoutMs = this.config().toolTimeoutMs;
+    const tools = await withPeopleOps(this.env, this.config(), token, async (client: Client) => (await client.listTools(undefined, { signal: AbortSignal.timeout(timeoutMs), timeout: timeoutMs })).tools);
     const catalog: CatalogEntry[] = tools.map((tool) => ({
       name: tool.name,
       description: tool.description ?? "",

@@ -82,11 +82,32 @@ describe("LLM providers", { tags: ["llm"] }, () => {
     expect(texts).toEqual(['{"steps":["a"]}', '{"steps":["b"]}', '{"steps":["c"]}', '{"steps":["d"]}']);
     expect(calls[0]?.model).toBe("@cf/qwen/qwen3-30b-a3b-fp8");
     expect(calls[0]?.inputs).toMatchObject({ response_format: { type: "json_schema", json_schema: REQUEST.jsonSchema.schema }, temperature: 0, max_tokens: 800, seed: 7 });
-    expect(calls[0]?.options).toEqual({ gateway: { id: "agentboard", metadata: { runId: "run_x" } } });
+    expect(calls[0]?.options).toEqual({ gateway: { id: "agentboard", metadata: { runId: "run_x" } }, signal: expect.any(AbortSignal) });
     const withoutGateway = new WorkersAiProvider({ run: async (_m, _i, options) => (calls.push({ model: "x", inputs: {}, options }), "{}") }, "m", "");
     await withoutGateway.generate(REQUEST);
-    expect(calls.at(-1)?.options).toBeUndefined();
+    expect(calls.at(-1)?.options).toEqual({ signal: expect.any(AbortSignal) });
     await expect(new WorkersAiProvider({ run: async () => ({ nothing: true }) }, "m", "").generate(REQUEST)).rejects.toThrow(/unrecognized output/);
+  });
+
+  it("bounds a Workers AI call by the request timeout even when the binding never answers, and aborts the signal it passed", async () => {
+    let passed: AbortSignal | undefined;
+    const hanging: AiRunner = {
+      run: (_model, _inputs, options) => {
+        passed = options?.signal;
+        return new Promise(() => undefined);
+      },
+    };
+    const started = Date.now();
+    await expect(new WorkersAiProvider(hanging, "m", "agentboard").generate({ ...REQUEST, timeoutMs: 150 })).rejects.toThrow(/no response within 150 ms/);
+    const elapsed = Date.now() - started;
+    expect(elapsed).toBeGreaterThanOrEqual(140);
+    expect(elapsed).toBeLessThan(1500);
+    expect(passed?.aborted).toBe(true);
+    // The caller's signal bounds it too.
+    const caller = new AbortController();
+    const pending = new WorkersAiProvider(hanging, "m", "").generate({ ...REQUEST, timeoutMs: 60_000 }, caller.signal);
+    caller.abort(new Error("lease lost"));
+    await expect(pending).rejects.toThrow(/lease lost/);
   });
 
   it("the stub is deterministic and throws StubMiss for an unknown prompt; the scripted provider returns its queue in order", async () => {
