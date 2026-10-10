@@ -1,9 +1,14 @@
 # Per-PR deployments to the shared `preview` environment (SPEC sections 17 and 18).
 #
-# Gated on repository secrets: without CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
-# (and on pull requests from forks, which never receive secrets) the deploy job is
-# skipped and the workflow still passes. The preview resources are created once by
-# hand (README, deploy step 10); this workflow only migrates and deploys.
+# Gated on the repository variable PREVIEW_DEPLOYS=on (not on a secret): without it,
+# and on pull requests from forks, the deploy job is skipped and the workflow still
+# passes. The deploy job runs in the GitHub environment `preview`, which holds the
+# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets and should require a reviewer,
+# so a pull request's code runs with the token only after someone approved the job.
+# Even then the token reaches only the two steps that call Cloudflare (migrations and
+# deploy), never `npm ci` (dependency install scripts), the typecheck or the build.
+# The preview resources are created once by hand (README, deploy step 10); this
+# workflow only migrates and deploys.
 #
 # Cloudflare does not generate preview URLs for Workers that implement Durable
 # Objects, so every pull request deploys to the one `agentboard-preview` Worker,
@@ -29,26 +34,25 @@ jobs:
     steps:
       - id: check
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_DEPLOYS: ${{ vars.PREVIEW_DEPLOYS }}
+          # Empty for workflow_dispatch; for a pull request, the repository its head branch lives in.
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+          if [ "$PREVIEW_DEPLOYS" = "on" ] && { [ -z "$HEAD_REPO" ] || [ "$HEAD_REPO" = "$GITHUB_REPOSITORY" ]; }; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Preview deploy skipped: the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets are not available to this run." >> "$GITHUB_STEP_SUMMARY"
+            echo "Preview deploy skipped: the repository variable PREVIEW_DEPLOYS is not 'on', or the pull request comes from a fork." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   deploy:
     needs: gate
     if: needs.gate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    # The `preview` environment holds the Cloudflare secrets; give it required reviewers.
     environment:
       name: preview
       url: ${{ steps.deploy.outputs.url }}
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -60,6 +64,9 @@ jobs:
       # Migrations run before the new code is deployed. `--config wrangler.jsonc`
       # keeps wrangler on the source config and its `preview` environment.
       - name: Apply D1 migrations to the preview databases
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx wrangler d1 migrations apply agentboard-preview --remote --env preview --config wrangler.jsonc
           npx wrangler d1 migrations apply agentboard-people-preview --remote --env preview --config wrangler.jsonc
@@ -85,6 +92,9 @@ jobs:
           EOF
       - name: Deploy
         id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx wrangler deploy 2>&1 | tee deploy.log
           url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log | head -n 1 || true)"

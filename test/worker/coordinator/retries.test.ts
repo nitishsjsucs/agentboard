@@ -12,7 +12,7 @@ import { claimMessage, completePlan, coordinator, events, granted, planFor, read
 import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { apiGet, apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
-import type { DlqMessageView, Page } from "../../../src/shared/api-types.ts";
+import type { DlqMessageView, MetricsSummary, Page } from "../../../src/shared/api-types.ts";
 
 describe("retry handling", { tags: ["orchestration"] }, () => {
   it("a retryable failure redispatches with delaySeconds from the capped exponential schedule; a non-retryable failure moves the run to needs_attention without redispatch", async () => {
@@ -134,7 +134,7 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect(redispatch?.message).toMatchObject({ taskId: plan.message.taskId, attempt: 2 });
   });
 
-  it("the DLQ consumer (queue name from DLQ_QUEUE_NAME) dead-letters a task only for its current dispatchId; a superseded dispatch is recorded as ignored_stale", async () => {
+  it("the DLQ consumer (queue name from DLQ_QUEUE_NAME) dead-letters a task only for its current dispatchId, also when the same transaction's sweep reaped its lease; a redelivered DLQ message changes nothing; a superseded dispatch is recorded as ignored_stale", async () => {
     const config = testConfig();
     expect(config.dlqQueueName).toBe("agentboard-tasks-dlq");
     // Current dispatch: recorded and dead-lettered.
@@ -155,6 +155,41 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     const state = await readState(live.stub);
     expect(state.tasks.get(s1.message.taskId)?.status).toBe("dead_lettered");
     expect(state.run.status).toBe("needs_attention");
+
+    // At-least-once delivery: the same DLQ message again (or the consumer retrying after the coordinator
+    // had committed) keeps the row dead_lettered, writes no ignored event, and the message stays replayable.
+    const again = createMessageBatch(config.dlqQueueName, [current]);
+    const ctxAgain = createExecutionContext();
+    await worker.queue(again, env);
+    expect((await getQueueResult(again, ctxAgain)).explicitAcks).toEqual([current.id]);
+    expect(await env.DB.prepare("SELECT outcome FROM dlq_messages WHERE id = ?").bind(current.id).first()).toEqual({ outcome: "dead_lettered" });
+    expect((await readState(live.stub)).tasks.get(s1.message.taskId)?.status).toBe("dead_lettered");
+    expect((await events(live.stub)).filter((e) => e.action === "task.dead_lettered" || e.action === "task.dead_letter_ignored").map((e) => e.action)).toEqual([
+      "task.dead_lettered",
+    ]);
+    expect((await apiPost(P.admin, `/api/dlq/${current.id}/replay`, { reason: "redelivered dead letter" })).status).toBe(200);
+
+    // A lease whose expiry nobody has observed yet: the DLQ transaction's own sweep reaps it and queues a
+    // redispatch, and the dead-letter for the reaped dispatch still applies and supersedes that redispatch.
+    const reaped = await startManualRun();
+    await completePlan(reaped.stub, planFor("address_change"));
+    const [leased] = await takeDispatches(reaped.stub);
+    if (!leased) throw new Error("no s1");
+    granted(await claimMessage(reaped.stub, leased.message));
+    await setCoordinatorClock(reaped.stub, 3500);
+    const reapedMessage = batchMessage(leased.message, 6);
+    const reapedBatch = createMessageBatch(config.dlqQueueName, [reapedMessage]);
+    const ctxReaped = createExecutionContext();
+    await worker.queue(reapedBatch, env);
+    expect((await getQueueResult(reapedBatch, ctxReaped)).explicitAcks).toEqual([reapedMessage.id]);
+    expect(await env.DB.prepare("SELECT outcome FROM dlq_messages WHERE id = ?").bind(reapedMessage.id).first()).toEqual({ outcome: "dead_lettered" });
+    const reapedTask = (await readState(reaped.stub)).tasks.get(leased.message.taskId);
+    expect([reapedTask?.status, reapedTask?.dispatchId]).toEqual(["dead_lettered", leased.message.dispatchId]);
+    expect((await events(reaped.stub)).map((e) => e.action).filter((a) => a === "task.lease_expired" || a.startsWith("task.dead_letter"))).toEqual([
+      "task.lease_expired",
+      "task.dead_lettered",
+    ]);
+    expect(await takeDispatches(reaped.stub)).toEqual([]);
 
     // Superseded dispatch (the lease expired and the task was redispatched): ignored, task untouched.
     const stale = await startManualRun();
@@ -177,7 +212,7 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect((await events(stale.stub)).some((e) => e.action === "task.dead_letter_ignored")).toBe(true);
   });
 
-  it("DLQ replay redispatches with a new dispatchId and audits the actor", async () => {
+  it("DLQ replay redispatches with a new dispatchId and audits the actor; a dead letter whose task was recovered otherwise is no longer open and its replay is refused", async () => {
     const config = testConfig();
     const { stub, runId } = await startManualRun();
     await completePlan(stub, planFor("address_change"));
@@ -206,6 +241,28 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     expect(globalAudit?.actor_id).toBe(P.admin);
     expect(await env.DB.prepare("SELECT replayed_by FROM dlq_messages WHERE id = ?").bind(message.id).first()).toEqual({ replayed_by: P.admin });
     expect((await apiPost(P.admin, `/api/dlq/${message.id}/replay`, { reason: "again" })).status).toBe(409);
+
+    // An operator recovers a dead-lettered task with retry_task instead of a replay: the DLQ row is no
+    // longer open (dashboard count and list), and a late replay is refused rather than silently ignored.
+    const other = await startManualRun();
+    await completePlan(other.stub, planFor("address_change"));
+    const [o1] = await takeDispatches(other.stub);
+    if (!o1) throw new Error("no s1");
+    const otherMessage = batchMessage(o1.message, 6);
+    const otherBatch = createMessageBatch(config.dlqQueueName, [otherMessage]);
+    await worker.queue(otherBatch, env);
+    await getQueueResult(otherBatch, createExecutionContext());
+    const openCount = async () => (await json<MetricsSummary>(await apiGet(P.operator, "/api/metrics/summary"))).dlqOpen;
+    const listedRow = async () => (await json<Page<DlqMessageView>>(await apiGet(P.operator, "/api/dlq"))).items.find((m) => m.id === otherMessage.id);
+    const openBefore = await openCount();
+    expect(await listedRow()).toMatchObject({ outcome: "dead_lettered", taskStatus: "dead_lettered", open: true });
+    const retried = await apiPost(P.operator, `/api/runs/${other.runId}/tasks/${o1.message.taskId}/retry`, { reason: "fixed upstream" });
+    expect(retried.status).toBe(200);
+    expect(await openCount()).toBe(openBefore - 1);
+    expect(await listedRow()).toMatchObject({ outcome: "dead_lettered", replayedAt: null, taskStatus: "ready", open: false });
+    const late = await apiPost(P.admin, `/api/dlq/${otherMessage.id}/replay`, { reason: "late replay" });
+    expect(late.status).toBe(409);
+    expect(await late.json()).toMatchObject({ accepted: false, reason: "invalid_state" });
   });
 
   it("a schema-invalid (poison) message is acked and audited, not retried", async () => {

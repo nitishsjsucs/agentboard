@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import type { Config } from "../config.ts";
 import { csrfGuard } from "./middleware/csrf.ts";
 import { apiError } from "./middleware/errors.ts";
@@ -17,6 +18,16 @@ import type { AppEnv } from "./types.ts";
 /** Builds the Hono API for one validated config. */
 export function buildApp(config: Config): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+  // Every /api response (errors included) forbids framing, sniffing and referrers, like the static
+  // assets' public/_headers: JSON is never a document, and the console must never be framed.
+  app.use(
+    "*",
+    secureHeaders({
+      xFrameOptions: "DENY",
+      referrerPolicy: "no-referrer",
+      contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+    }),
+  );
   app.use("*", async (c, next) => {
     c.set("config", config);
     c.set("requestId", c.req.header("cf-ray") ?? crypto.randomUUID());

@@ -7,6 +7,8 @@ import { failure, success } from "../../../src/worker/mcp/results.ts";
 import { datasetRun, inputFromDataset, journal, runExecutor, runPlanner } from "../../helpers/agents.ts";
 import { createExecutionContext, createMessageBatch, getQueueResult } from "cloudflare:test";
 import { handleQueueBatch } from "../../../src/worker/queue/consumer.ts";
+import { shardName } from "../../../src/worker/queue/sharding.ts";
+import { setCoordinatorClock } from "../../helpers/clock.ts";
 import { apiGet, apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
 import { batchMessage, testConfig } from "../../helpers/queue.ts";
@@ -178,6 +180,39 @@ describe("ExecutorAgent", { tags: ["orchestration"] }, () => {
     expect(call?.duration_ms).toBeGreaterThanOrEqual(1000);
     // Reported on the live lease: the task is ready again, not reaped.
     expect((await events(stub)).some((e) => e.action === "task.lease_expired")).toBe(false);
+  });
+
+  it("journal fast path: a lease-expiry redispatch that reaches the shard which already completed the call reports the journaled result without calling the tool again", async () => {
+    const { stub, runId } = await plannedRun({ faults: [{ stepId: "s2", generation: 0, attempt: 1, kind: "crash_after_call" }] });
+    const [s1] = await takeDispatches(stub);
+    if (!s1) throw new Error("no s1");
+    await runExecutor(s1.message, "executor-0");
+    const [s2] = await takeDispatches(stub);
+    if (!s2) throw new Error("no s2");
+    const taskId = s2.message.taskId;
+    // The write is applied and traced, then nothing is reported (simulated crash); the lease expires.
+    await runExecutor(s2.message, "executor-0");
+    expect((await readState(stub)).tasks.get(taskId)?.status).toBe("leased");
+    await setCoordinatorClock(stub, 3500);
+    await stub.getSnapshot();
+    const usageBefore = (await readState(stub)).run.usage;
+    const [redispatch] = await takeDispatches(stub);
+    if (!redispatch) throw new Error("no redispatch");
+    expect(redispatch.message).toMatchObject({ taskId, attempt: 2 });
+    // With AGENT_SHARDS=2 the shard hash always sends attempt 2 to the other shard and attempt 3 back
+    // to attempt 1's (sharding.ts), so the consumer would take the ledger path here; deliver to executor-0.
+    expect(shardName("executor", runId, taskId, 2, 2)).not.toBe(shardName("executor", runId, taskId, 1, 2));
+    expect(shardName("executor", runId, taskId, 3, 2)).toBe(shardName("executor", runId, taskId, 1, 2));
+    expect(await runExecutor(redispatch.message, "executor-0")).toEqual({ kind: "ack" });
+    const state = await readState(stub);
+    expect(state.tasks.get(taskId)?.status).toBe("succeeded");
+    // One MCP call in total: no second trace, no ledger replay, no extra tool-call usage, one effect.
+    const calls = await env.DB.prepare("SELECT outcome, agent, attempt FROM tool_calls WHERE run_id = ? AND task_id = ?").bind(runId, taskId).all<{ outcome: string; agent: string; attempt: number }>();
+    expect(calls.results).toEqual([{ outcome: "ok", agent: "executor-0", attempt: 1 }]);
+    expect([state.run.usage.toolCalls, state.run.usage.replays]).toEqual([usageBefore.toolCalls, 0]);
+    expect(state.run.usage.toolCallsReserved).toBe(0);
+    expect(await env.PEOPLE_DB.prepare("SELECT COUNT(*) AS n FROM side_effects WHERE correlation_id = ?").bind(`${runId}:s2`).first()).toEqual({ n: 1 });
+    expect((await journal("executor-0")).find((j) => j.task_id === taskId)?.state).toBe("succeeded");
   });
 });
 
