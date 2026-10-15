@@ -47,6 +47,61 @@ type Sim = {
 };
 type Planner = { metrics: Record<string, number | null>; meta: Meta & { label: string; gguf: string; quant: string; server_flags: string; llama_cpp_build: string } };
 type Tests = { orchestration: number; authz: number; total: number; passing: number };
+type Production = {
+  meta: Meta & { url: string; deployedVersion: string; model: string };
+  metrics: {
+    runs_total: number;
+    outcome_match: number;
+    runs_by_status: Record<string, number>;
+    runs_cancelled_by_verify: number;
+    audit_chains_valid: number;
+    side_effects: { rows: number; duplicateKeys: number; logicalDuplicates: number } | { error: string };
+    tool_calls_total: number;
+    llm_tokens_total: number;
+    neurons_estimate: { low: number; high: number };
+    access_unauthenticated: string;
+    http_5xx: number;
+    invocations_hitting_a_limit: number | null;
+    invocations_by_kind: Record<string, { invocations: number; cpu_ms_p50: number | null; cpu_ms_max: number | null }> | null;
+    run_duration_ms_p50: number;
+    run_duration_ms_p95: number;
+  };
+};
+
+/** The Production section: `npm run cf:verify` against the deployed Worker (eval/results/production.json). */
+function renderProduction(data: Production | null, metas: { name: string; meta: Meta }[]): string[] {
+  if (!data) return ["### Production", "", "Not measured. Nothing has been deployed; every number above comes from local runs."];
+  metas.push({ name: "production.json", meta: data.meta });
+  const m = data.metrics;
+  const effects = "error" in m.side_effects ? `not read (${m.side_effects.error})` : `${m.side_effects.duplicateKeys}; ${m.side_effects.logicalDuplicates} (${m.side_effects.rows} ledger rows)`;
+  const cpu = (kind: string) => {
+    const k = m.invocations_by_kind?.[kind];
+    if (!k) return "not observed";
+    return k.cpu_ms_max === null ? `${k.invocations} invocations; CPU not reported by wrangler tail` : `${k.invocations} invocations; p50 ${k.cpu_ms_p50} ms, max ${k.cpu_ms_max} ms`;
+  };
+  return [
+    "### Production (Workers Free plan)",
+    "",
+    `Command: \`npm run cf:verify -- --env production\` against ${data.meta.url} through Cloudflare Access with two service tokens; every run planned by Workers AI (\`${data.meta.model}\`). Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`, deployed version \`${data.meta.deployedVersion}\`.`,
+    "",
+    "| Metric | Value |",
+    "|---|---|",
+    `| Runs | ${m.runs_total} |`,
+    `| Outcome distribution | ${Object.entries(m.runs_by_status).sort().map(([k, v]) => `${k} ${v}`).join(", ")} |`,
+    `| Outcome match (measured status equals the dataset's expected status) | ${m.outcome_match}/${m.runs_total} |`,
+    `| Runs the verifier cancelled (needs attention or timed out) | ${m.runs_cancelled_by_verify} |`,
+    `| Runs with a valid audit hash chain | ${m.audit_chains_valid}/${m.runs_total} |`,
+    `| Duplicate side effects per idempotency key; per run and step | ${effects} |`,
+    `| Tool calls | ${m.tool_calls_total} |`,
+    `| Planner tokens; Workers AI neurons (bounds) | ${m.llm_tokens_total}; ${m.neurons_estimate.low} to ${m.neurons_estimate.high} |`,
+    `| Unauthenticated request | ${m.access_unauthenticated} |`,
+    `| HTTP 5xx responses | ${m.http_5xx} |`,
+    `| Invocations that exceeded a CPU or memory limit (wrangler tail) | ${m.invocations_hitting_a_limit ?? "not measured"} |`,
+    `| Worker fetch invocations (Free plan limit: 10 ms CPU) | ${cpu("worker fetch")} |`,
+    `| Worker queue invocations | ${cpu("worker queue")} |`,
+    `| Run duration p50; p95 (production wall clock) | ${ms(m.run_duration_ms_p50)}; ${ms(m.run_duration_ms_p95)} |`,
+  ];
+}
 
 export function render(): { block: string; metas: { name: string; meta: Meta }[] } {
   const sim = load<Sim>("simulation.json");
@@ -141,7 +196,7 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
   } else {
     lines.push("", "Not measured yet.");
   }
-  lines.push("", "### Production", "", "Not measured. Nothing has been deployed; every number above comes from local runs.", "", END);
+  lines.push("", ...renderProduction(load<Production>("production.json"), metas), "", END);
   return { block: lines.join("\n"), metas };
 }
 
