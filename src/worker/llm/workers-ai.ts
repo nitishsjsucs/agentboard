@@ -36,12 +36,27 @@ function untilAborted<T>(work: Promise<T>, signal: AbortSignal, timeoutMs: numbe
   });
 }
 
+/**
+ * Qwen3 models think before answering, and on Workers AI the thinking counts against max_tokens. In production
+ * (2026-10-15) @cf/qwen/qwen3-30b-a3b-fp8 spent all 800 planner tokens on reasoning, finished with
+ * finish_reason "length" and returned content null, so 2 of 4 verification runs failed. Qwen3's documented soft
+ * switch "/no_think" at the end of the user turn turns thinking off (checked against the REST API the same day:
+ * finish_reason "stop", valid JSON, about 310 tokens); chat_template_kwargs.enable_thinking=false did not.
+ */
+export function userTurnFor(model: string, user: string): string {
+  return /qwen3/i.test(model) ? `${user}\n/no_think` : user;
+}
+
 /** Normalizes the Workers AI output union (choices[0].message.content, response, or a string) to text. */
 export function workersAiText(output: unknown): string {
   if (typeof output === "string") return output;
   if (output && typeof output === "object") {
-    const record = output as { choices?: { message?: { content?: unknown } }[]; response?: unknown };
+    const record = output as { choices?: { message?: { content?: unknown }; finish_reason?: unknown }[]; response?: unknown };
     const content = record.choices?.[0]?.message?.content;
+    if (typeof content === "string" && content.trim() !== "") return content;
+    if (record.choices?.[0]?.finish_reason === "length") {
+      throw new Error("workers-ai provider: the model used its whole output budget before answering (finish_reason length, no content)");
+    }
     if (typeof content === "string") return content;
     if (typeof record.response === "string") return record.response;
     if (record.response && typeof record.response === "object") return JSON.stringify(record.response);
@@ -71,7 +86,7 @@ export class WorkersAiProvider implements LlmProvider {
         {
           messages: [
             { role: "system", content: req.system },
-            { role: "user", content: req.user },
+            { role: "user", content: userTurnFor(this.model, req.user) },
           ],
           response_format: { type: "json_schema", json_schema: req.jsonSchema.schema },
           temperature: req.temperature,

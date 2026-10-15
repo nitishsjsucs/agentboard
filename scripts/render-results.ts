@@ -1,13 +1,18 @@
 // npm run results:render: rewrites the README block between
 // <!-- RESULTS:START --> and <!-- RESULTS:END --> from eval/results/*.json.
 // npm run results:check (CI): fails if the README block differs from what the
-// JSON renders, if any result is dirty, or if measured code changed after the
-// measurement (git diff <gitSha> HEAD over the measured paths).
+// JSON renders, if any result is dirty, if HEAD's measured paths differ from
+// the content the result was measured on, if the measured commit is not in the
+// history being checked, or if a measured file cites a commit id (see
+// lib/provenance.ts: the check does not depend on any particular commit id, so
+// it passes on the published history, whose commit ids all differ). For
+// production.json (npm run cf:verify), code changed since the measurement is a
+// note, not a failure: measuring it again needs a deploy.
 
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { MEASURED_PATHS, ROOT } from "./lib/meta.ts";
+import { checkProvenance, commitCitations, gitIn } from "./lib/provenance.ts";
 
 const START = "<!-- RESULTS:START -->";
 const END = "<!-- RESULTS:END -->";
@@ -16,6 +21,8 @@ const README = join(ROOT, "README.md");
 interface Meta {
   gitSha: string;
   dirty: boolean;
+  commitDate?: string;
+  measuredTree?: string;
   generatedAt: string;
   node: string;
   wrangler: string;
@@ -42,6 +49,76 @@ type Sim = {
 };
 type Planner = { metrics: Record<string, number | null>; meta: Meta & { label: string; gguf: string; quant: string; server_flags: string; llama_cpp_build: string } };
 type Tests = { orchestration: number; authz: number; total: number; passing: number };
+type Production = {
+  meta: Meta & { url: string; deployedVersion: string; model: string };
+  metrics: {
+    runs_total: number;
+    outcome_match: number;
+    runs_by_status: Record<string, number>;
+    runs_cancelled_by_verify: number;
+    audit_chains_valid: number;
+    side_effects: { rows: number; duplicateKeys: number; logicalDuplicates: number } | { error: string };
+    tool_calls_total: number;
+    llm_tokens_total: number;
+    neurons_estimate: { low: number; high: number };
+    access_unauthenticated: string;
+    http_5xx: number;
+    invocations_hitting_a_limit: number | null;
+    invocations_by_kind: Record<string, { invocations: number; cpu_ms_p50: number | null; cpu_ms_max: number | null }> | null;
+    analytics?: unknown;
+    run_duration_ms_p50: number;
+    run_duration_ms_p95: number;
+  };
+};
+
+/** The Production section: `npm run cf:verify` against the deployed Worker (eval/results/production.json). */
+function renderProduction(data: Production | null, metas: { name: string; meta: Meta }[]): string[] {
+  if (!data) return ["### Production", "", "Not measured. Nothing has been deployed; every number above comes from local runs."];
+  metas.push({ name: "production.json", meta: data.meta });
+  const m = data.metrics;
+  const effects = "error" in m.side_effects ? `not read (${m.side_effects.error})` : `${m.side_effects.duplicateKeys}; ${m.side_effects.logicalDuplicates} (${m.side_effects.rows} ledger rows)`;
+  const cpu = (kind: string) => {
+    const k = m.invocations_by_kind?.[kind];
+    if (!k) return "not observed";
+    return k.cpu_ms_max === null ? `${k.invocations} invocations; CPU not reported by wrangler tail` : `${k.invocations} invocations; p50 ${k.cpu_ms_p50} ms, max ${k.cpu_ms_max} ms`;
+  };
+  // An empty tail summary means wrangler tail delivered no events: a zero there would not be a measurement.
+  const tailObserved = m.invocations_by_kind !== null && Object.keys(m.invocations_by_kind).length > 0 && m.invocations_hitting_a_limit !== null;
+  // The Analytics API's Worker window (raw GraphQL; cpuTime quantiles are microseconds per the schema).
+  const analyticsCpu = (() => {
+    const groups = (m.analytics as { workerWindow?: { viewer?: { accounts?: { workersInvocationsAdaptive?: { sum: { requests: number }; quantiles: { cpuTimeP50: number; cpuTimeP99: number }; dimensions: { status: string } }[] }[] } } } | undefined)
+      ?.workerWindow?.viewer?.accounts?.[0]?.workersInvocationsAdaptive;
+    if (!groups || groups.length === 0) return "not read";
+    const requests = groups.reduce((n, g) => n + g.sum.requests, 0);
+    const p50 = Math.max(...groups.map((g) => g.quantiles.cpuTimeP50)) / 1000;
+    const p99 = Math.max(...groups.map((g) => g.quantiles.cpuTimeP99)) / 1000;
+    const statuses = groups.map((g) => `${g.dimensions.status} ${g.sum.requests}`).join(", ");
+    return `${requests} requests (${statuses}); p50 ${p50.toFixed(1)} ms, p99 ${p99.toFixed(1)} ms`;
+  })();
+  return [
+    "### Production (Workers Free plan)",
+    "",
+    `Command: \`npm run cf:verify -- --env production\` against ${data.meta.url} through Cloudflare Access with two service tokens; every run planned by Workers AI (\`${data.meta.model}\`). Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`, deployed version \`${data.meta.deployedVersion}\`. These numbers describe the code of that commit as deployed; \`results:check\` does not require later code to match them, because measuring again needs a deploy.`,
+    "",
+    "| Metric | Value |",
+    "|---|---|",
+    `| Runs | ${m.runs_total} |`,
+    `| Outcome distribution | ${Object.entries(m.runs_by_status).sort().map(([k, v]) => `${k} ${v}`).join(", ")} |`,
+    `| Outcome match (measured status equals the dataset's expected status) | ${m.outcome_match}/${m.runs_total} |`,
+    `| Runs the verifier cancelled (needs attention or timed out) | ${m.runs_cancelled_by_verify} |`,
+    `| Runs with a valid audit hash chain | ${m.audit_chains_valid}/${m.runs_total} |`,
+    `| Duplicate side effects per idempotency key; per run and step | ${effects} |`,
+    `| Tool calls | ${m.tool_calls_total} |`,
+    `| Planner tokens; Workers AI neurons (bounds) | ${m.llm_tokens_total}; ${m.neurons_estimate.low} to ${m.neurons_estimate.high} |`,
+    `| Unauthenticated request | ${m.access_unauthenticated} |`,
+    `| HTTP 5xx responses | ${m.http_5xx} |`,
+    `| Invocations that exceeded a CPU or memory limit (wrangler tail) | ${tailObserved ? m.invocations_hitting_a_limit : "not observed (wrangler tail delivered no events)"} |`,
+    `| Worker fetch invocations (Free plan limit: 10 ms CPU) | ${cpu("worker fetch")} |`,
+    `| Worker queue invocations | ${cpu("worker queue")} |`,
+    `| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | ${analyticsCpu} |`,
+    `| Run duration p50; p95 (production wall clock) | ${ms(m.run_duration_ms_p50)}; ${ms(m.run_duration_ms_p95)} |`,
+  ];
+}
 
 export function render(): { block: string; metas: { name: string; meta: Meta }[] } {
   const sim = load<Sim>("simulation.json");
@@ -136,7 +213,7 @@ export function render(): { block: string; metas: { name: string; meta: Meta }[]
   } else {
     lines.push("", "Not measured yet.");
   }
-  lines.push("", "### Production", "", "Not measured. Nothing has been deployed; every number above comes from local runs.", "", END);
+  lines.push("", ...renderProduction(load<Production>("production.json"), metas), "", END);
   return { block: lines.join("\n"), metas };
 }
 
@@ -152,27 +229,23 @@ const existing = currentBlock(readme);
 if (process.argv.includes("--check")) {
   const problems: string[] = [];
   if (existing !== block) problems.push("the README results block differs from what eval/results renders (run npm run results:render)");
+  const git = gitIn(ROOT);
   for (const { name, meta } of metas) {
-    if (meta.dirty) problems.push(`${name} was measured on a dirty tree`);
-    // A commit id that is not in this history (for example after the history was rewritten)
-    // cannot be diffed; say so instead of calling the code changed.
-    try {
-      execFileSync("git", ["cat-file", "-e", `${meta.gitSha}^{commit}`], { cwd: ROOT, stdio: "ignore" });
-    } catch {
-      problems.push(`${name}: measured commit ${meta.gitSha.slice(0, 7)} is not in this repository's history (a shallow clone, or rewritten history)`);
-      continue;
-    }
-    try {
-      execFileSync("git", ["diff", "--quiet", meta.gitSha, "HEAD", "--", ...MEASURED_PATHS], { cwd: ROOT, stdio: "ignore" });
-    } catch {
-      problems.push(`${name}: measured code changed since ${meta.gitSha.slice(0, 7)} (re-run the measurement)`);
-    }
+    const result = checkProvenance(git, name, meta, MEASURED_PATHS);
+    // Production numbers describe the deployed code of the commit the block names; measuring them again
+    // needs a deploy, so later code changes are reported, not failed. Everything else is checked as usual.
+    const stale = (p: string) => name === "production.json" && p.startsWith(`${name}: measured code changed since`);
+    problems.push(...result.problems.filter((p) => !stale(p)));
+    for (const note of [...result.notes, ...result.problems.filter(stale)]) console.log(`results:check: note: ${note}`);
+  }
+  for (const citation of commitCitations(git, ROOT, MEASURED_PATHS)) {
+    problems.push(`${citation}; the publish step rewrites commit ids in files, so the published measured content would differ`);
   }
   if (problems.length > 0) {
     for (const p of problems) console.error(`results:check: ${p}`);
     process.exit(1);
   }
-  console.log(`results:check: README block matches ${metas.length} result files; none dirty or stale`);
+  console.log(`results:check: README block matches ${metas.length} result files; none dirty or stale; measured content equals HEAD's`);
 } else {
   if (!existing) throw new Error("README has no results block markers");
   writeFileSync(README, readme.replace(existing, block));

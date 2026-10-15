@@ -1,17 +1,20 @@
 {
-  "orchestration": 66,
+  "orchestration": 67,
   "authz": 42,
-  "total": 108,
-  "passing": 108,
+  "total": 109,
+  "passing": 109,
   "passingByTag": {
-    "orchestration": 66,
+    "orchestration": 67,
     "authz": 42
   },
   "vitestExitCode": 0,
   "meta": {
-    "gitSha": "6541d6e676c1f9bdb10f4b4b397854e6ea190cb0",
+    "gitSha": "0dbe380c580bb401f3167218d914aadfad5caad8",
+    "commitDate": "2026-10-15T21:31:48.000Z",
+    "commitSubject": "fix(eval): a production run with no wrangler tail events renders the limit row as not observed",
+    "measuredTree": "sha256:697d7e8a25323177bdf3fc09117811c79a0c00d3e50e7120f53d503ed393421a",
     "dirty": false,
-    "generatedAt": "2026-10-09T20:28:21.309Z",
+    "generatedAt": "2026-10-15T21:33:50.219Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,

@@ -2,6 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { commitProvenance, gitIn, type CommitProvenance } from "./provenance.ts";
 
 export const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -9,8 +10,7 @@ function git(args: string[]): string {
   return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
 }
 
-export interface ResultMeta {
-  gitSha: string;
+export interface ResultMeta extends CommitProvenance {
   dirty: boolean;
   generatedAt: string;
   node: string;
@@ -51,7 +51,7 @@ export function wranglerVersion(): string {
 
 export function resultMeta(provider: string, model: string, seed = 20261008): ResultMeta {
   return {
-    gitSha: git(["rev-parse", "HEAD"]),
+    ...commitProvenance(gitIn(ROOT), "HEAD", MEASURED_PATHS),
     dirty: isDirty(),
     generatedAt: new Date().toISOString(),
     node: process.version,

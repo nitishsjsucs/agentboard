@@ -18,6 +18,7 @@ const privateJwk = { ...(await exportJWK(privateKey)), kid, alg: "RS256" };
 const lines = [
   "# Written by npm run dev:keys. Local development only; never commit.",
   `INTEGRATION_SIGNING_KEY=${randomBytes(48).toString("base64")}`,
+  "ACCESS_AUD=agentboard-dev",
   `ACCESS_DEV_JWKS=${JSON.stringify({ keys: [publicJwk] })}`,
   `DEV_ACCESS_PRIVATE_JWK=${JSON.stringify(privateJwk)}`,
   "",

@@ -1,18 +1,27 @@
 # Per-PR deployments to the shared `preview` environment (SPEC sections 17 and 18).
 #
-# Gated on the repository variable PREVIEW_DEPLOYS=on (not on a secret): without it,
-# and on pull requests from forks, the deploy job is skipped and the workflow still
-# passes. The deploy job runs in the GitHub environment `preview`, which holds the
-# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets and should require a reviewer,
-# so a pull request's code runs with the token only after someone approved the job.
-# Even then the token reaches only the two steps that call Cloudflare (migrations and
-# deploy), never `npm ci` (dependency install scripts), the typecheck or the build.
-# The preview resources are created once by hand (README, deploy step 10); this
-# workflow only migrates and deploys.
+# Skips cleanly (the workflow still passes) unless both of these exist:
+#   - the repository variable PREVIEW_DEPLOYS=on (checked by the gate job), and
+#   - the secret CLOUDFLARE_API_TOKEN in the GitHub environment `preview`
+#     (checked by the deploy job's first step; without it every later step is skipped).
+# Pull requests from forks never deploy: the gate requires the head branch to live in
+# this repository (and GitHub gives fork pull requests no secrets anyway).
 #
-# Cloudflare does not generate preview URLs for Workers that implement Durable
-# Objects, so every pull request deploys to the one `agentboard-preview` Worker,
-# and deploys are serialized. Every wrangler d1 command passes `--env preview`.
+# The `preview` environment has NO required reviewer, on purpose: the publish script
+# merges a pull request only when `gh pr checks --watch` passes, and a job waiting for a
+# reviewer stays pending, which would block every merge. The token is therefore exposed
+# only to code pushed to a branch of this repository by someone with write access, who
+# could change this workflow anyway; and it reaches only the cf:setup step, never
+# `npm ci` (dependency install scripts) or the build.
+#
+# The preview resources (D1 databases, queues, Worker secrets, the Access application)
+# are created once, locally, by `npm run cf:setup -- --env preview`; in CI the same
+# script (--ci) creates nothing: it checks they exist, applies pending D1 migrations,
+# deploys the build made by the step before it, and checks that Access protects the URL.
+# Everything here works on the Workers Free plan.
+#
+# Cloudflare does not generate preview URLs for Workers that implement Durable Objects,
+# so every pull request deploys to the one `agentboard-preview` Worker, one at a time.
 name: preview
 
 on:
@@ -21,10 +30,6 @@ on:
 
 permissions:
   contents: read
-
-concurrency:
-  group: preview-environment
-  cancel-in-progress: false
 
 jobs:
   gate:
@@ -49,61 +54,44 @@ jobs:
     needs: gate
     if: needs.gate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    # The `preview` environment holds the Cloudflare secrets; give it required reviewers.
+    # Holds the CLOUDFLARE_API_TOKEN secret. No required reviewer (see the top of this file).
     environment:
       name: preview
-      url: ${{ steps.deploy.outputs.url }}
+      url: https://agentboard-preview.nitish-ratakonda.workers.dev
+    # One deploy at a time: there is one preview Worker.
+    concurrency:
+      group: preview-environment
+      cancel-in-progress: false
+    env:
+      # Only whether the secret exists, never its value.
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     steps:
+      - name: Check for the deploy token
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "Preview deploy skipped: the \`preview\` environment has no CLOUDFLARE_API_TOKEN secret." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/checkout@v7
+        if: env.HAS_TOKEN == 'true'
       - uses: actions/setup-node@v7
+        if: env.HAS_TOKEN == 'true'
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      # Migrations run before the new code is deployed. `--config wrangler.jsonc`
-      # keeps wrangler on the source config and its `preview` environment.
-      - name: Apply D1 migrations to the preview databases
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx wrangler d1 migrations apply agentboard-preview --remote --env preview --config wrangler.jsonc
-          npx wrangler d1 migrations apply agentboard-people-preview --remote --env preview --config wrangler.jsonc
+      - if: env.HAS_TOKEN == 'true'
+        run: npm ci
       - name: Build for the preview environment
+        if: env.HAS_TOKEN == 'true'
         run: npm run build:preview
-      # `wrangler deploy` follows .wrangler/deploy/config.json to the built config;
-      # refuse to deploy anything but the preview environment's.
-      - name: Check the built configuration
-        run: |
-          node --input-type=module <<'EOF'
-          import { readFileSync } from "node:fs";
-          import { dirname, resolve } from "node:path";
-          const redirect = ".wrangler/deploy/config.json";
-          const configPath = resolve(dirname(redirect), JSON.parse(readFileSync(redirect, "utf8")).configPath);
-          const config = JSON.parse(readFileSync(configPath, "utf8"));
-          const want = { name: "agentboard-preview", ENVIRONMENT: "preview", AUTH_MODE: "access", FAULT_INJECTION: "off", MCP_EXTERNAL: "off" };
-          const got = { name: config.name, ...Object.fromEntries(Object.keys(want).slice(1).map((k) => [k, config.vars?.[k]])) };
-          if (JSON.stringify(got) !== JSON.stringify(want)) {
-            console.error(`refusing to deploy ${configPath}: ${JSON.stringify(got)}`);
-            process.exit(1);
-          }
-          console.log(`deploying ${configPath} (${config.name}, ENVIRONMENT=${config.vars.ENVIRONMENT})`);
-          EOF
-      - name: Deploy
-        id: deploy
+      # The only step with the token: checks the preview resources and secrets exist,
+      # applies pending D1 migrations, refuses any build but the preview one, deploys,
+      # and checks that an unauthenticated request ends at the Access login.
+      - name: Migrate and deploy with cf:setup --ci
+        if: env.HAS_TOKEN == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx wrangler deploy 2>&1 | tee deploy.log
-          url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log | head -n 1 || true)"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+        run: node scripts/cf-setup.ts --env preview --ci --skip-build
       - name: Summary
-        env:
-          URL: ${{ steps.deploy.outputs.url }}
+        if: env.HAS_TOKEN == 'true'
         run: |
-          {
-            echo "Deployed \`$GITHUB_SHA\` to the preview environment (Worker \`agentboard-preview\`)."
-            if [ -n "$URL" ]; then echo "URL: $URL (behind Cloudflare Access)"; fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed \`$GITHUB_SHA\` to the preview environment: https://agentboard-preview.nitish-ratakonda.workers.dev (behind Cloudflare Access)." >> "$GITHUB_STEP_SUMMARY"

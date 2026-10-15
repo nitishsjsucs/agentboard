@@ -1,6 +1,8 @@
 # Written by `npm run dev:keys`. Never commit the real .dev.vars.
 # HS256 key for call-bound integration tokens (at least 32 bytes, base64).
 INTEGRATION_SIGNING_KEY=
+# Audience of dev Access JWTs (a deployed Worker gets its Access application's AUD tag as a secret instead).
+ACCESS_AUD=
 # Public JWKS (JSON) used to verify dev Access JWTs.
 ACCESS_DEV_JWKS=
 # Private JWK (JSON) used only by /api/dev/login on loopback hosts.

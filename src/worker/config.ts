@@ -56,7 +56,9 @@ const VarsSchema = z.object({
   ENVIRONMENT: z.enum(ENVIRONMENTS),
   AUTH_MODE: z.enum(["access", "dev"]),
   ACCESS_TEAM_DOMAIN: z.string().min(1),
-  ACCESS_AUD: z.string(),
+  // A secret, not a var: .dev.vars locally, and in deployed environments a Worker secret that
+  // `npm run cf:setup` sets once the Access application exists; until then every request fails closed.
+  ACCESS_AUD: z.string({ error: "ACCESS_AUD is not set (locally npm run dev:keys writes it to .dev.vars; a deployed Worker gets it as a secret from npm run cf:setup)" }),
   LLM_PROVIDER: z.enum(["workers-ai", "openai-compatible", "stub"]),
   LLM_BASE_URL: z.string(),
   LLM_MODEL: z.string(),
@@ -128,7 +130,8 @@ export function parseConfig(vars: Record<string, unknown>, hasAiBinding: boolean
     if (!/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(v.ACCESS_TEAM_DOMAIN)) {
       errors.push("ACCESS_TEAM_DOMAIN must be https://<team>.cloudflareaccess.com");
     }
-    if (v.ACCESS_AUD.trim() === "") errors.push("ACCESS_AUD must be set");
+    // An Access application's AUD tag is 64 hex characters; a placeholder or a typo fails closed.
+    if (!/^[0-9a-f]{64}$/.test(v.ACCESS_AUD)) errors.push("ACCESS_AUD must be the Access application's AUD tag (64 hex characters)");
     if (v.FAULT_INJECTION) errors.push(`${v.ENVIRONMENT} requires FAULT_INJECTION=off`);
     if (v.MCP_EXTERNAL) errors.push(`${v.ENVIRONMENT} requires MCP_EXTERNAL=off`);
     if (v.LLM_PROVIDER === "stub") errors.push(`${v.ENVIRONMENT} may not use the stub LLM provider`);

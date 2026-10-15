@@ -89,6 +89,19 @@ describe("LLM providers", { tags: ["llm"] }, () => {
     await expect(new WorkersAiProvider({ run: async () => ({ nothing: true }) }, "m", "").generate(REQUEST)).rejects.toThrow(/unrecognized output/);
   });
 
+  it("turns Qwen3 thinking off with /no_think and reports a budget spent on reasoning as such", async () => {
+    const seen: Record<string, unknown>[] = [];
+    const ai = (output: unknown): AiRunner => ({ run: async (_m, inputs) => (seen.push(inputs), output) });
+    await new WorkersAiProvider(ai('{"steps":[]}'), "@cf/qwen/qwen3-30b-a3b-fp8", "").generate(REQUEST);
+    await new WorkersAiProvider(ai('{"steps":[]}'), "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "").generate(REQUEST);
+    const userOf = (inputs: Record<string, unknown> | undefined) => (inputs?.["messages"] as { role: string; content: string }[])[1]?.content;
+    expect(userOf(seen[0])).toBe(`${REQUEST.user}\n/no_think`);
+    expect(userOf(seen[1])).toBe(REQUEST.user);
+    // The production failure: reasoning used max_tokens, so content came back null with finish_reason "length".
+    const truncated = { choices: [{ message: { role: "assistant", content: null, reasoning_content: "..." }, finish_reason: "length" }], usage: { prompt_tokens: 900, completion_tokens: 800 } };
+    await expect(new WorkersAiProvider(ai(truncated), "@cf/qwen/qwen3-30b-a3b-fp8", "").generate(REQUEST)).rejects.toThrow(/whole output budget before answering/);
+  });
+
   it("bounds a Workers AI call by the request timeout even when the binding never answers, and aborts the signal it passed", async () => {
     let passed: AbortSignal | undefined;
     const hanging: AiRunner = {

@@ -38,6 +38,7 @@ writeFileSync(
   ENV_FILE,
   [
     `INTEGRATION_SIGNING_KEY=${randomBytes(48).toString("base64")}`,
+    "ACCESS_AUD=agentboard-dev",
     `ACCESS_DEV_JWKS=${JSON.stringify({ keys: [publicJwk] })}`,
     `DEV_ACCESS_PRIVATE_JWK=${JSON.stringify(privateJwk)}`,
     "ENVIRONMENT=eval",

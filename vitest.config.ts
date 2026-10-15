@@ -44,6 +44,7 @@ function workerBindings() {
     AGENT_CONTROLS_CACHE_MS: "0",
     HOLD_RECHECK_MS: "1000",
     INTEGRATION_SIGNING_KEY: testIntegrationKey,
+    ACCESS_AUD: "agentboard-dev",
     ACCESS_DEV_JWKS: JSON.stringify({ keys: [testPublicJwk] }),
     TEST_ACCESS_PRIVATE_JWK: JSON.stringify(testPrivateJwk),
     DEV_ACCESS_PRIVATE_JWK: JSON.stringify(testPrivateJwk),

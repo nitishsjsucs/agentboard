@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { verifyChain, verifyRunAudit, type ChainedEvent } from "../../../src/worker/audit/hash-chain.ts";
 import type { D1Statement } from "../../../src/worker/agents/coordinator/outbox.ts";
-import type { RunCoordinator } from "../../../src/worker/agents/run-coordinator.ts";
+import { OUTBOX_ROUNDS_PER_FLUSH, type RunCoordinator } from "../../../src/worker/agents/run-coordinator.ts";
 import { claimMessage, completePlan, drain, granted, planFor, raw, readState, startManualRun, takeDispatches, type CoordinatorStub } from "../../helpers/runs.ts";
 
 async function doEvents(stub: CoordinatorStub) {
@@ -95,6 +95,39 @@ describe("transactional outbox and hash-chained audit", { tags: ["orchestration"
     expect(after?.n).toBe(before?.n);
     expect((await verifyRunAudit(env.DB, runId)).valid).toBe(true);
   }, 15_000);
+
+  it("one flush makes at most OUTBOX_ROUNDS_PER_FLUSH D1 calls (the Free plan allows 50 per invocation), and the next one delivers the rest in order", async () => {
+    const { stub } = await startManualRun();
+    await completePlan(stub, planFor("address_change"));
+    await drain(stub);
+    expect(await pendingOutbox(stub, "d1")).toEqual([]);
+    // A backlog of 25-row batches, as after a D1 outage, two rounds longer than one flush may take.
+    const backlog = (OUTBOX_ROUNDS_PER_FLUSH + 2) * 25;
+    const payload = JSON.stringify({ statements: [{ sql: "SELECT 1", params: [] }] });
+    const calls = await runInDurableObject(raw(stub), async (instance: RunCoordinator) => {
+      for (let i = 0; i < backlog; i++) instance.sql`INSERT INTO ab_outbox (kind, payload_json, attempts, next_attempt_at) VALUES ('d1', ${payload}, 0, 0)`;
+      const db = (instance as unknown as { env: Env }).env.DB;
+      const batch = db.batch.bind(db);
+      let count = 0;
+      db.batch = (async (statements: D1PreparedStatement[]) => {
+        count += 1;
+        return batch(statements);
+      }) as typeof db.batch;
+      try {
+        await (instance as unknown as { flushOutbox(): Promise<void> }).flushOutbox();
+      } finally {
+        db.batch = batch;
+      }
+      return count;
+    });
+    expect(calls).toBe(OUTBOX_ROUNDS_PER_FLUSH);
+    const left = await pendingOutbox(stub, "d1");
+    expect(left).toHaveLength(backlog - OUTBOX_ROUNDS_PER_FLUSH * 25);
+    expect(left.every((row) => row.attempts === 0)).toBe(true);
+    // The next RPC (or the armed wake) flushes the remainder.
+    await stub.getSnapshot();
+    expect(await pendingOutbox(stub, "d1")).toEqual([]);
+  });
 
   it("the D1 tasks mirror never regresses: a lower-version write is ignored", async () => {
     const { stub, runId } = await startManualRun();
