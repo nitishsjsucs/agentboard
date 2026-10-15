@@ -5,7 +5,9 @@
 // the content the result was measured on, if the measured commit is not in the
 // history being checked, or if a measured file cites a commit id (see
 // lib/provenance.ts: the check does not depend on any particular commit id, so
-// it passes on the published history, whose commit ids all differ).
+// it passes on the published history, whose commit ids all differ). For
+// production.json (npm run cf:verify), code changed since the measurement is a
+// note, not a failure: measuring it again needs a deploy.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -82,7 +84,7 @@ function renderProduction(data: Production | null, metas: { name: string; meta: 
   return [
     "### Production (Workers Free plan)",
     "",
-    `Command: \`npm run cf:verify -- --env production\` against ${data.meta.url} through Cloudflare Access with two service tokens; every run planned by Workers AI (\`${data.meta.model}\`). Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`, deployed version \`${data.meta.deployedVersion}\`.`,
+    `Command: \`npm run cf:verify -- --env production\` against ${data.meta.url} through Cloudflare Access with two service tokens; every run planned by Workers AI (\`${data.meta.model}\`). Measured ${day(data.meta.generatedAt)} at commit \`${short(data.meta.gitSha)}\`, deployed version \`${data.meta.deployedVersion}\`. These numbers describe the code of that commit as deployed; \`results:check\` does not require later code to match them, because measuring again needs a deploy.`,
     "",
     "| Metric | Value |",
     "|---|---|",
@@ -215,8 +217,11 @@ if (process.argv.includes("--check")) {
   const git = gitIn(ROOT);
   for (const { name, meta } of metas) {
     const result = checkProvenance(git, name, meta, MEASURED_PATHS);
-    problems.push(...result.problems);
-    for (const note of result.notes) console.log(`results:check: note: ${note}`);
+    // Production numbers describe the deployed code of the commit the block names; measuring them again
+    // needs a deploy, so later code changes are reported, not failed. Everything else is checked as usual.
+    const stale = (p: string) => name === "production.json" && p.startsWith(`${name}: measured code changed since`);
+    problems.push(...result.problems.filter((p) => !stale(p)));
+    for (const note of [...result.notes, ...result.problems.filter(stale)]) console.log(`results:check: note: ${note}`);
   }
   for (const citation of commitCitations(git, ROOT, MEASURED_PATHS)) {
     problems.push(`${citation}; the publish step rewrites commit ids in files, so the published measured content would differ`);
