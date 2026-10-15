@@ -1,14 +1,17 @@
 {
   "meta": {
-    "gitSha": "6541d6e676c1f9bdb10f4b4b397854e6ea190cb0",
+    "gitSha": "b362e3e693564c0a351cb6481e985889f7db1600",
+    "commitDate": "2026-10-15T20:34:52.000Z",
+    "commitSubject": "fix(eval): code changed since the production measurement is a note in results:check",
+    "measuredTree": "sha256:c791baeffbe8e7fe7919481f6a7a74eb00224414c45622031c5f5b07d4303d51",
     "dirty": false,
-    "generatedAt": "2026-10-09T20:30:18.625Z",
+    "generatedAt": "2026-10-15T20:49:55.011Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
     "provider": "stub",
     "model": "stub-gold-plans",
-    "bundleSha256": "05d25bc5b3fd9fbaa42193803a46d3dfb1e7b34f8f7b848d4770dc89dcab360b",
+    "bundleSha256": "f49eca7c427688277493976e0b1d25ea307127e13b2255e5459f42786c044e36",
     "environment": "local wrangler dev (workerd, local D1, local queues)",
     "concurrency": 8
   },
@@ -101,11 +104,11 @@
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 7296,
-    "run_duration_ms_p95": 10883.799999999992,
-    "search_latency_ms_p50": 2.062083499993605,
-    "search_latency_ms_p95": 4.51761809999882,
-    "driver_wall_clock_ms": 104443
+    "run_duration_ms_p50": 10334,
+    "run_duration_ms_p95": 15956.8,
+    "search_latency_ms_p50": 17.876875000001746,
+    "search_latency_ms_p95": 25.304962499991234,
+    "driver_wall_clock_ms": 143310
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"

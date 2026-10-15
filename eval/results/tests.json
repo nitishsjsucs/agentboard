@@ -1,17 +1,20 @@
 {
-  "orchestration": 66,
+  "orchestration": 67,
   "authz": 42,
-  "total": 108,
-  "passing": 108,
+  "total": 109,
+  "passing": 109,
   "passingByTag": {
-    "orchestration": 66,
+    "orchestration": 67,
     "authz": 42
   },
   "vitestExitCode": 0,
   "meta": {
-    "gitSha": "6541d6e676c1f9bdb10f4b4b397854e6ea190cb0",
+    "gitSha": "b362e3e693564c0a351cb6481e985889f7db1600",
+    "commitDate": "2026-10-15T20:34:52.000Z",
+    "commitSubject": "fix(eval): code changed since the production measurement is a note in results:check",
+    "measuredTree": "sha256:c791baeffbe8e7fe7919481f6a7a74eb00224414c45622031c5f5b07d4303d51",
     "dirty": false,
-    "generatedAt": "2026-10-09T20:28:21.309Z",
+    "generatedAt": "2026-10-15T20:46:29.510Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
