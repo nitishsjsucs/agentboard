@@ -113,6 +113,15 @@ export interface PersistedEvent {
   hash: string;
 }
 
+/**
+ * Outbox rounds per lane in one flush. Each round is one call to a binding (a D1 `batch()` of up to
+ * 25 rows, or a Queue `sendBatch()`), and the Workers Free plan allows 50 subrequests and 50 D1
+ * queries per invocation, so one flush makes at most 2 * 8 calls and leaves the rest of the
+ * invocation's budget to its own work. A backlog (after a D1 or Queues outage) drains over
+ * successive wakes: armWake schedules the next one for the earliest unsent row.
+ */
+export const OUTBOX_ROUNDS_PER_FLUSH = 8;
+
 export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordinatorRpc {
   override initialState: RunSnapshot = emptySnapshot("");
 
@@ -407,7 +416,7 @@ export class RunCoordinator extends Agent<Env, RunSnapshot> implements RunCoordi
   }
 
   private async flushLane(kind: "d1" | "queue"): Promise<void> {
-    for (let round = 0; round < 50; round++) {
+    for (let round = 0; round < OUTBOX_ROUNDS_PER_FLUSH; round++) {
       const now = this.clock.now();
       const rows = this.sql<{ id: number; payload_json: string; attempts: number; next_attempt_at: number }>`
         SELECT id, payload_json, attempts, next_attempt_at FROM ab_outbox WHERE kind = ${kind} AND sent_at IS NULL ORDER BY id LIMIT 25`;
