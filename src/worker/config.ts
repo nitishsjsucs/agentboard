@@ -56,9 +56,9 @@ const VarsSchema = z.object({
   ENVIRONMENT: z.enum(ENVIRONMENTS),
   AUTH_MODE: z.enum(["access", "dev"]),
   ACCESS_TEAM_DOMAIN: z.string().min(1),
-  // Deployed environments get it as a Worker secret from `npm run cf:setup` once the Access
-  // application exists; until then it is absent and every request fails closed.
-  ACCESS_AUD: z.string({ error: "ACCESS_AUD is not set (deployed environments receive it as a secret from npm run cf:setup)" }),
+  // A secret, not a var: .dev.vars locally, and in deployed environments a Worker secret that
+  // `npm run cf:setup` sets once the Access application exists; until then every request fails closed.
+  ACCESS_AUD: z.string({ error: "ACCESS_AUD is not set (locally npm run dev:keys writes it to .dev.vars; a deployed Worker gets it as a secret from npm run cf:setup)" }),
   LLM_PROVIDER: z.enum(["workers-ai", "openai-compatible", "stub"]),
   LLM_BASE_URL: z.string(),
   LLM_MODEL: z.string(),

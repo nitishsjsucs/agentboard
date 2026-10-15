@@ -37,11 +37,12 @@
       { "queue": "agentboard-tasks-dlq", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 10 }
     ]
   },
+  // ACCESS_AUD is not a var in any environment: locally `npm run dev:keys` writes ACCESS_AUD=agentboard-dev
+  // into .dev.vars, and a deployed Worker gets the Access application's AUD tag as a secret.
   "vars": {
     "ENVIRONMENT": "development",
     "AUTH_MODE": "dev",
     "ACCESS_TEAM_DOMAIN": "https://agentboard-dev.local",
-    "ACCESS_AUD": "agentboard-dev",
     "LLM_PROVIDER": "stub",
     "LLM_BASE_URL": "http://127.0.0.1:8080",
     "LLM_MODEL": "qwen3-1.7b-q4_0",
@@ -65,8 +66,15 @@
     "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8784"
   },
   "env": {
+    // Deployed environments (Workers Free plan; see README "Cloudflare Free plan"). Set up and deployed
+    // by `npm run cf:setup -- --env <name>` (scripts/cf-setup.ts), checked by `npm run cf:doctor`.
+    // No resource ids here: wrangler resolves D1 databases and queues by name at migration and deploy
+    // time, and the setup script creates them first. ACCESS_AUD is not a var: it is a Worker secret
+    // the setup script sets from the Access application, and until it exists the Worker fails closed.
     "production": {
+      "account_id": "dc93c3bc8aa4f9e09a0d7e7354a80873",
       "workers_dev": true,
+      "preview_urls": false,
       "ai": { "binding": "AI" },
       "durable_objects": {
         "bindings": [
@@ -76,23 +84,23 @@
           { "name": "VerifierAgent", "class_name": "VerifierAgent" }
         ]
       },
-      // Replace the database ids with the output of `wrangler d1 create` (README, deploy step 2).
       "d1_databases": [
-        { "binding": "DB", "database_name": "agentboard", "database_id": "00000000-0000-0000-0000-00000000a001", "migrations_dir": "migrations/console" },
-        { "binding": "PEOPLE_DB", "database_name": "agentboard-people", "database_id": "00000000-0000-0000-0000-00000000a002", "migrations_dir": "migrations/people" }
+        { "binding": "DB", "database_name": "agentboard", "migrations_dir": "migrations/console" },
+        { "binding": "PEOPLE_DB", "database_name": "agentboard-people", "migrations_dir": "migrations/people" }
       ],
+      // Batches of 5: a consumer invocation makes about 2 Durable Object calls per task message and
+      // up to 4 binding calls per dead letter, well under the Free plan's 50 subrequests per invocation.
       "queues": {
         "producers": [{ "binding": "TASK_QUEUE", "queue": "agentboard-tasks" }],
         "consumers": [
-          { "queue": "agentboard-tasks", "max_batch_size": 10, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-tasks-dlq" },
-          { "queue": "agentboard-tasks-dlq", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 10 }
+          { "queue": "agentboard-tasks", "max_batch_size": 5, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-tasks-dlq" },
+          { "queue": "agentboard-tasks-dlq", "max_batch_size": 5, "max_batch_timeout": 5, "max_retries": 10 }
         ]
       },
       "vars": {
         "ENVIRONMENT": "production",
         "AUTH_MODE": "access",
-        "ACCESS_TEAM_DOMAIN": "https://<team>.cloudflareaccess.com",
-        "ACCESS_AUD": "<application AUD tag>",
+        "ACCESS_TEAM_DOMAIN": "https://old-truth-a7dc.cloudflareaccess.com",
         "LLM_PROVIDER": "workers-ai",
         "LLM_BASE_URL": "http://127.0.0.1:8080",
         "LLM_MODEL": "qwen3-1.7b-q4_0",
@@ -113,12 +121,14 @@
         "APPROVAL_TTL_MS": "259200000",
         "AGENT_CONTROLS_CACHE_MS": "5000",
         "HOLD_RECHECK_MS": "30000",
-        "ALLOWED_ORIGINS": "https://agentboard-production.<subdomain>.workers.dev"
+        "ALLOWED_ORIGINS": "https://agentboard-production.nitish-ratakonda.workers.dev"
       }
     },
     "preview": {
       "name": "agentboard-preview",
+      "account_id": "dc93c3bc8aa4f9e09a0d7e7354a80873",
       "workers_dev": true,
+      "preview_urls": false,
       "ai": { "binding": "AI" },
       "durable_objects": {
         "bindings": [
@@ -129,21 +139,20 @@
         ]
       },
       "d1_databases": [
-        { "binding": "DB", "database_name": "agentboard-preview", "database_id": "00000000-0000-0000-0000-00000000b001", "migrations_dir": "migrations/console" },
-        { "binding": "PEOPLE_DB", "database_name": "agentboard-people-preview", "database_id": "00000000-0000-0000-0000-00000000b002", "migrations_dir": "migrations/people" }
+        { "binding": "DB", "database_name": "agentboard-preview", "migrations_dir": "migrations/console" },
+        { "binding": "PEOPLE_DB", "database_name": "agentboard-people-preview", "migrations_dir": "migrations/people" }
       ],
       "queues": {
         "producers": [{ "binding": "TASK_QUEUE", "queue": "agentboard-preview-tasks" }],
         "consumers": [
-          { "queue": "agentboard-preview-tasks", "max_batch_size": 10, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-preview-tasks-dlq" },
-          { "queue": "agentboard-preview-tasks-dlq", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 10 }
+          { "queue": "agentboard-preview-tasks", "max_batch_size": 5, "max_batch_timeout": 1, "max_retries": 5, "retry_delay": 2, "dead_letter_queue": "agentboard-preview-tasks-dlq" },
+          { "queue": "agentboard-preview-tasks-dlq", "max_batch_size": 5, "max_batch_timeout": 5, "max_retries": 10 }
         ]
       },
       "vars": {
         "ENVIRONMENT": "preview",
         "AUTH_MODE": "access",
-        "ACCESS_TEAM_DOMAIN": "https://<team>.cloudflareaccess.com",
-        "ACCESS_AUD": "<preview application AUD tag>",
+        "ACCESS_TEAM_DOMAIN": "https://old-truth-a7dc.cloudflareaccess.com",
         "LLM_PROVIDER": "workers-ai",
         "LLM_BASE_URL": "http://127.0.0.1:8080",
         "LLM_MODEL": "qwen3-1.7b-q4_0",
@@ -164,7 +173,7 @@
         "APPROVAL_TTL_MS": "259200000",
         "AGENT_CONTROLS_CACHE_MS": "5000",
         "HOLD_RECHECK_MS": "30000",
-        "ALLOWED_ORIGINS": "https://agentboard-preview.<subdomain>.workers.dev"
+        "ALLOWED_ORIGINS": "https://agentboard-preview.nitish-ratakonda.workers.dev"
       }
     }
   }
