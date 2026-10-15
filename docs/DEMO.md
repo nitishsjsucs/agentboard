@@ -7,7 +7,7 @@ Everything People-related is simulated. The HRIS, ITSM, access-management and no
 How to read the evidence in this doc:
 
 - **Production** means measured by `npm run cf:verify` against the live Worker on 2026-10-15, written to `eval/results/production.json`. That pass launched four synthetic requests through Access with two service tokens, and Workers AI planned every one.
-- **Local** means the 100-run simulation with injected faults on a laptop (`eval/results/simulation.json`) or another committed results file named next to the number. Fault injection is off in production, and the config refuses to load with it on. So retries, lease expiries, ledger replays and verifier detections have only been shown locally.
+- **Local** means the 100-run simulation with injected faults on a laptop (`eval/results/simulation.json`) or another committed results file named next to the number. Fault injection is off in production, and the config refuses to load with it on. So retries, lease expiries, ledger replays and verifier detections have only been measured locally. The only production retries on record are the first verification's planner attempts, before the `/no_think` fix, and they all failed (talking point 7).
 - **Tests** means a named test file in `test/`.
 - A few configuration values (timeouts, budgets, shard counts) are quoted from the committed file named next to them. They are settings, not measurements.
 
@@ -38,9 +38,9 @@ What each role may do (`src/worker/auth/permissions.ts`): a viewer reads runs, s
    curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://agentboard-production.nitish-ratakonda.workers.dev/
    ```
    It should print `302` and a login URL on `old-truth-a7dc.cloudflareaccess.com`. It did on 2026-10-15, when this doc was written.
-2. Sign in once as the operator and the approver, then rehearse the whole walkthrough once. The repository has no record of a browser sign-in to production yet (`PROGRESS.md`, "What is left", step 5). The live WebSocket view has not been exercised in production either, because `cf:verify` uses plain HTTP.
+2. Sign in once as the operator and the approver, then rehearse the whole walkthrough once, with the rehearsal subject from step 3 (E-1035), not E-1029. The People seed is applied only to an empty database, so a rehearsal's manager change stays in production; E-1029 must still report to E-1005 on the day. The repository has no record of a browser sign-in to production yet (`PROGRESS.md`, "What is left", step 5). The live WebSocket view has not been exercised in production either, because `cf:verify` uses plain HTTP.
 3. Sign in to both windows shortly before the call, so the interviewer never waits for a code to arrive.
-4. Keep rehearsals few. Every run spends Workers AI neurons from the account's daily allowance, which other apps on the account share (README, "Cloudflare Free plan"). For scale, the four verification runs spent between 17 and 109 neurons in total (`production.json`, `neurons_estimate`).
+4. Keep rehearsals few. Every run spends Workers AI neurons from the account's daily allowance, which other apps on the account share (README, "Cloudflare Free plan"). For scale, the four verification runs used 3577 planner tokens, an estimated 17 to 109 neurons in total: the tokens priced as all input or as all output (`production.json`, `llm_tokens_total` and `neurons_estimate`). It is an estimate, not measured spend.
 5. Get the local fallback ready in a terminal at the repository root. `.dev.vars` must exist (`npm run dev:keys` writes it). Check that `npm run serve:built -- --fresh` starts and that `http://127.0.0.1:8784/dev/login` loads, then stop it with Ctrl+C.
 6. Keep `eval/results/production.json`, `eval/results/simulation.json` and this file open in editor tabs.
 
@@ -56,17 +56,17 @@ Sources: `production.json` (outcome match 4/4, 0 duplicate side effects, 4/4 val
 
 ## The 5-minute version
 
-Launch both requests at the start, because planning takes a while. From creation to finish, the production runs took between 14.9 s and 89.9 s, and that includes the approval decisions `cf:verify` made (`production.json`, `runs[].durationMs`). Talk while the planner works.
+Launch both requests at the start, because planning takes a while. In production, `cf:verify`'s wall clock per run, from its launch request until it had read the final status, audit and tool calls (polling every 3 s, its approval decisions included), was 14.9 s to 89.9 s (`production.json`, `runs[].durationMs`). Talk while the planner works.
 
 | Time | Window | Do | Say |
 |---|---|---|---|
 | 0:00 | 1 (operator) | Show the dashboard. Point at the nav bar: the `production` badge, your email and the `operator` badge. | What it is. The People org is simulated; the Cloudflare stack is real. |
 | 0:30 | 1 | Launch the manager change (step 3 below), then the privileged grant (step 4). | The planner is the only model. The request text is treated as untrusted data, and policy lives in code. |
 | 1:15 | 1 | Open the manager change run. On the Timeline, `Plan` comes first, then one row per step. One step carries the `approval` badge and shows `awaiting approval`. | One coordinator per run, leases, gating edges: before an approval, only reads run. |
-| 2:00 | 1 | Open its approval. It says "You requested this run, so you cannot decide its approval." | Separation of duties. The coordinator enforces it too. |
+| 2:00 | 1 | Open its approval. It says "You requested this run, so you cannot decide its approval." | Separation of duties. The notice is the console's own-run check. The operator role lacks `approvals:decide`, so the API would refuse any decision with 403 `missing_permission` before the coordinator. The coordinator's `self_approval` rule covers admins, the only role that can both launch and approve (`approvals-sod.test.ts`). |
 | 2:30 | 2 (approver) | `Approvals`: approve the manager change, reject the privileged grant. Each needs a note. | Risk levels come from policy: `medium risk` for a manager change, `high risk` for a privileged grant. |
 | 3:15 | 1 | The manager change reaches `succeeded`. In `Tool calls`, expand the `hris.update_manager` row to show its idempotency key. In `Audit`, show "Hash chain verified". | Call-bound tokens, the integration ledger, the verifier, the hash chain. |
-| 4:00 | 1 | The privileged grant shows `rejected` with the reason `approval_rejected`. `Tool calls` lists only the read. | A rejection leaves no write behind, by construction. |
+| 4:00 | 1 | The privileged grant shows `rejected` with the reason `approval_rejected`. `Tool calls` shows no write: only reads, possibly including a `tools/list` catalog read by the planner. There is no `access.grant_role` row. | A rejection leaves no write behind, by construction. |
 | 4:30 | any | Cite the production evidence (step 9). | Failure recovery is local evidence, and say so. |
 
 ## Full walkthrough
@@ -80,7 +80,7 @@ Every console label quoted below (page headings, button text, badges, notices, f
 
 Point out the nav bar: the environment badge `production`, the signed-in email, and the role badge. There is no "Simulation mode: fault injection is on" banner, because that banner appears only when fault injection is on, and a production config with it on refuses to load.
 
-If a window ends up signed in as the wrong persona, close the private window and open a new one. Or open `/cdn-cgi/access/logout` on the app's hostname, which is Cloudflare Access's logout path. Try that once during rehearsal.
+If a window ends up signed in as the wrong persona, close every private window and open a new one: in Chrome, all incognito windows share one set of cookies, so closing one is not enough while another is open. Or open `/cdn-cgi/access/logout` on the app's hostname, which is Cloudflare Access's logout path. Try that once during rehearsal.
 
 If asked how identity works: Access adds a JWT in the `Cf-Access-Jwt-Assertion` header. The Worker verifies it against the team's JWKS and the Access application's AUD tag (the `ACCESS_AUD` secret), uses the lowercase email as the principal, and reads the role from `role_bindings` in D1. A principal with no binding can only call `/api/me`. If the `ACCESS_AUD` secret is missing, the Worker fails closed (`src/worker/api/middleware/identity.ts`, README "Production setup").
 
@@ -89,6 +89,7 @@ If asked how identity works: Access adds a JWT in the `Cf-Access-Jwt-Assertion` 
 - The heading is `Dashboard`, with the line "Agent runs serving a simulated People-operations team."
 - Stat cards: "active (queued, planning, running)", "awaiting approval", "needs attention", "paused", "succeeded", "rejected", "cancelled" and "open dead letters".
 - "Recent runs" can already list runs from 2026-10-15. Those whose requester starts with `svc:` were launched by `cf:verify` through a service token. `cf:verify` also cancels any run that needs attention or times out.
+- Expect `cancelled` `svc:` runs, and a matching count on the "cancelled" stat card. They are most likely the first production verification, the one before `/no_think`: 2 of its 4 planner tasks failed as `agent_exception` on every attempt (`PROGRESS.md`), and `cf:verify` cancels a run that needs attention. That is talking point 7. Confirm the count during the rehearsal.
 - "Agent roles" carries the note "planner calls a model; executor and verifier are deterministic".
 - The "Dead-letter queue" panel is shown to operators and admins only.
 
@@ -102,7 +103,14 @@ Click `Launch` in the nav to open "Launch a run". Production has no "Sample requ
 - Priority: `normal`
 - Click `Launch run`. The button stays disabled until a subject is chosen and the text has at least 10 characters.
 
-Why this text: it has the same shape as `syn-0022`, the synthetic manager change that Workers AI planned and production completed on 2026-10-15 (`production.json`). That run moved E-1017 under E-1004. E-1029 reports to E-1005 in the seed (`seed/people.sql`), so this change is a real one. If a rehearsal already moved E-1029, pick another active employee who does not report to E-1004.
+Why this text: it has the same shape as `syn-0022`, the synthetic manager change that Workers AI planned and production completed on 2026-10-15 (`production.json`). That run moved E-1017 under E-1004. E-1029 reports to E-1005 in the seed (`seed/people.sql`), so this change is a real one, as long as no rehearsal used E-1029.
+
+For the rehearsal, use E-1035 instead, which is also active in Support and reports to E-1005 in the seed:
+
+- Subject employee: `E-1035 Zelie Elsworth (Support)`
+- Request text: `Reorg: move E-1035 (Zelie Elsworth) under manager E-1004 (Quillon Ashdown). Notify them by Slack when done.`
+
+During the rehearsal the run title reads "Manager change for Zelie Elsworth (E-1035)" and the approval card "Change the manager of E-1035 to E-1004".
 
 Say: the hint under the text box reads "Treated as untrusted data: the planner is told to ignore instructions inside it." Whatever the model returns must pass the output schema, the request type's tool allowlist, subject pinning and the request type's required writes. Approval flags come from `src/worker/planning/policy.ts`, never from the model.
 
@@ -132,6 +140,8 @@ Open the manager change from `Runs` or the dashboard.
 
 Say: gating edges make every other write depend on the verification of the gated step, so before the approval only reads have run.
 
+Say, about the notice: it is the console's own-run check. This operator could not decide any approval anyway. The operator role lacks `approvals:decide`, so the API answers 403 `missing_permission` before the coordinator is asked. The coordinator's `self_approval` rule matters for admins, the only role that holds both `runs:launch` and `approvals:decide`. The console disables the buttons on your own run, so the UI never sends that request, and the refusal can only be seen through the API. `approvals-sod.test.ts` shows an admin refused with 403 `self_approval`, and the local API check under "Local fallback" showed both refusals.
+
 ### 6. Decide in window 2 (approver)
 
 - Click `Approvals`. The page is "Approval queue", and the `pending` tab shows both cards: "Change the manager of E-1029 to E-1004" (`medium risk`) and "Grant okta:super-admin to E-1024" (`high risk`).
@@ -150,8 +160,8 @@ Say: the approver's nav has no `Launch` link, because the role lacks `runs:launc
 ### 8. The rejected run (window 1)
 
 - The status is `rejected`, with the reason `approval_rejected`.
-- On the Timeline, the `access.grant_role` step is `rejected`, every task after it is `cancelled`, and the read before it is `succeeded`.
-- `Tool calls` lists only the read. No write token was ever minted for the grant, because a gated step is not leased before its approval (`docs/adr/0002-integration-ledger-and-call-bound-tokens.md`). Production's rejected run `syn-0002` recorded 1 tool call (`production.json`).
+- On the Timeline, the `access.grant_role` step is `rejected` and every task after it is `cancelled`. Any read the model planned before it is `succeeded`.
+- `Tool calls` shows no write: only the reads that ran before the gate, plus possibly a `tools/list` catalog read by the planner (as in step 7, a planner shard whose 5-minute catalog cache is cold traces one into the run it plans). There is no `access.grant_role` row. No write token was ever minted for the grant, because a gated step is not leased before its approval (`docs/adr/0002-integration-ledger-and-call-bound-tokens.md`). Production's rejected run `syn-0002` recorded 1 tool call (`production.json`); locally, the same request showed `tools/list` and `hris.get_employee`.
 - `Audit` still shows a verified chain.
 
 ### 9. Close with the production evidence
@@ -168,13 +178,13 @@ From `eval/results/production.json` (`npm run cf:verify -- --env production`, 20
 | Tool calls | 14 |
 | HTTP 5xx responses | 0 |
 | Unauthenticated request | 302 to the Access login |
-| Planner tokens; Workers AI neurons | 3577; 17 to 109 |
+| Planner tokens; Workers AI neurons (estimated from the tokens) | 3577; 17 to 109 |
 | Worker CPU per request (Analytics API, the verification window) | 92 requests, all successful; p50 4.8 ms, p99 40.6 ms |
-| Run duration p50; p95 | 46939 ms; 88291 ms |
+| Run duration p50; p95 (`cf:verify`'s wall clock per run) | 46939 ms; 88291 ms |
 
 ### Optional extras (rehearse first; no recorded production check covers them)
 
-- **Redaction.** Sign in as `nitishsancs+viewer@gmail.com`. Run detail hides the request text, and addresses in tool-call arguments and results show only city, region and country (`test/worker/auth/redaction.test.ts`). The viewer has no `Launch` link, but the `Audit` tab still works.
+- **Redaction.** Sign in as `nitishsancs+viewer@gmail.com` in a session of its own: a second browser or a separate browser profile, or window 2 after signing it out with `/cdn-cgi/access/logout` once the approvals are done. A new private window is not enough while window 2 is open, because Chrome's incognito windows share cookies. Run detail hides the request text, and addresses in tool-call arguments and results show only city, region and country (`test/worker/auth/redaction.test.ts`). The viewer has no `Launch` link, but the `Audit` tab still works.
 - **Search.** On `Runs`, search for `Soren Galloway manager change`. History search uses D1 FTS5 over runs, tasks, tool calls and approvals.
 
 ## Technical talking points
@@ -205,7 +215,7 @@ From `eval/results/production.json` (`npm run cf:verify -- --env production`, 20
 - There are two retry layers. Infrastructure retries use Queues `retry()` with backoff and consume no task attempt; after 5 of them the message goes to the dead-letter queue (`max_retries` in `wrangler.jsonc`). Task retries are coordinator redispatches with capped exponential backoff, up to `maxAttemptsPerTask`, which defaults to 3 (`src/shared/domain.ts`).
 - The DLQ consumer dead-letters a task only when the message's `dispatchId` is still the task's current one. Otherwise it records the message as `ignored_stale`. An admin's `Replay` in the "Dead-letter queue" panel redispatches the task with a new `dispatchId`. A poison message (an invalid body) is acked and audited, not retried.
 - A change for the Free plan: deployed consumers take batches of 5 (`wrangler.jsonc`).
-- Evidence. **Local**: 21 task retries and 18 runs recovered by retry (`simulation.json`). The DLQ never fired in the simulation, because no injected fault exhausts the queue retries (0 DLQ messages, `simulation.json`). **Tests** are the only evidence for the DLQ: in `retries.test.ts`, the DLQ consumer dead-letters only for the current `dispatchId`, and a DLQ replay redispatches the task. **Production**: no failure recovery has been observed, because fault injection is off.
+- Evidence. **Local**: 21 task retries and 18 runs recovered by retry (`simulation.json`). The DLQ never fired in the simulation, because no injected fault exhausts the queue retries (0 DLQ messages, `simulation.json`). **Tests** are the only evidence for the DLQ: in `retries.test.ts`, the DLQ consumer dead-letters only for the current `dispatchId`, and a DLQ replay redispatches the task. **Production**: no recovery has been observed, because fault injection is off. The only production retries on record are the first verification's planner attempts, which all failed before the `/no_think` fix (an observation in `PROGRESS.md`, not a results file).
 
 ### 4. The integration ledger: exactly-once side effects
 
@@ -215,7 +225,7 @@ From `eval/results/production.json` (`npm run cf:verify -- --env production`, 20
 - The effect is one atomic D1 batch. Every statement is guarded on the caller still owning the key and on no side effect existing yet for the correlation `<runId>:<stepId>`, which comes from the token, not from the caller. So a step's effect applies at most once across all generations, which is the logical dedupe.
 - Launches are deduplicated too: the API reserves `(requester, clientRequestId)` in D1 before any coordinator exists.
 - Code: `src/worker/mcp/ledger.ts`, `src/worker/agents/coordinator/credentials.ts`; `docs/adr/0002-integration-ledger-and-call-bound-tokens.md`.
-- Evidence. **Local** (`simulation.json`, fault injection on): 100 runs, with injected faults transient_error 18 (3 of them twice), duplicate_delivery 10, crash_after_call 6, permanent_error 4, silent_noop 4 and budget_exhausted 3. There were 573 tool calls and 6 ledger replays (0 logical). Duplicate side effects were 0 per idempotency key and 0 per run and step, and the simulated domain tables had 0 duplicate and 0 missing rows. The verifier detected 4/4 silent no-ops with 0 false positives, and outcome match was 100/100. **Production** (`production.json`): 0 duplicates per key and per run and step, over 6 ledger rows, with no faults injected.
+- Evidence. **Local** (`simulation.json`, fault injection on): 100 runs, with injected faults transient_error 18 (3 of them twice), duplicate_delivery 10, crash_after_call 6, permanent_error 4, silent_noop 4 and budget_exhausted 3. There were 573 tool calls and 6 ledger replays (0 logical). Duplicate side effects were 0 per idempotency key and 0 per run and step. Counted apart from the ledger, the three insert-only tables had 0 duplicate and 0 missing inserts (tickets 31, notifications 85, grants 31). That count does not cover updates such as `hris.update_manager`; those rely on the ledger guards and the verifier's read-back. The verifier detected 4/4 silent no-ops with 0 false positives, and outcome match was 100/100. **Production** (`production.json`): 0 duplicates per key and per run and step, over 6 ledger rows, with no faults injected.
 - A caveat: by design, no simulated scenario re-runs a write that really applied, so logical replays stay at 0 there. `idempotency.test.ts` covers that path ("the idempotency key is stable across attempts and changes with generation ...").
 
 ### 5. Call-bound MCP credentials
@@ -231,7 +241,7 @@ From `eval/results/production.json` (`npm run cf:verify -- --env production`, 20
 - The planner is the only component that calls a model. The output schema enumerates the request type's allowed tools. Validation checks the schema, the allowlist, subject pinning, the request type's required writes, and that `access.revoke_all_roles` appears only together with the gated termination step. A failed plan gets one repair attempt. If the repair fails too, the plan task fails and nothing executes.
 - Approval comes from policy (`approvalFor` in `src/worker/planning/policy.ts`): `hris.update_manager` is medium risk, while `hris.set_employment_status` and a grant of a privileged role are high risk.
 - Gating edges make every other write wait for the gated step's verification. Only reads run before an approval, so a rejection never needs compensation.
-- Evidence. **Production**: the privileged grant was rejected after 1 tool call, the read (`production.json`, run `syn-0002`). **Local**, against a small local model rather than the production one (Qwen3-1.7B Q4_0 on llama-server): 57/100 plans valid on the first pass, 77/100 after one repair, 0 policy violations (`planner-qwen3-1.7b-q4_0.json`). **Tests**: `plan-guard.test.ts`, where a request text that asks to revoke another employee's roles produces a rejected plan with no tasks, no write token and no side effect.
+- Evidence. **Production**: the privileged grant was rejected with 1 tool call recorded (`production.json`, run `syn-0002`). The file counts tool calls without naming them; none was the grant, because a gated step is not leased before its approval. **Local**, against a small local model rather than the production one (Qwen3-1.7B Q4_0 on llama-server): 57/100 plans valid on the first pass, 77/100 after one repair, 0 policy violations (`planner-qwen3-1.7b-q4_0.json`). **Tests**: `plan-guard.test.ts`, where a request text that asks to revoke another employee's roles produces a rejected plan with no tasks, no write token and no side effect.
 
 ### 7. The Qwen3 finding from production
 
@@ -255,7 +265,7 @@ Each run needs one place that serializes claims, approvals, recovery commands an
 Its lease expires. The next sweep makes the task ready again with a new `dispatchId` and attempt + 1, and the shard function sends it to the other executor shard. That shard claims the same idempotency key, finds it completed, and replays the stored result, so the write does not happen twice. Locally, all 6 injected crashes after a call ended as 6 ledger replays, with 0 duplicate side effects (`simulation.json`). Production has not shown this, because fault injection is off there.
 
 **Is it really exactly once?**
-Effects are at most once per plan step, because the ledger guards are conditions inside one atomic batch. A missing effect is caught rather than passed: the verifier reads the real state after every write, and a failed check stops the run for an operator retry. The local simulation found 0 duplicate and 0 missing rows in the simulated domain tables, checked independently of the ledger's own table (`simulation.json`). The honest limit is that this is shown for simulated systems. A real HR system would need its own idempotency support, or a ledger in front of it with the same guards.
+Effects are at most once per plan step, because the ledger guards are conditions inside one atomic batch. A missing effect is caught rather than passed: the verifier reads the real state after every write, and a failed check stops the run for an operator retry. The local simulation found 0 duplicate and 0 missing inserts in the three insert-only tables (tickets 31, notifications 85, grants 31; `simulation.json`), counted apart from the ledger's own table. Updates such as `hris.update_manager` are covered by the ledger guards and the verifier's read-back, not by that count. The honest limit is that this is shown for simulated systems. A real HR system would need its own idempotency support, or a ledger in front of it with the same guards.
 
 **Why no lease heartbeats?**
 Every external call has a bound below the lease TTL, and the config loader refuses configurations that break that. Without renewal there are fewer RPCs and fewer races, and a lease that runs out is simply reaped by the sweep and redispatched.
@@ -273,13 +283,13 @@ It is tamper-evident. Each event's hash covers the previous hash, and the API re
 The one recorded production failure is the Qwen3 thinking budget (talking point 7). Since the fix, the verification shows outcome match 4/4, 0 HTTP 5xx and 0 duplicates (`production.json`). Everything about crash recovery comes from the local simulation and the tests, and I label it that way.
 
 **Who can approve, and what if nobody does?**
-Approvers and admins can approve, but never on a run they requested. The coordinator refuses that as `self_approval`, admins included. An undecided approval expires after the configured TTL (72 hours in `wrangler.jsonc`). The run then moves to `needs attention`, and an operator can retry the gated step, which requests a new approval.
+Approvers and admins can decide approvals, but never on a run they requested. Of the two, only admins can launch runs, so the coordinator's `self_approval` refusal is what stops an admin; an operator, who can launch but not decide, is stopped earlier by RBAC (`missing_permission`). An undecided approval expires after the configured TTL (72 hours in `wrangler.jsonc`). The run then moves to `needs attention`, and an operator can retry the gated step, which requests a new approval.
 
 **How does it stay within the Free plan?**
-It uses bounded outbox flushes, small consumer batches, in-process MCP calls (no subrequests), and at most two model calls per planner task. The measured production CPU is p50 4.8 ms and p99 40.6 ms over 92 requests, none stopped (`production.json`). The binding daily limits are documented in the README, and they make this a demo-scale deployment.
+It uses bounded outbox flushes, small consumer batches, in-process MCP calls (no subrequests), and at most two model calls per planner attempt (a plan and one repair). A model error is retryable, so a plan task gets at most three attempts by default, and every attempt draws on the run's 6000-token budget (`DEFAULT_BUDGET` in `src/shared/domain.ts`). The measured production CPU is p50 4.8 ms and p99 40.6 ms over 92 requests, none stopped (`production.json`). The binding daily limits are documented in the README, and they make this a demo-scale deployment.
 
 **How do you know the numbers are real?**
-Every number comes from a script that writes `eval/results/*.json` with its commit, a content hash of the measured code, and a dirty flag. `npm run results:check` in CI fails when the README block differs from the JSON or when measured code changed after the measurement (ADR 0005). The simulation's outcome distribution is fixed by the dataset design, so outcome match is agreement with that design, not a success rate.
+Every number comes from a script that writes `eval/results/*.json` with its commit, a content hash of the measured code, and a dirty flag. `npm run results:check` in CI fails when the README block differs from the JSON, and for the local results files also when measured code changed after the measurement (ADR 0005). For `production.json` a code change is only a note, because measuring again needs a deploy. What ties `production.json` to the deployed code is `cf:verify` itself: it writes that file only from a clean tree whose measured-content hash the deployed version's message carries (`cf:setup` writes the hash there), and otherwise writes to `eval/results/raw/`. The simulation's outcome distribution is fixed by the dataset design, so outcome match is agreement with that design, not a success rate.
 
 **How was it built?**
 It was built with Claude Code, an AI coding agent, from `SPEC.md`, in rounds recorded in `PROGRESS.md`. The reviews were AI reviews, and no human has reviewed the code (README, "History, pull requests and authorship"). Be ready to open any file named in this doc and walk through it.
@@ -295,13 +305,13 @@ It was built with Claude Code, an AI coding agent, from `SPEC.md`, in rounds rec
 ### Access
 
 - **The code does not arrive.** Check spam in `nitishsancs@gmail.com`, then request a new code. Check that you typed the exact plus-address: only the four addresses above are allowed.
-- **Wrong persona.** Close the private window and open a new one, or use `/cdn-cgi/access/logout` (see step 1).
+- **Wrong persona.** Close every private window and open a new one, or use `/cdn-cgi/access/logout` (see step 1).
 - **The role badge says `no role`.** That email has no role binding. Sign in as one of the four personas.
 - **Access will not let you in at all.** Switch to the local fallback below, and say why: the same code runs locally with a dev login in place of Access.
 
 ### Workers AI
 
-- **Planning is slow.** Each model call is bounded at 45 s, and the planner lease lasts 120 s (`wrangler.jsonc`). Keep talking: production runs took up to 89.9 s end to end (`production.json`).
+- **Planning is slow.** Each model call is bounded at 45 s, and the planner lease lasts 120 s (`wrangler.jsonc`). Keep talking: `cf:verify`'s wall clock per production run was up to 89.9 s (`production.json`).
 - **The plan fails.** The run shows `needs attention` and the plan task `failed`. That is the safety story: nothing executed, because no execute task exists without an accepted plan. As the operator, the `Recovery` card offers `Retry` next to "the plan task". Its dialog is "Retry the plan task", with "Reason (recorded in the audit log)" and `Confirm`. Or click `Cancel run`, which opens "Cancel this run"; type a reason, then click `Confirm`.
 - **Workers AI stays down, or the daily allowance is used up.** Show the four runs Workers AI planned in production on 2026-10-15 instead. Their `Audit` tabs still re-verify live. The ids come from `production.json`:
   - `/runs/run_01M50Q9YM3WFAG0NYDGJERH6RE`: manager change, approved, succeeded
@@ -318,7 +328,7 @@ It was built with Claude Code, an AI coding agent, from `SPEC.md`, in rounds rec
 6. For failure recovery, run `npm run test:sim`. It drives all 100 synthetic requests, with their injected faults, through the real API, queue, coordinator, agents and MCP tools in workerd. It asserts every outcome, valid chains and zero duplicate side effects, and it is short enough to run while you talk. Do not run `npm run eval:sim` in an interview, because it rewrites `eval/results/simulation.json`.
 7. Stop the server with Ctrl+C.
 
-On 2026-10-15, while this doc was written, steps 1 to 4 were run against the built worker through its API with the same requests. The manager change ended `succeeded` with a verified chain, the grant ended `rejected`, and an approval attempt by the requester got 403. `npm run test:sim` passed (6 tests).
+On 2026-10-15 the same requests were sent to the built worker (`npm run serve:built -- --fresh`) through its API, as the same local principals. The UI path of steps 1 to 4 was not clicked through. The manager change ended `succeeded` and the grant `rejected` (`approval_rejected`), both with a verified chain; the grant's tool calls were `tools/list` and `hris.get_employee`. Ops Lead's attempt to decide the approval on their own run got 403 `missing_permission` (RBAC: operators lack `approvals:decide`). An admin launching the same grant as `admin@agentboard.test` and then deciding its approval got 403 `self_approval` from the coordinator. `npm run test:sim` also passed that day.
 
 `npm run dev` works too, with the dev login at `http://127.0.0.1:5173/dev/login` (README, "Local setup").
 
