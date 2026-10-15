@@ -82,6 +82,8 @@ function renderProduction(data: Production | null, metas: { name: string; meta: 
     if (!k) return "not observed";
     return k.cpu_ms_max === null ? `${k.invocations} invocations; CPU not reported by wrangler tail` : `${k.invocations} invocations; p50 ${k.cpu_ms_p50} ms, max ${k.cpu_ms_max} ms`;
   };
+  // An empty tail summary means wrangler tail delivered no events: a zero there would not be a measurement.
+  const tailObserved = m.invocations_by_kind !== null && Object.keys(m.invocations_by_kind).length > 0 && m.invocations_hitting_a_limit !== null;
   // The Analytics API's Worker window (raw GraphQL; cpuTime quantiles are microseconds per the schema).
   const analyticsCpu = (() => {
     const groups = (m.analytics as { workerWindow?: { viewer?: { accounts?: { workersInvocationsAdaptive?: { sum: { requests: number }; quantiles: { cpuTimeP50: number; cpuTimeP99: number }; dimensions: { status: string } }[] }[] } } } | undefined)
@@ -110,7 +112,7 @@ function renderProduction(data: Production | null, metas: { name: string; meta: 
     `| Planner tokens; Workers AI neurons (bounds) | ${m.llm_tokens_total}; ${m.neurons_estimate.low} to ${m.neurons_estimate.high} |`,
     `| Unauthenticated request | ${m.access_unauthenticated} |`,
     `| HTTP 5xx responses | ${m.http_5xx} |`,
-    `| Invocations that exceeded a CPU or memory limit (wrangler tail) | ${m.invocations_hitting_a_limit ?? "not measured"} |`,
+    `| Invocations that exceeded a CPU or memory limit (wrangler tail) | ${tailObserved ? m.invocations_hitting_a_limit : "not observed (wrangler tail delivered no events)"} |`,
     `| Worker fetch invocations (Free plan limit: 10 ms CPU) | ${cpu("worker fetch")} |`,
     `| Worker queue invocations | ${cpu("worker queue")} |`,
     `| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | ${analyticsCpu} |`,

@@ -353,7 +353,7 @@ Command: `npm run cf:verify -- --env production` against https://agentboard-prod
 | Planner tokens; Workers AI neurons (bounds) | 3577; 17 to 109 |
 | Unauthenticated request | 302 to the Access login: Access protects the hostname |
 | HTTP 5xx responses | 0 |
-| Invocations that exceeded a CPU or memory limit (wrangler tail) | 0 |
+| Invocations that exceeded a CPU or memory limit (wrangler tail) | not observed (wrangler tail delivered no events) |
 | Worker fetch invocations (Free plan limit: 10 ms CPU) | not observed |
 | Worker queue invocations | not observed |
 | Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | 92 requests (success 92); p50 4.8 ms, p99 40.6 ms |
