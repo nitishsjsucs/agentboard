@@ -267,13 +267,63 @@ The table, with a developers.cloudflare.com source for each limit, is in the REA
 - Production CPU time is not measured, because nothing is deployed. `cf:verify` records it with `wrangler tail --format json` (per invocation and kind, with `exceededCpu` outcomes) and the GraphQL Analytics API (`workersInvocationsAdaptive` CPU quantiles, `durableObjectsPeriodicGroups` CPU time).
 - Three facts were not found on developers.cloudflare.com and are marked as such in the README: whether `wrangler tail` events carry `cpuTime`, how a D1 `batch()` counts against the 50 queries per invocation, and the Free Access cap of 50 users (stated on cloudflare.com's pricing pages).
 
+### Production deploy, the Qwen3 finding and re-measurement (2026-10-15, after builder 10)
+
+After commit 103, Claude Code (the session that coordinates the four repositories) deployed production and verified it, and committed two changes; builder 10 then measured again.
+
+| # | Commit | Status |
+|---|---|---|
+| 104 | fix(llm): turn Qwen3 thinking off on Workers AI, and log agent exceptions | done (`c9130b5`, coordinating session) |
+| 105 | eval: first production verification on the Workers Free plan, with Worker CPU from the Analytics API | done (`13907d4`, coordinating session) |
+| 106 | fix(eval): a production run with no wrangler tail events renders the limit row as not observed | done (`0dbe380`) |
+| 107 | chore(results): re-measure simulation, planner and test results after the Workers AI provider fix | done (`4197e2a`, measured at `0dbe380`) |
+| 108 | docs: README, CHANGELOG and PROGRESS for the production deploy and the Qwen3 finding | done |
+
+The Qwen3 finding (commit 104): `@cf/qwen/qwen3-30b-a3b-fp8` thinks before answering on Workers AI, and the thinking counts against `max_tokens`.
+- In the first production verification, the model spent all 800 planner output tokens on reasoning and returned `content: null` with `finish_reason: "length"`. The provider reported that as an unrecognized output shape, and 2 of 4 planner tasks failed as `agent_exception` on every attempt.
+- The provider now appends Qwen3's `/no_think` soft switch to the user turn. Checked against the REST API, that gave `finish_reason: "stop"` and valid JSON in about 310 tokens; `chat_template_kwargs.enable_thinking: false` did not turn reasoning off.
+- A budget spent on reasoning now throws a named error ("used its whole output budget before answering").
+- The role skeleton logs each agent exception's message to Workers Logs, because the report to the coordinator carries only the code.
+- A new `llm` test in `providers.test.ts` covers both (180 tests in all).
+- The local planner eval does not reach this path: it uses the OpenAI-compatible provider against llama-server, started with `--reasoning off`.
+
+Production verification (commit 105, `eval/results/production.json`): `npm run cf:verify -- --env production` against `https://agentboard-production.nitish-ratakonda.workers.dev`, version `9b2bf0aa-0025-41e7-867d-9874f7e3a98c`, deployed by `cf:setup` from `c9130b5` (the version message carries the commit and its measured content), 21:24 to 21:26 UTC:
+- Access: an unauthenticated request got a 302 to the Access login, and both service tokens reached `/api/me` with their roles.
+- Runs: 4/4 outcomes matched (succeeded 3: two address changes and an approved manager change; rejected 1: the privileged grant), with no run cancelled, 4/4 valid audit chains, 0 HTTP 5xx, 14 tool calls, and 0 duplicate side effects per idempotency key and per run and step (6 ledger rows).
+- Planner: 3,577 tokens, 17 to 109 neurons.
+- Run duration p50 46.9 s and p95 88.3 s.
+- `wrangler tail` delivered no events, so per-invocation CPU and limit outcomes were not observed.
+- GraphQL Analytics API:
+  - the Worker in the run's window: 92 requests, all `success`, CPU p50 4.8 ms and p99 40.6 ms. The p99 is over the Free plan's 10 ms, but no request was stopped, which matches the "built-in flexibility" the limits page describes;
+  - the UTC day up to then: 172 Worker requests;
+  - D1: `agentboard` 2,697 rows written and 3,391 read, `agentboard-people` 808 written and 334 read, 18,693 rows written across the account's four databases (two belong to other apps);
+  - Durable Object CPU only as raw per-namespace sums, whose unit the docs do not state.
+
+Commit 106 is builder 10's: the rendered table had shown "0" invocations over a limit from zero tail events. The production result was measured at `c9130b5`, and commits 105 and 106 changed `scripts/render-results.ts`, so `results:check` prints a note for `production.json` (deviation 79) and passes.
+
+Re-measurement for commit 107, on the clean tree at `0dbe380`, with a light load on the Mac:
+- `count:tests`: 109 tagged (67 + 42), 109 passing, vitest exit 0.
+- `eval:sim`: exit 0. Every count equals the `b362e3e` measurement (573 tool calls, 3228 audit events, 100/100 outcome match and valid chains, 0 duplicates). Run duration p50 7261 ms and p95 10921 ms, search latency p50 2.0 ms and p95 2.5 ms; the bundle sha256 changed with `src`.
+- `eval:planner` (llama-server b11146-7fe450e19 on 127.0.0.1:8140, the same flags): exit 0, all 100 per-request results identical to `b362e3e`, latency p50 3841 ms and p95 10565 ms.
+- The stub sanity run: 100/100.
+
+After it:
+- `results:check` passes (4 result files, with the production note);
+- `count:tests -- --check` passes (109);
+- `types:check`, `typecheck` and `synth:check` pass;
+- `npm test`: 44 files, 180 tests;
+- `test:sim`: 6 tests;
+- `build` passes.
+
+llama-server was stopped with SIGTERM afterwards, and `eval:sim` stopped its own wrangler dev; no process of this repository is left running.
+
 ## What is left (human steps)
 
 - Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1, every review finding and the three known minor issues are done, and so is the deploy tooling. There is no further planned build work in SPEC.md.
 - The builders never push and make no cloud or GitHub change. The GitHub repository is filled by the publish script (`~/Developer/projects/_publish/sync.sh agentboard --pr`). It copies each new local `main` commit without any `Co-Authored-By: Claude` trailer, rewrites commit ids cited in files to the published ones, and mirrors local tags onto the published commits. It opens one pull request per increment and, as of 2026-10-15, merges it with a merge commit only after `gh pr checks --watch` passes. No pull request has had a human review. On 2026-10-15 no running loop publishes agentboard (`loop.sh` has its STOP file), so publishing is a manual run of `sync.sh`.
 - Claude (the parent session) or Nitish, in this order:
-  1. Publish this round (local `main` was fast-forwarded to `free-plan-readiness` after every check passed) and let CI pass on the pull request.
-  2. Production: `npx wrangler login` exists; with `CF_API_TOKEN` (Access: Apps and Policies Edit, Access: Service Tokens Edit, AI Gateway Edit, Account Analytics Read) run `npm run cf:doctor -- --env production`, `npm run cf:setup -- --env production --dry-run`, `npm run cf:setup -- --env production`, then `npm run cf:verify -- --env production`. Then run `npm run results:render` and commit `eval/results/production.json` with the README. Never export `CLOUDFLARE_API_TOKEN` for these.
+  1. Publish this round (commits 93 to 108 are local; GitHub still ends at PR #11) and let CI pass on the pull request.
+  2. Production: done on 2026-10-15 (deployed by `cf:setup`, verified by `cf:verify`, commits 104 and 105). After the next code change, redeploy with `npm run cf:setup -- --env production` (with `CF_API_TOKEN`), then re-run `cf:verify` and commit its result. Never export `CLOUDFLARE_API_TOKEN` for these.
   3. Preview: `npm run cf:setup -- --env preview` (same token), then on GitHub create the environment `preview` (no required reviewer), add its secret `CLOUDFLARE_API_TOKEN` (account-scoped: Workers Scripts Edit, D1 Edit, Queues Edit, Account Settings Read), and set the repository variable `PREVIEW_DEPLOYS=on`. The next pull request then deploys to `agentboard-preview`.
   4. Releases: run the four `gh workflow run release.yml ... -f tag=v0.N.0` commands under "Gate open issues" (d). Then cut `v0.5.0` as described in (a).
   5. Sign in once as each persona (One-time PIN to `nitishsancs+ops@gmail.com` and so on; plus-addresses reach the same inbox) to check the roles in the console.
@@ -289,6 +339,8 @@ The table, with a developers.cloudflare.com source for each limit, is in the REA
   Builder 8 used the same procedure on 2026-10-09 for commit 87, and builder 9 (the final gate) in a fresh clone of `6541d6e` for commit 90.
 
 ## Check status (last run 2026-10-15 local time by builder 10)
+
+The latest run is the re-measurement after the production deploy, under "Production deploy, the Qwen3 finding and re-measurement" above (at `0dbe380` and after commit 107). The list below is builder 10's first pass, up to commit 103.
 
 Builder 10, Node 25.9.0, npm 11.12.1, on AC power. Three other repositories' test suites, wrangler dev and workerd processes ran on the Mac at the same time, with load averages between 15 and more than 100. Every long run was under `caffeinate -i`.
 
@@ -371,7 +423,7 @@ Each phrase of the SPEC section 0 resume text, its state and what Nitish has to 
 - `preview.yml`: 9 runs, the deploy job skipped every time;
 - 0 deployments, 0 releases, no `preview` environment and no repository variables;
 - the four tags, with CI passing for `v0.1.0` to `v0.3.0` and failing for `v0.4.0`;
-- the Cloudflare account: no D1 database, no queue, no AgentBoard Worker.
+- the Cloudflare account: no D1 database, no queue and no AgentBoard Worker at first. Production was deployed later that day (commits 104 and 105).
 
 Mirror this list in any builder status. The publish script keeps adding pull requests and CI runs, so check GitHub for later numbers.
 
@@ -379,7 +431,7 @@ Mirror this list in any builder status. The publish script keeps adding pull req
 |---|---|---|---|
 | "operations console for launching, monitoring, and controlling agents" | true locally | launch, live run detail, recovery controls, approvals; checked in a browser (deviation 38, 48) | none |
 | "serving the People organization" | not true: the People organization is simulated | 60 synthetic employees in a simulated D1 database | use "for a simulated People-operations org" |
-| "React/TypeScript console on Cloudflare Workers" | runs only on local workerd; nothing is deployed. The deploy to the Workers Free plan is scripted (`npm run cf:setup`) and passed a read-only dry run against the account on 2026-10-15 | README "What runs where" and "Production setup" | keep "on Cloudflare Workers" only while a deployment is live: run `cf:setup` and `cf:verify` (README "Production setup") |
+| "React/TypeScript console on Cloudflare Workers" | true for production since 2026-10-15: `agentboard-production` on the Workers Free plan behind Cloudflare Access, verified by `cf:verify` (4/4 outcomes). Preview is not set up | README "Production" results, `eval/results/production.json` | keep "on Cloudflare Workers" only while the deployment is live |
 | "live execution updates, searchable task histories, approval controls, and D1-backed audit records across approximately 100 simulated agent runs" | true locally (local D1) | eval:sim 100 runs, 100/100 valid audit chains | none beyond "simulated" |
 | "three specialized agents" | two of the three are deterministic workers | only PlannerAgent calls a model | keep and be ready to explain why, or "a planning agent plus execution and verification workers" |
 | "Cloudflare Agents SDK, Durable Objects, Queues, and MCP, with task leases, bounded execution budgets, retry handling, and duplicate-action prevention" | true locally (workerd, Miniflare queues) | 108 tagged tests, eval:sim | none |
