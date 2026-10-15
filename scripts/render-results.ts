@@ -65,6 +65,7 @@ type Production = {
     http_5xx: number;
     invocations_hitting_a_limit: number | null;
     invocations_by_kind: Record<string, { invocations: number; cpu_ms_p50: number | null; cpu_ms_max: number | null }> | null;
+    analytics?: unknown;
     run_duration_ms_p50: number;
     run_duration_ms_p95: number;
   };
@@ -81,6 +82,17 @@ function renderProduction(data: Production | null, metas: { name: string; meta: 
     if (!k) return "not observed";
     return k.cpu_ms_max === null ? `${k.invocations} invocations; CPU not reported by wrangler tail` : `${k.invocations} invocations; p50 ${k.cpu_ms_p50} ms, max ${k.cpu_ms_max} ms`;
   };
+  // The Analytics API's Worker window (raw GraphQL; cpuTime quantiles are microseconds per the schema).
+  const analyticsCpu = (() => {
+    const groups = (m.analytics as { workerWindow?: { viewer?: { accounts?: { workersInvocationsAdaptive?: { sum: { requests: number }; quantiles: { cpuTimeP50: number; cpuTimeP99: number }; dimensions: { status: string } }[] }[] } } } | undefined)
+      ?.workerWindow?.viewer?.accounts?.[0]?.workersInvocationsAdaptive;
+    if (!groups || groups.length === 0) return "not read";
+    const requests = groups.reduce((n, g) => n + g.sum.requests, 0);
+    const p50 = Math.max(...groups.map((g) => g.quantiles.cpuTimeP50)) / 1000;
+    const p99 = Math.max(...groups.map((g) => g.quantiles.cpuTimeP99)) / 1000;
+    const statuses = groups.map((g) => `${g.dimensions.status} ${g.sum.requests}`).join(", ");
+    return `${requests} requests (${statuses}); p50 ${p50.toFixed(1)} ms, p99 ${p99.toFixed(1)} ms`;
+  })();
   return [
     "### Production (Workers Free plan)",
     "",
@@ -101,6 +113,7 @@ function renderProduction(data: Production | null, metas: { name: string; meta: 
     `| Invocations that exceeded a CPU or memory limit (wrangler tail) | ${m.invocations_hitting_a_limit ?? "not measured"} |`,
     `| Worker fetch invocations (Free plan limit: 10 ms CPU) | ${cpu("worker fetch")} |`,
     `| Worker queue invocations | ${cpu("worker queue")} |`,
+    `| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | ${analyticsCpu} |`,
     `| Run duration p50; p95 (production wall clock) | ${ms(m.run_duration_ms_p50)}; ${ms(m.run_duration_ms_p95)} |`,
   ];
 }

@@ -1,0 +1,268 @@
+{
+  "meta": {
+    "gitSha": "c9130b57e459e973cee360fbcd9eaf27f60d871f",
+    "commitDate": "2026-10-15T21:23:38.000Z",
+    "commitSubject": "fix(llm): turn Qwen3 thinking off on Workers AI, and log agent exceptions",
+    "measuredTree": "sha256:cc1766a5302a25f905bcf37d504006bcc230fa678222d5b294989de7464f8f87",
+    "dirty": false,
+    "generatedAt": "2026-10-15T21:24:03.735Z",
+    "node": "v25.9.0",
+    "wrangler": "4.149.0",
+    "seed": 20261008,
+    "provider": "workers-ai",
+    "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "environment": "production",
+    "url": "https://agentboard-production.nitish-ratakonda.workers.dev",
+    "deployedVersion": "9b2bf0aa-0025-41e7-867d-9874f7e3a98c",
+    "deployedMessage": "agentboard c9130b57e459e973cee360fbcd9eaf27f60d871f measured cc1766a5302a25f9",
+    "fresh": true,
+    "startedAt": "2026-10-15T21:24:17.726Z",
+    "finishedAt": "2026-10-15T21:26:02.612Z"
+  },
+  "metrics": {
+    "runs_total": 4,
+    "outcome_match": 4,
+    "runs_by_status": {
+      "rejected": 1,
+      "succeeded": 3
+    },
+    "runs_cancelled_by_verify": 0,
+    "run_errors": 0,
+    "audit_chains_valid": 4,
+    "side_effects": {
+      "rows": 6,
+      "duplicateKeys": 0,
+      "logicalDuplicates": 0
+    },
+    "tool_calls_total": 14,
+    "run_duration_ms_p50": 46939,
+    "run_duration_ms_p95": 88291.45,
+    "http_requests": 81,
+    "http_5xx": 0,
+    "access_unauthenticated": "302 to the Access login: Access protects the hostname",
+    "identities": {
+      "operator": "operator",
+      "approver": "approver"
+    },
+    "llm_tokens_total": 3577,
+    "neurons_estimate": {
+      "low": 17,
+      "high": 109
+    },
+    "invocations_by_kind": {},
+    "invocations_hitting_a_limit": 0,
+    "worker_fetch_cpu_ms_max": null,
+    "analytics": {
+      "workerWindow": {
+        "viewer": {
+          "accounts": [
+            {
+              "workersInvocationsAdaptive": [
+                {
+                  "dimensions": {
+                    "status": "success"
+                  },
+                  "quantiles": {
+                    "cpuTimeP50": 4770,
+                    "cpuTimeP99": 40562
+                  },
+                  "sum": {
+                    "errors": 0,
+                    "requests": 92,
+                    "subrequests": 55
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "workerToday": {
+        "viewer": {
+          "accounts": [
+            {
+              "workersInvocationsAdaptive": [
+                {
+                  "dimensions": {
+                    "status": "success"
+                  },
+                  "sum": {
+                    "errors": 0,
+                    "requests": 172
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "durableObjectsCpu": {
+        "viewer": {
+          "accounts": [
+            {
+              "durableObjectsPeriodicGroups": [
+                {
+                  "dimensions": {
+                    "namespaceId": "f907c5a6bfa842839b54364499c7f4d6"
+                  },
+                  "sum": {
+                    "cpuTime": 153677
+                  }
+                },
+                {
+                  "dimensions": {
+                    "namespaceId": "618277d6180745d7a3ee023f195c8287"
+                  },
+                  "sum": {
+                    "cpuTime": 703686
+                  }
+                },
+                {
+                  "dimensions": {
+                    "namespaceId": "8ea47910209e43d4b3681e251ece7be3"
+                  },
+                  "sum": {
+                    "cpuTime": 252630
+                  }
+                },
+                {
+                  "dimensions": {
+                    "namespaceId": "b841dc32ea594d7c91fffa2576b94061"
+                  },
+                  "sum": {
+                    "cpuTime": 271278
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "d1Today": {
+        "viewer": {
+          "accounts": [
+            {
+              "d1AnalyticsAdaptiveGroups": [
+                {
+                  "dimensions": {
+                    "databaseId": "cd73eacb-389c-4c86-9395-a9dccc4f19ec"
+                  },
+                  "sum": {
+                    "readQueries": 43,
+                    "rowsRead": 334,
+                    "rowsWritten": 808,
+                    "writeQueries": 43
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "431784f7-3f98-4870-8bc2-3b0fda9f9436"
+                  },
+                  "sum": {
+                    "readQueries": 994,
+                    "rowsRead": 3426,
+                    "rowsWritten": 449,
+                    "writeQueries": 101
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "5590c0b7-cc13-4535-8390-523f4f4f7b77"
+                  },
+                  "sum": {
+                    "readQueries": 570,
+                    "rowsRead": 3391,
+                    "rowsWritten": 2697,
+                    "writeQueries": 742
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "e5a94fb1-cf91-4108-81c2-863f8f4e3180"
+                  },
+                  "sum": {
+                    "readQueries": 13,
+                    "rowsRead": 10565,
+                    "rowsWritten": 14739,
+                    "writeQueries": 44
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "d1DatabaseNames": {
+        "cd73eacb-389c-4c86-9395-a9dccc4f19ec": "agentboard-people",
+        "5590c0b7-cc13-4535-8390-523f4f4f7b77": "agentboard"
+      },
+      "note": "cpuTime values are the GraphQL API's raw numbers (the schema's unit, microseconds for workersInvocationsAdaptive); the Worker window covers this run, the daily figures cover the whole UTC day"
+    }
+  },
+  "runs": [
+    {
+      "ref": "syn-0002",
+      "requestType": "privileged_access",
+      "runId": "run_01M50Q773MTZEA4A2CGNN9EMMW",
+      "expectedStatus": "rejected",
+      "finalStatus": "rejected",
+      "statusReason": "approval_rejected",
+      "decisions": [
+        "reject"
+      ],
+      "cancelledByVerify": false,
+      "durationMs": 78927,
+      "llmTokens": 917,
+      "toolCalls": 1,
+      "auditChainValid": true,
+      "error": null
+    },
+    {
+      "ref": "syn-0006",
+      "requestType": "address_change",
+      "runId": "run_01M50Q7767G7E4XP2R6AMEHV2G",
+      "expectedStatus": "succeeded",
+      "finalStatus": "succeeded",
+      "statusReason": null,
+      "decisions": [],
+      "cancelledByVerify": false,
+      "durationMs": 89944,
+      "llmTokens": 932,
+      "toolCalls": 5,
+      "auditChainValid": true,
+      "error": null
+    },
+    {
+      "ref": "syn-0013",
+      "requestType": "address_change",
+      "runId": "run_01M50Q9KVYZXSVBJ7VB4GZJ5PK",
+      "expectedStatus": "succeeded",
+      "finalStatus": "succeeded",
+      "statusReason": null,
+      "decisions": [],
+      "cancelledByVerify": false,
+      "durationMs": 14951,
+      "llmTokens": 924,
+      "toolCalls": 4,
+      "auditChainValid": true,
+      "error": null
+    },
+    {
+      "ref": "syn-0022",
+      "requestType": "manager_change",
+      "runId": "run_01M50Q9YM3WFAG0NYDGJERH6RE",
+      "expectedStatus": "succeeded",
+      "finalStatus": "succeeded",
+      "statusReason": null,
+      "decisions": [
+        "approve"
+      ],
+      "cancelledByVerify": false,
+      "durationMs": 14940,
+      "llmTokens": 804,
+      "toolCalls": 4,
+      "auditChainValid": true,
+      "error": null
+    }
+  ]
+}

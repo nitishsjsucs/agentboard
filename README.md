@@ -337,9 +337,27 @@ Command: `npm run count:tests`. Measured 2026-10-15 at commit `b362e3e`.
 
 Tagged tests: 67 orchestration + 42 authorization = 109; passing: 109.
 
-### Production
+### Production (Workers Free plan)
 
-Not measured. Nothing has been deployed; every number above comes from local runs.
+Command: `npm run cf:verify -- --env production` against https://agentboard-production.nitish-ratakonda.workers.dev through Cloudflare Access with two service tokens; every run planned by Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`). Measured 2026-10-15 at commit `c9130b5`, deployed version `9b2bf0aa-0025-41e7-867d-9874f7e3a98c`. These numbers describe the code of that commit as deployed; `results:check` does not require later code to match them, because measuring again needs a deploy.
+
+| Metric | Value |
+|---|---|
+| Runs | 4 |
+| Outcome distribution | rejected 1, succeeded 3 |
+| Outcome match (measured status equals the dataset's expected status) | 4/4 |
+| Runs the verifier cancelled (needs attention or timed out) | 0 |
+| Runs with a valid audit hash chain | 4/4 |
+| Duplicate side effects per idempotency key; per run and step | 0; 0 (6 ledger rows) |
+| Tool calls | 14 |
+| Planner tokens; Workers AI neurons (bounds) | 3577; 17 to 109 |
+| Unauthenticated request | 302 to the Access login: Access protects the hostname |
+| HTTP 5xx responses | 0 |
+| Invocations that exceeded a CPU or memory limit (wrangler tail) | 0 |
+| Worker fetch invocations (Free plan limit: 10 ms CPU) | not observed |
+| Worker queue invocations | not observed |
+| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | 92 requests (success 92); p50 4.8 ms, p99 40.6 ms |
+| Run duration p50; p95 (production wall clock) | 46939 ms; 88291 ms |
 
 <!-- RESULTS:END -->
 
