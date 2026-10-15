@@ -108,7 +108,7 @@ The rules that make it safe under at-least-once delivery:
 | LLM planning | deterministic stub in tests and the simulation; a local llama-server (Qwen3-1.7B Q4_0) for `eval:planner` | Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway, with Qwen3's thinking turned off by `/no_think` (unit-tested with a fake binding; in production, 4 verification runs on 2026-10-15) |
 | MCP integrations | in-process Streamable HTTP to the simulated People systems; an external `/mcp` route for MCP Inspector only with `MCP_EXTERNAL=on` on loopback | the same in-process path to the same simulated systems; no external route (`MCP_EXTERNAL=on` is refused at load time) |
 | Fault directives (simulation) | on in tests and the simulation | off, enforced at load time |
-| Preview deployments | not applicable | `preview.yml` deploys each pull request from this repository to the shared `agentboard-preview` Worker once the `preview` GitHub environment's token and the `PREVIEW_DEPLOYS` variable exist; on GitHub its deploy job has been skipped every time, so nothing is deployed (the deploy was checked offline with `wrangler deploy --dry-run`) |
+| Preview deployments | not applicable | `preview.yml` deploys each pull request from this repository to the shared `agentboard-preview` Worker once the `preview` GitHub environment's token and the `PREVIEW_DEPLOYS` variable exist; set up on 2026-10-15 (preview resources created with `cf:setup -- --env preview`, the environment's token and `PREVIEW_DEPLOYS=on`); the first deploy from GitHub Actions was run 38812854783, a rerun of the workflow on pull request #12, and GitHub records the `preview` deployment. The preview Worker is behind Cloudflare Access with One-time PIN, like production |
 | Numbers in this README | all except the Production section | the Production section (`cf:verify`, 2026-10-15) and the production figures in "Cloudflare Free plan" |
 
 ## Local setup
@@ -250,7 +250,7 @@ What changed for the Free plan: one outbox flush makes at most 16 binding calls 
 
 ## Releases
 
-Four milestone tags, `v0.1.0` to `v0.4.0`, exist with a demo script each in `demos/` and a section each in `CHANGELOG.md`. No GitHub release has been published yet. `.github/workflows/release.yml` publishes one. Pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. An existing release is left untouched.
+Four milestone tags, `v0.1.0` to `v0.4.0`, exist with a demo script each in `demos/` and a section each in `CHANGELOG.md`. Their GitHub releases were published together on 2026-10-15 by running `release.yml` by hand from `main` (v0.1.0 Foundations, v0.2.0 Orchestration core, v0.3.0 Console, v0.4.0 Evaluation and release); the tags themselves were made on 2026-10-08. `.github/workflows/release.yml` publishes one. Pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. An existing release is left untouched.
 
 The four existing tags predate the workflow (GitHub runs the workflow file of the tagged commit), so their releases are created by running it by hand from `main`. That reads the notes from `main`'s `CHANGELOG.md` and does not run CI:
 
@@ -277,8 +277,9 @@ State of the GitHub repository on 2026-10-15 (read with `gh`; later increments a
 
 - The first 8 commits were pushed straight to `main`. After that, pull requests #1 to #11 were each opened and merged by the publish script within seconds, without review and before their CI had finished. #7 holds only a commit the publish script made itself, which points measured-commit references at the published history.
 - `ci.yml` ran 38 times and failed 16 times. `main` was red after merging #3 to #6, whose result files cited working-repository commit ids that the published history did not contain (the publish script did not rewrite them at the time). It was also red after #8, which ended between three fixes and their re-measurement. It was green after #1, #2, #7 and #9 to #11.
-- `preview.yml` ran 9 times; its deploy job was skipped every time (no Cloudflare secrets), so GitHub records no deployment and the repository has no `preview` environment. (Production on Cloudflare was deployed from the working repository with `cf:setup`, not by a workflow.)
-- The tags `v0.1.0` to `v0.4.0` are there (CI as described under Releases); no GitHub release exists.
+- `preview.yml` ran 9 times with its deploy job skipped (no Cloudflare secrets) until 2026-10-15, when the `preview` environment, its token and `PREVIEW_DEPLOYS=on` were set up; a rerun on #12 then deployed `agentboard-preview` from GitHub Actions (run 38812854783), and pull requests from this repository now deploy there. (Production was deployed from the working repository with `cf:setup`, not by a workflow.)
+- The tags `v0.1.0` to `v0.4.0` are there (CI as described under Releases); their GitHub releases were published on 2026-10-15.
+- Pull request #12 (2026-10-15) was merged by the publish script only after its checks passed, as every increment is from then on; it had no human review.
 
 ## Results
 
