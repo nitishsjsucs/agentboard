@@ -6,3 +6,4 @@ dist
 eval/results/raw
 *.tsbuildinfo
 .DS_Store
+.secrets
