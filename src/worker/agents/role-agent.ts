@@ -74,6 +74,10 @@ export abstract class RoleAgent extends Agent<Env, RoleState> implements RoleAge
     try {
       report = await this.work(claim, coordinator);
     } catch (error) {
+      // The report carries only the code to the coordinator and the audit trail, so the message is logged here
+      // (Workers Logs) or a production failure cannot be diagnosed. Messages come from providers and tools, never
+      // from request text.
+      console.error(JSON.stringify({ event: "agent_exception", role: this.role, runId: message.runId, taskId: message.taskId, message: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500) }));
       report = {
         taskId: claim.context.taskId,
         leaseId: claim.lease.leaseId,
