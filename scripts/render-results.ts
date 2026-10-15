@@ -1,13 +1,16 @@
 // npm run results:render: rewrites the README block between
 // <!-- RESULTS:START --> and <!-- RESULTS:END --> from eval/results/*.json.
 // npm run results:check (CI): fails if the README block differs from what the
-// JSON renders, if any result is dirty, or if measured code changed after the
-// measurement (git diff <gitSha> HEAD over the measured paths).
+// JSON renders, if any result is dirty, if HEAD's measured paths differ from
+// the content the result was measured on, if the measured commit is not in the
+// history being checked, or if a measured file cites a commit id (see
+// lib/provenance.ts: the check does not depend on any particular commit id, so
+// it passes on the published history, whose commit ids all differ).
 
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { MEASURED_PATHS, ROOT } from "./lib/meta.ts";
+import { checkProvenance, commitCitations, gitIn } from "./lib/provenance.ts";
 
 const START = "<!-- RESULTS:START -->";
 const END = "<!-- RESULTS:END -->";
@@ -16,6 +19,8 @@ const README = join(ROOT, "README.md");
 interface Meta {
   gitSha: string;
   dirty: boolean;
+  commitDate?: string;
+  measuredTree?: string;
   generatedAt: string;
   node: string;
   wrangler: string;
@@ -152,27 +157,20 @@ const existing = currentBlock(readme);
 if (process.argv.includes("--check")) {
   const problems: string[] = [];
   if (existing !== block) problems.push("the README results block differs from what eval/results renders (run npm run results:render)");
+  const git = gitIn(ROOT);
   for (const { name, meta } of metas) {
-    if (meta.dirty) problems.push(`${name} was measured on a dirty tree`);
-    // A commit id that is not in this history (for example after the history was rewritten)
-    // cannot be diffed; say so instead of calling the code changed.
-    try {
-      execFileSync("git", ["cat-file", "-e", `${meta.gitSha}^{commit}`], { cwd: ROOT, stdio: "ignore" });
-    } catch {
-      problems.push(`${name}: measured commit ${meta.gitSha.slice(0, 7)} is not in this repository's history (a shallow clone, or rewritten history)`);
-      continue;
-    }
-    try {
-      execFileSync("git", ["diff", "--quiet", meta.gitSha, "HEAD", "--", ...MEASURED_PATHS], { cwd: ROOT, stdio: "ignore" });
-    } catch {
-      problems.push(`${name}: measured code changed since ${meta.gitSha.slice(0, 7)} (re-run the measurement)`);
-    }
+    const result = checkProvenance(git, name, meta, MEASURED_PATHS);
+    problems.push(...result.problems);
+    for (const note of result.notes) console.log(`results:check: note: ${note}`);
+  }
+  for (const citation of commitCitations(git, ROOT, MEASURED_PATHS)) {
+    problems.push(`${citation}; the publish step rewrites commit ids in files, so the published measured content would differ`);
   }
   if (problems.length > 0) {
     for (const p of problems) console.error(`results:check: ${p}`);
     process.exit(1);
   }
-  console.log(`results:check: README block matches ${metas.length} result files; none dirty or stale`);
+  console.log(`results:check: README block matches ${metas.length} result files; none dirty or stale; measured content equals HEAD's`);
 } else {
   if (!existing) throw new Error("README has no results block markers");
   writeFileSync(README, readme.replace(existing, block));
