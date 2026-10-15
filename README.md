@@ -6,6 +6,8 @@ AgentBoard is an operations console for launching, monitoring and controlling ag
 
 **Production runs on Cloudflare's Workers Free plan; preview does not yet.** On 2026-10-15 the production environment was set up and deployed with `npm run cf:setup` and measured with `npm run cf:verify`: four synthetic runs through Cloudflare Access, each planned by Workers AI. Its numbers are under "Production" in Results, and every other number in this README was produced locally by this repository's own scripts. The preview environment and per-PR preview deployments have not been set up.
 
+**Live demo.** [`docs/DEMO.md`](docs/DEMO.md) is the interview walkthrough of the production deployment: an operator's request, an approval and a rejection in a second window, talking points tied to the results files, and a local fallback.
+
 The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the main decisions in [`docs/adr/`](docs/adr) (coordinator leases and queues, the integration ledger and call-bound tokens, policy-owned approvals with gating edges, derived run status with recovery cascades, measured results with a staleness check), and the milestone demo scripts in [`demos/`](demos).
 
 ## Architecture
