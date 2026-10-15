@@ -107,3 +107,13 @@ export function limitOutcomes(summary: Record<string, KindSummary>): number {
 export function neuronBounds(llmTokens: number): { low: number; high: number } {
   return { low: Math.round((llmTokens * 4625) / 1e6), high: Math.round((llmTokens * 30475) / 1e6) };
 }
+
+/**
+ * A tail event fit to keep on disk: request headers (they carry the Access JWT and could carry service
+ * token credentials) and the request's `cf` properties are dropped; the URL, method and outcome stay.
+ */
+export function scrubTailEvent(e: TailEvent): TailEvent {
+  if (!e.event || typeof e.event["request"] !== "object" || e.event["request"] === null) return e;
+  const { headers: _headers, cf: _cf, ...request } = e.event["request"] as Record<string, unknown>;
+  return { ...e, event: { ...e.event, request } };
+}

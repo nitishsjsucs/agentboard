@@ -43,7 +43,7 @@ import type { ApprovalListItem, RunDetailResponse } from "../src/shared/api-type
 import { generateDataset } from "../src/shared/synth/generator.ts";
 import { apiFromEnv } from "./cloudflare/api.ts";
 import { API_TOKEN_VAR, VERIFY_REFS, VERIFY_TOKENS, environment, parseDeployEnv, serviceTokenFile } from "./cloudflare/env.ts";
-import { limitOutcomes, neuronBounds, splitJsonValues, summarizeTail, type TailEvent } from "./cloudflare/measure.ts";
+import { limitOutcomes, neuronBounds, scrubTailEvent, splitJsonValues, summarizeTail, type TailEvent } from "./cloudflare/measure.ts";
 import { describeProbe, localServiceTokens } from "./cloudflare/readiness.ts";
 import { currentVersion, listD1, query, wranglerEnv } from "./cloudflare/wrangler.ts";
 import { isDirty, resultMeta, ROOT } from "./lib/meta.ts";
@@ -276,7 +276,8 @@ if (tail) {
   const events = splitJsonValues(tailText.join("")) as TailEvent[];
   tailSummary = summarizeTail(events);
   mkdirSync(join(ROOT, "eval/results/raw"), { recursive: true });
-  writeFileSync(join(ROOT, `eval/results/raw/verify-${e.env}-tail.json`), `${JSON.stringify(events, null, 2)}\n`);
+  // Without request headers: they carry the Access JWT (eval/results/raw is gitignored as well).
+  writeFileSync(join(ROOT, `eval/results/raw/verify-${e.env}-tail.json`), `${JSON.stringify(events.map(scrubTailEvent), null, 2)}\n`);
   log(`wrangler tail: ${events.length} events`);
 }
 

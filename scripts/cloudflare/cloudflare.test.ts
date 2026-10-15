@@ -4,7 +4,7 @@ import { generateDataset } from "../../src/shared/synth/generator.ts";
 import { ROOT } from "../lib/meta.ts";
 import { builtConfigProblems } from "./built-config.ts";
 import { ACCOUNT, API_TOKEN_VAR, PERSONAS, VERIFY_REFS, environment, environmentProblems, serviceTokenFile, type Environment } from "./env.ts";
-import { limitOutcomes, neuronBounds, splitJsonValues, summarizeTail, type TailEvent } from "./measure.ts";
+import { limitOutcomes, neuronBounds, scrubTailEvent, splitJsonValues, summarizeTail, type TailEvent } from "./measure.ts";
 import { accessAppBody, bindingsSql, describeProbe, expectedBindings, findings, oneTimePinOnly, sameInclude, setupPlan, verifyPolicyBody, type Observed } from "./readiness.ts";
 import { WRANGLER_CREDENTIAL_VARS, wranglerEnv } from "./wrangler.ts";
 
@@ -232,6 +232,18 @@ describe("cf:verify measurements", { tags: ["eval"] }, () => {
     expect(summary["worker fetch"]).toMatchObject({ invocations: 2, outcomes: { ok: 1, exceededCpu: 1 }, cpu_ms_max: 12 });
     expect(summary["worker queue"]).toMatchObject({ invocations: 1, cpu_ms_max: null });
     expect(limitOutcomes(summary)).toBe(1);
+  });
+
+  it("raw tail events are kept without request headers or cf properties", () => {
+    const event: TailEvent = {
+      outcome: "ok",
+      cpuTime: 1,
+      event: { request: { url: "https://x/api/me", method: "GET", headers: { "cf-access-jwt-assertion": "eyJ.secret.jwt", "cf-access-client-secret": "s3cret" }, cf: { colo: "SJC" } } },
+    };
+    const scrubbed = scrubTailEvent(event);
+    expect(scrubbed).toEqual({ outcome: "ok", cpuTime: 1, event: { request: { url: "https://x/api/me", method: "GET" } } });
+    expect(JSON.stringify(scrubbed)).not.toMatch(/secret|eyJ/);
+    expect(scrubTailEvent({ outcome: "ok", event: { queue: "q" } })).toEqual({ outcome: "ok", event: { queue: "q" } });
   });
 
   it("bounds Workers AI neurons for the planner model by pricing every token as input or as output", () => {
