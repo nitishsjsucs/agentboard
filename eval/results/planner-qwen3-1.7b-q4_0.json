@@ -1,11 +1,11 @@
 {
   "meta": {
-    "gitSha": "b362e3e693564c0a351cb6481e985889f7db1600",
-    "commitDate": "2026-10-15T20:34:52.000Z",
-    "commitSubject": "fix(eval): code changed since the production measurement is a note in results:check",
-    "measuredTree": "sha256:c791baeffbe8e7fe7919481f6a7a74eb00224414c45622031c5f5b07d4303d51",
+    "gitSha": "0dbe380c580bb401f3167218d914aadfad5caad8",
+    "commitDate": "2026-10-15T21:31:48.000Z",
+    "commitSubject": "fix(eval): a production run with no wrangler tail events renders the limit row as not observed",
+    "measuredTree": "sha256:697d7e8a25323177bdf3fc09117811c79a0c00d3e50e7120f53d503ed393421a",
     "dirty": false,
-    "generatedAt": "2026-10-15T21:01:41.527Z",
+    "generatedAt": "2026-10-15T21:44:27.906Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 7,
@@ -43,8 +43,8 @@
     "arg_accuracy": 0.9816933638443935,
     "unknown_tool_rate": 0,
     "policy_overrides": 26,
-    "latency_ms_p50": 4745.0299159999995,
-    "latency_ms_p95": 15284.14268575,
+    "latency_ms_p50": 3841.2087500000052,
+    "latency_ms_p95": 10564.912280900007,
     "prompt_tokens_p50": 905,
     "prompt_tokens_max": 1357,
     "tokens_out_total": 22997,
@@ -67,7 +67,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 13822.817374999999,
+      "latencyMs": 3163.662,
       "promptTokens": [
         820
       ],
@@ -89,7 +89,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 11003.679790999999,
+      "latencyMs": 2508.440792,
       "promptTokens": [
         830,
         905
@@ -112,7 +112,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 27898.642292,
+      "latencyMs": 5624.7345,
       "promptTokens": [
         1065,
         1319
@@ -135,7 +135,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 15195.976542000004,
+      "latencyMs": 1885.5204169999997,
       "promptTokens": [
         828
       ],
@@ -157,7 +157,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 19063.224833,
+      "latencyMs": 4709.414959,
       "promptTokens": [
         962,
         1158
@@ -180,7 +180,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 11671.321916999994,
+      "latencyMs": 2172.9510420000006,
       "promptTokens": [
         821
       ],
@@ -202,7 +202,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 7723.461582999997,
+      "latencyMs": 1708.8734170000025,
       "promptTokens": [
         819
       ],
@@ -224,7 +224,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 7503.491666999995,
+      "latencyMs": 1788.0931659999987,
       "promptTokens": [
         816
       ],
@@ -246,7 +246,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10543.507832999996,
+      "latencyMs": 4176.673875,
       "promptTokens": [
         828,
         1114
@@ -269,7 +269,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 17874.742750000005,
+      "latencyMs": 5377.648625000002,
       "promptTokens": [
         1060,
         1314
@@ -292,7 +292,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 16959.299417000002,
+      "latencyMs": 4535.122875000001,
       "promptTokens": [
         968,
         1169
@@ -315,7 +315,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 11607.010875000007,
+      "latencyMs": 5013.505125000003,
       "promptTokens": [
         965,
         1161
@@ -338,7 +338,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 7295.555249999976,
+      "latencyMs": 2679.4272090000013,
       "promptTokens": [
         814,
         889
@@ -361,7 +361,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3657.7030420000083,
+      "latencyMs": 1886.5339160000003,
       "promptTokens": [
         815
       ],
@@ -383,7 +383,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 5254.887540999975,
+      "latencyMs": 2399.0591669999994,
       "promptTokens": [
         830,
         905
@@ -406,7 +406,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 5591.244624999992,
+      "latencyMs": 2409.649624999998,
       "promptTokens": [
         825
       ],
@@ -428,7 +428,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4310.491207999992,
+      "latencyMs": 1963.6727089999986,
       "promptTokens": [
         812
       ],
@@ -450,7 +450,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 19916.84700000001,
+      "latencyMs": 7579.622959,
       "promptTokens": [
         1066,
         1356
@@ -473,7 +473,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3660.280208000011,
+      "latencyMs": 2113.2349169999943,
       "promptTokens": [
         720
       ],
@@ -495,7 +495,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8062.627417000011,
+      "latencyMs": 5021.360375000004,
       "promptTokens": [
         818,
         1061
@@ -518,7 +518,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3655.5147920000018,
+      "latencyMs": 2794.920624999999,
       "promptTokens": [
         818
       ],
@@ -540,7 +540,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4753.760915999999,
+      "latencyMs": 2479.2856660000107,
       "promptTokens": [
         719
       ],
@@ -562,7 +562,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3865.119417000009,
+      "latencyMs": 3300.9366670000018,
       "promptTokens": [
         819
       ],
@@ -584,7 +584,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4736.298916,
+      "latencyMs": 3207.385791000008,
       "promptTokens": [
         815
       ],
@@ -606,7 +606,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3794.7495409999974,
+      "latencyMs": 3241.3032079999975,
       "promptTokens": [
         817
       ],
@@ -628,7 +628,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 11974.677750000003,
+      "latencyMs": 10056.747832999987,
       "promptTokens": [
         1066,
         1320
@@ -651,7 +651,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3687.7245419999817,
+      "latencyMs": 3891.596916999988,
       "promptTokens": [
         824
       ],
@@ -673,7 +673,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10051.207208000007,
+      "latencyMs": 11017.828332999998,
       "promptTokens": [
         1066,
         1320
@@ -696,7 +696,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 7749.0069169999915,
+      "latencyMs": 8037.811499999996,
       "promptTokens": [
         826,
         1033
@@ -719,7 +719,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2589.938375000027,
+      "latencyMs": 3141.4247500000056,
       "promptTokens": [
         723
       ],
@@ -741,7 +741,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10421.852083999955,
+      "latencyMs": 12069.49837500001,
       "promptTokens": [
         1066,
         1320
@@ -764,7 +764,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3593.442624999967,
+      "latencyMs": 3857.0842499999853,
       "promptTokens": [
         823
       ],
@@ -786,7 +786,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2736.7405000000144,
+      "latencyMs": 3128.09262499999,
       "promptTokens": [
         723
       ],
@@ -808,7 +808,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3546.2903330000117,
+      "latencyMs": 4160.541457999992,
       "promptTokens": [
         818
       ],
@@ -830,7 +830,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8607.917083000008,
+      "latencyMs": 8894.049916999997,
       "promptTokens": [
         965,
         1161
@@ -853,7 +853,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 9929.302833999973,
+      "latencyMs": 11202.83033300002,
       "promptTokens": [
         1059,
         1313
@@ -876,7 +876,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3397.3026660000323,
+      "latencyMs": 3735.7291249999835,
       "promptTokens": [
         818
       ],
@@ -898,7 +898,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8359.765875000041,
+      "latencyMs": 8616.277415999997,
       "promptTokens": [
         963,
         1159
@@ -921,7 +921,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10023.486124999996,
+      "latencyMs": 10220.943249999982,
       "promptTokens": [
         1064,
         1318
@@ -944,7 +944,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 9691.080083000008,
+      "latencyMs": 9356.224166999978,
       "promptTokens": [
         968,
         1265
@@ -967,7 +967,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2676.597624999995,
+      "latencyMs": 2544.7507500000065,
       "promptTokens": [
         717
       ],
@@ -989,7 +989,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8529.967333000037,
+      "latencyMs": 8249.778541999985,
       "promptTokens": [
         966,
         1162
@@ -1012,7 +1012,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3399.0852909999667,
+      "latencyMs": 3203.196874999994,
       "promptTokens": [
         813
       ],
@@ -1034,7 +1034,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3489.9457079999847,
+      "latencyMs": 3316.3898749999935,
       "promptTokens": [
         819
       ],
@@ -1056,7 +1056,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3379.419416000019,
+      "latencyMs": 3379.7411250000005,
       "promptTokens": [
         815
       ],
@@ -1078,7 +1078,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3521.5628750000033,
+      "latencyMs": 3630.6733330000134,
       "promptTokens": [
         817
       ],
@@ -1100,7 +1100,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10363.763042000006,
+      "latencyMs": 9742.043791000004,
       "promptTokens": [
         1061,
         1310
@@ -1123,7 +1123,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4931.981124999991,
+      "latencyMs": 4805.944415999984,
       "promptTokens": [
         968
       ],
@@ -1145,7 +1145,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 7550.254249999998,
+      "latencyMs": 7041.105540999997,
       "promptTokens": [
         824,
         1074
@@ -1168,7 +1168,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3447.239666999958,
+      "latencyMs": 3289.0810420000053,
       "promptTokens": [
         815
       ],
@@ -1190,7 +1190,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3638.440499999968,
+      "latencyMs": 4447.80804199999,
       "promptTokens": [
         816
       ],
@@ -1212,7 +1212,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3636.2960420000018,
+      "latencyMs": 3992.608749999985,
       "promptTokens": [
         825
       ],
@@ -1234,7 +1234,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2698.5694999999832,
+      "latencyMs": 2910.1469170000055,
       "promptTokens": [
         722
       ],
@@ -1256,7 +1256,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4684.423167000001,
+      "latencyMs": 4289.546499999997,
       "promptTokens": [
         814,
         889
@@ -1279,7 +1279,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10600.84729200002,
+      "latencyMs": 10198.161208000005,
       "promptTokens": [
         1068,
         1322
@@ -1302,7 +1302,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3670.8805000000284,
+      "latencyMs": 3408.718165999977,
       "promptTokens": [
         818
       ],
@@ -1324,7 +1324,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 11170.632917000039,
+      "latencyMs": 10560.265458000009,
       "promptTokens": [
         1066,
         1326
@@ -1347,7 +1347,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2947.045792000019,
+      "latencyMs": 2721.787249999994,
       "promptTokens": [
         717
       ],
@@ -1369,7 +1369,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2930.450957999972,
+      "latencyMs": 2911.652375000005,
       "promptTokens": [
         718,
         793
@@ -1392,7 +1392,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4182.846167000011,
+      "latencyMs": 3519.109166999988,
       "promptTokens": [
         832
       ],
@@ -1414,7 +1414,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4514.873542000016,
+      "latencyMs": 5051.248707999999,
       "promptTokens": [
         815,
         890
@@ -1437,7 +1437,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2818.4707499999786,
+      "latencyMs": 2974.099916999985,
       "promptTokens": [
         720
       ],
@@ -1459,7 +1459,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10732.516874999972,
+      "latencyMs": 10653.20191599999,
       "promptTokens": [
         1066,
         1320
@@ -1482,7 +1482,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 9961.605582999997,
+      "latencyMs": 10141.689665999962,
       "promptTokens": [
         965,
         1161
@@ -1505,7 +1505,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 12278.920416999958,
+      "latencyMs": 10072.581458,
       "promptTokens": [
         1065,
         1319
@@ -1528,7 +1528,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 9611.805000000051,
+      "latencyMs": 8570.36379199999,
       "promptTokens": [
         961,
         1157
@@ -1551,7 +1551,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 6095.874750000017,
+      "latencyMs": 5475.10149999999,
       "promptTokens": [
         820
       ],
@@ -1573,7 +1573,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 12649.283082999988,
+      "latencyMs": 12350.713583000004,
       "promptTokens": [
         1066,
         1357
@@ -1596,7 +1596,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4768.881958000013,
+      "latencyMs": 4733.563416999998,
       "promptTokens": [
         813,
         888
@@ -1619,7 +1619,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10062.611541000078,
+      "latencyMs": 8891.648207999999,
       "promptTokens": [
         967,
         1163
@@ -1642,7 +1642,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8946.41862500005,
+      "latencyMs": 8842.443957999989,
       "promptTokens": [
         960,
         1156
@@ -1665,7 +1665,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4034.2942079999484,
+      "latencyMs": 3418.1861250000075,
       "promptTokens": [
         818
       ],
@@ -1687,7 +1687,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 9649.056499999948,
+      "latencyMs": 8852.710707999999,
       "promptTokens": [
         966,
         1162
@@ -1710,7 +1710,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3800.705457999953,
+      "latencyMs": 2755.223333000031,
       "promptTokens": [
         721
       ],
@@ -1732,7 +1732,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3917.2150420000544,
+      "latencyMs": 3613.6845829999656,
       "promptTokens": [
         829
       ],
@@ -1754,7 +1754,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3788.174207999953,
+      "latencyMs": 3463.919874999963,
       "promptTokens": [
         817
       ],
@@ -1776,7 +1776,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10199.148042000015,
+      "latencyMs": 9919.449625000008,
       "promptTokens": [
         967,
         1264
@@ -1799,7 +1799,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3642.0285829999484,
+      "latencyMs": 3554.6285829999833,
       "promptTokens": [
         815
       ],
@@ -1821,7 +1821,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4967.945708999992,
+      "latencyMs": 5092.886957999959,
       "promptTokens": [
         967
       ],
@@ -1843,7 +1843,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8449.571832999936,
+      "latencyMs": 8703.077875000017,
       "promptTokens": [
         963,
         1159
@@ -1866,7 +1866,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3388.48758299998,
+      "latencyMs": 3259.771584000031,
       "promptTokens": [
         818
       ],
@@ -1888,7 +1888,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4623.452333999914,
+      "latencyMs": 4209.722875000036,
       "promptTokens": [
         962
       ],
@@ -1910,7 +1910,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4570.27662499994,
+      "latencyMs": 4302.315375000006,
       "promptTokens": [
         970
       ],
@@ -1932,7 +1932,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 8360.333665999933,
+      "latencyMs": 7705.769833999977,
       "promptTokens": [
         960,
         1156
@@ -1955,7 +1955,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 5523.809125000029,
+      "latencyMs": 4844.549874999968,
       "promptTokens": [
         819
       ],
@@ -1977,7 +1977,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3517.6431250000605,
+      "latencyMs": 3055.0956250000163,
       "promptTokens": [
         814
       ],
@@ -1999,7 +1999,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 10901.067958,
+      "latencyMs": 9182.822207999998,
       "promptTokens": [
         1060,
         1314
@@ -2022,7 +2022,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2942.154458999983,
+      "latencyMs": 2459.091542000009,
       "promptTokens": [
         720
       ],
@@ -2044,7 +2044,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3313.674582999898,
+      "latencyMs": 3160.966625000001,
       "promptTokens": [
         816
       ],
@@ -2066,7 +2066,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4228.950459000072,
+      "latencyMs": 3825.333250000025,
       "promptTokens": [
         814,
         889
@@ -2089,7 +2089,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3309.3873750000494,
+      "latencyMs": 3058.5322499999893,
       "promptTokens": [
         818
       ],
@@ -2111,7 +2111,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2706.262958000065,
+      "latencyMs": 2484.542875000043,
       "promptTokens": [
         721
       ],
@@ -2133,7 +2133,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3287.305042000022,
+      "latencyMs": 3012.278500000015,
       "promptTokens": [
         818
       ],
@@ -2155,7 +2155,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3502.6643330000807,
+      "latencyMs": 3189.6823330000043,
       "promptTokens": [
         823
       ],
@@ -2177,7 +2177,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2656.860083999927,
+      "latencyMs": 2410.991290999984,
       "promptTokens": [
         719
       ],
@@ -2199,7 +2199,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 4663.025541999959,
+      "latencyMs": 4135.582374999998,
       "promptTokens": [
         959
       ],
@@ -2221,7 +2221,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 3528.759166999953,
+      "latencyMs": 3133.9376249999623,
       "promptTokens": [
         827
       ],
@@ -2243,7 +2243,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2611.1700420000125,
+      "latencyMs": 2479.8684999999823,
       "promptTokens": [
         721
       ],
@@ -2265,7 +2265,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": false,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 7371.544958000071,
+      "latencyMs": 6912.69516599999,
       "promptTokens": [
         827,
         1113
@@ -2288,7 +2288,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": "Qwen3-1.7B-Q4_0-rtn.gguf",
-      "latencyMs": 2707.1684170000954,
+      "latencyMs": 2698.1440409999923,
       "promptTokens": [
         720
       ],

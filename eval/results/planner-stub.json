@@ -1,11 +1,11 @@
 {
   "meta": {
-    "gitSha": "b362e3e693564c0a351cb6481e985889f7db1600",
-    "commitDate": "2026-10-15T20:34:52.000Z",
-    "commitSubject": "fix(eval): code changed since the production measurement is a note in results:check",
-    "measuredTree": "sha256:c791baeffbe8e7fe7919481f6a7a74eb00224414c45622031c5f5b07d4303d51",
+    "gitSha": "0dbe380c580bb401f3167218d914aadfad5caad8",
+    "commitDate": "2026-10-15T21:31:48.000Z",
+    "commitSubject": "fix(eval): a production run with no wrangler tail events renders the limit row as not observed",
+    "measuredTree": "sha256:697d7e8a25323177bdf3fc09117811c79a0c00d3e50e7120f53d503ed393421a",
     "dirty": false,
-    "generatedAt": "2026-10-15T21:02:10.407Z",
+    "generatedAt": "2026-10-15T21:44:37.245Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 7,
@@ -33,8 +33,8 @@
     "arg_accuracy": 1,
     "unknown_tool_rate": 0,
     "policy_overrides": 45,
-    "latency_ms_p50": 0.05052099999998916,
-    "latency_ms_p95": 0.25965000000000327,
+    "latency_ms_p50": 0.046354000000000894,
+    "latency_ms_p95": 0.25677084999999517,
     "prompt_tokens_p50": 810,
     "prompt_tokens_max": 1060,
     "tokens_out_total": 11052,
@@ -57,7 +57,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 2.016332999999989,
+      "latencyMs": 1.928167000000002,
       "promptTokens": [
         801
       ],
@@ -79,7 +79,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.257000000000005,
+      "latencyMs": 0.2562499999999943,
       "promptTokens": [
         820
       ],
@@ -101,7 +101,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.4005000000000223,
+      "latencyMs": 0.423917000000003,
       "promptTokens": [
         1058
       ],
@@ -123,7 +123,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0952920000000006,
+      "latencyMs": 0.08704199999999673,
       "promptTokens": [
         815
       ],
@@ -145,7 +145,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.1049589999999796,
+      "latencyMs": 0.11104100000000017,
       "promptTokens": [
         945
       ],
@@ -167,7 +167,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.30999999999997385,
+      "latencyMs": 0.2979169999999982,
       "promptTokens": [
         809
       ],
@@ -189,7 +189,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07566700000000992,
+      "latencyMs": 0.07816700000000765,
       "promptTokens": [
         807
       ],
@@ -211,7 +211,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06700000000000728,
+      "latencyMs": 0.06683299999998837,
       "promptTokens": [
         800
       ],
@@ -233,7 +233,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06708399999999415,
+      "latencyMs": 0.06983400000000017,
       "promptTokens": [
         813
       ],
@@ -255,7 +255,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.09345799999999826,
+      "latencyMs": 0.09650000000000603,
       "promptTokens": [
         1053
       ],
@@ -277,7 +277,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07712499999999523,
+      "latencyMs": 0.07758400000000165,
       "promptTokens": [
         954
       ],
@@ -299,7 +299,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.3185420000000079,
+      "latencyMs": 0.2666670000000124,
       "promptTokens": [
         951
       ],
@@ -321,7 +321,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07620899999997732,
+      "latencyMs": 0.07420799999999872,
       "promptTokens": [
         806
       ],
@@ -343,7 +343,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06049999999999045,
+      "latencyMs": 0.05883299999999281,
       "promptTokens": [
         801
       ],
@@ -365,7 +365,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05045899999998937,
+      "latencyMs": 0.049624999999991815,
       "promptTokens": [
         819
       ],
@@ -387,7 +387,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04925000000000068,
+      "latencyMs": 0.058416999999991504,
       "promptTokens": [
         811
       ],
@@ -409,7 +409,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07879199999999287,
+      "latencyMs": 0.07720899999999631,
       "promptTokens": [
         802
       ],
@@ -431,7 +431,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.14133300000000304,
+      "latencyMs": 0.09295900000000756,
       "promptTokens": [
         1060
       ],
@@ -453,7 +453,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.17866699999999014,
+      "latencyMs": 0.18112499999999443,
       "promptTokens": [
         716
       ],
@@ -475,7 +475,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05279200000001083,
+      "latencyMs": 0.0643749999999983,
       "promptTokens": [
         800
       ],
@@ -497,7 +497,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0417500000000075,
+      "latencyMs": 0.044125000000008185,
       "promptTokens": [
         799
       ],
@@ -519,7 +519,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04099999999999682,
+      "latencyMs": 0.04162499999999625,
       "promptTokens": [
         716
       ],
@@ -541,7 +541,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04262499999998681,
+      "latencyMs": 0.03933399999999665,
       "promptTokens": [
         801
       ],
@@ -563,7 +563,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06383299999998826,
+      "latencyMs": 0.09416699999999878,
       "promptTokens": [
         801
       ],
@@ -585,7 +585,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04449999999999932,
+      "latencyMs": 0.06049999999999045,
       "promptTokens": [
         801
       ],
@@ -607,7 +607,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0646250000000066,
+      "latencyMs": 0.06645799999999724,
       "promptTokens": [
         1058
       ],
@@ -629,7 +629,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04512500000001296,
+      "latencyMs": 0.044583000000002926,
       "promptTokens": [
         812
       ],
@@ -651,7 +651,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07420799999999872,
+      "latencyMs": 0.07208300000000634,
       "promptTokens": [
         1058
       ],
@@ -673,7 +673,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04033300000000395,
+      "latencyMs": 0.04120799999999747,
       "promptTokens": [
         814
       ],
@@ -695,7 +695,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04425000000000523,
+      "latencyMs": 0.0436250000000058,
       "promptTokens": [
         719
       ],
@@ -717,7 +717,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06291699999999878,
+      "latencyMs": 0.060875000000010004,
       "promptTokens": [
         1059
       ],
@@ -739,7 +739,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.041540999999995165,
+      "latencyMs": 0.039500000000003865,
       "promptTokens": [
         813
       ],
@@ -761,7 +761,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03633299999998485,
+      "latencyMs": 0.035583000000002585,
       "promptTokens": [
         720
       ],
@@ -783,7 +783,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05183399999998528,
+      "latencyMs": 0.04416700000000162,
       "promptTokens": [
         799
       ],
@@ -805,7 +805,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05579099999999926,
+      "latencyMs": 0.05558300000001282,
       "promptTokens": [
         952
       ],
@@ -827,7 +827,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07916599999998652,
+      "latencyMs": 0.07929199999999526,
       "promptTokens": [
         1053
       ],
@@ -849,7 +849,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03945799999999622,
+      "latencyMs": 0.03900000000000148,
       "promptTokens": [
         800
       ],
@@ -871,7 +871,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.053625000000010914,
+      "latencyMs": 0.052834000000004266,
       "promptTokens": [
         948
       ],
@@ -893,7 +893,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07879200000002129,
+      "latencyMs": 0.07858300000000895,
       "promptTokens": [
         1056
       ],
@@ -915,7 +915,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05445900000000847,
+      "latencyMs": 0.053959000000006085,
       "promptTokens": [
         952
       ],
@@ -937,7 +937,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04516700000002061,
+      "latencyMs": 0.053375000000002615,
       "promptTokens": [
         716
       ],
@@ -959,7 +959,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06604100000001267,
+      "latencyMs": 0.06179199999999696,
       "promptTokens": [
         947
       ],
@@ -981,7 +981,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05245800000000145,
+      "latencyMs": 0.05283300000000679,
       "promptTokens": [
         802
       ],
@@ -1003,7 +1003,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.10108400000001438,
+      "latencyMs": 0.045874999999995225,
       "promptTokens": [
         804
       ],
@@ -1025,7 +1025,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.09399999999999409,
+      "latencyMs": 0.046833000000006564,
       "promptTokens": [
         802
       ],
@@ -1047,7 +1047,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05133299999999963,
+      "latencyMs": 0.036625000000000796,
       "promptTokens": [
         801
       ],
@@ -1069,7 +1069,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06924999999998249,
+      "latencyMs": 0.10679099999998698,
       "promptTokens": [
         1053
       ],
@@ -1091,7 +1091,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.051375000000007276,
+      "latencyMs": 0.04512499999999875,
       "promptTokens": [
         950
       ],
@@ -1113,7 +1113,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03879100000000335,
+      "latencyMs": 0.03491600000000972,
       "promptTokens": [
         814
       ],
@@ -1135,7 +1135,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05379199999998718,
+      "latencyMs": 0.04487500000000466,
       "promptTokens": [
         800
       ],
@@ -1157,7 +1157,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03925000000000978,
+      "latencyMs": 0.036708000000004404,
       "promptTokens": [
         803
       ],
@@ -1179,7 +1179,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.037333000000018046,
+      "latencyMs": 0.03395799999999838,
       "promptTokens": [
         813
       ],
@@ -1201,7 +1201,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04208299999999099,
+      "latencyMs": 0.03849999999999909,
       "promptTokens": [
         720
       ],
@@ -1223,7 +1223,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03891699999999787,
+      "latencyMs": 0.03737500000001148,
       "promptTokens": [
         806
       ],
@@ -1245,7 +1245,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.052833000000021,
+      "latencyMs": 0.04912500000000364,
       "promptTokens": [
         1059
       ],
@@ -1267,7 +1267,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.041540999999995165,
+      "latencyMs": 0.039332999999999174,
       "promptTokens": [
         799
       ],
@@ -1289,7 +1289,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05683300000001168,
+      "latencyMs": 0.05783399999998551,
       "promptTokens": [
         1058
       ],
@@ -1311,7 +1311,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03816699999998718,
+      "latencyMs": 0.04066699999998491,
       "promptTokens": [
         716
       ],
@@ -1333,7 +1333,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04504199999999514,
+      "latencyMs": 0.044165999999989936,
       "promptTokens": [
         717
       ],
@@ -1355,7 +1355,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.06929100000002109,
+      "latencyMs": 0.03795800000000327,
       "promptTokens": [
         821
       ],
@@ -1377,7 +1377,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04279099999999403,
+      "latencyMs": 0.04391699999999332,
       "promptTokens": [
         807
       ],
@@ -1399,7 +1399,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04333399999998733,
+      "latencyMs": 0.04195899999999142,
       "promptTokens": [
         720
       ],
@@ -1421,7 +1421,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.050916999999998325,
+      "latencyMs": 0.0488330000000019,
       "promptTokens": [
         1058
       ],
@@ -1443,7 +1443,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05150000000000432,
+      "latencyMs": 0.053415999999998576,
       "promptTokens": [
         946
       ],
@@ -1465,7 +1465,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0484170000000006,
+      "latencyMs": 0.04829100000000608,
       "promptTokens": [
         1058
       ],
@@ -1487,7 +1487,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.042582999999979165,
+      "latencyMs": 0.0432920000000081,
       "promptTokens": [
         945
       ],
@@ -1509,7 +1509,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03991600000000517,
+      "latencyMs": 0.03925000000000978,
       "promptTokens": [
         803
       ],
@@ -1531,7 +1531,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.052209000000004835,
+      "latencyMs": 0.05179100000000858,
       "promptTokens": [
         1060
       ],
@@ -1553,7 +1553,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04200000000000159,
+      "latencyMs": 0.04466700000000401,
       "promptTokens": [
         806
       ],
@@ -1575,7 +1575,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04950000000002319,
+      "latencyMs": 0.043333000000018274,
       "promptTokens": [
         950
       ],
@@ -1597,7 +1597,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0408339999999896,
+      "latencyMs": 0.041540999999995165,
       "promptTokens": [
         945
       ],
@@ -1619,7 +1619,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0599589999999921,
+      "latencyMs": 0.05783299999998803,
       "promptTokens": [
         802
       ],
@@ -1641,7 +1641,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04487499999999045,
+      "latencyMs": 0.04354099999997629,
       "promptTokens": [
         949
       ],
@@ -1663,7 +1663,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03391700000000242,
+      "latencyMs": 0.032707999999985304,
       "promptTokens": [
         716
       ],
@@ -1685,7 +1685,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04395900000000097,
+      "latencyMs": 0.038916000000000395,
       "promptTokens": [
         819
       ],
@@ -1707,7 +1707,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03408300000000963,
+      "latencyMs": 0.03183400000000347,
       "promptTokens": [
         801
       ],
@@ -1729,7 +1729,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.044375000000002274,
+      "latencyMs": 0.0433749999999975,
       "promptTokens": [
         951
       ],
@@ -1751,7 +1751,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.058875000000000455,
+      "latencyMs": 0.05179099999998016,
       "promptTokens": [
         801
       ],
@@ -1773,7 +1773,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.046666000000016084,
+      "latencyMs": 0.04570900000001643,
       "promptTokens": [
         949
       ],
@@ -1795,7 +1795,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05058299999998894,
+      "latencyMs": 0.042833000000001675,
       "promptTokens": [
         946
       ],
@@ -1817,7 +1817,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.05962500000001114,
+      "latencyMs": 0.05099999999998772,
       "promptTokens": [
         801
       ],
@@ -1839,7 +1839,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04925000000000068,
+      "latencyMs": 0.039583000000021684,
       "promptTokens": [
         948
       ],
@@ -1861,7 +1861,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.047916999999984,
+      "latencyMs": 0.05025000000000546,
       "promptTokens": [
         950
       ],
@@ -1883,7 +1883,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.07433299999999576,
+      "latencyMs": 0.049584000000010064,
       "promptTokens": [
         944
       ],
@@ -1905,7 +1905,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03350000000000364,
+      "latencyMs": 0.03533400000000597,
       "promptTokens": [
         801
       ],
@@ -1927,7 +1927,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.04099999999999682,
+      "latencyMs": 0.038792000000000826,
       "promptTokens": [
         803
       ],
@@ -1949,7 +1949,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.053124999999994316,
+      "latencyMs": 0.05083300000001145,
       "promptTokens": [
         1054
       ],
@@ -1971,7 +1971,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.029583999999999833,
+      "latencyMs": 0.028833000000020093,
       "promptTokens": [
         715
       ],
@@ -1993,7 +1993,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03937500000000682,
+      "latencyMs": 0.056457999999992126,
       "promptTokens": [
         800
       ],
@@ -2015,7 +2015,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.039874999999995,
+      "latencyMs": 0.03325000000000955,
       "promptTokens": [
         806
       ],
@@ -2037,7 +2037,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03683300000000145,
+      "latencyMs": 0.03962500000000091,
       "promptTokens": [
         808
       ],
@@ -2059,7 +2059,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.03508400000001188,
+      "latencyMs": 0.030583000000007132,
       "promptTokens": [
         716
       ],
@@ -2081,7 +2081,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.0715409999999963,
+      "latencyMs": 0.045708000000018956,
       "promptTokens": [
         807
       ],
@@ -2103,7 +2103,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.032707999999985304,
+      "latencyMs": 0.03070900000000165,
       "promptTokens": [
         812
       ],
@@ -2125,7 +2125,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.02908299999998576,
+      "latencyMs": 0.027667000000008102,
       "promptTokens": [
         716
       ],
@@ -2147,7 +2147,7 @@
       "policyOverrides": 0,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.36108399999997687,
+      "latencyMs": 0.2802910000000054,
       "promptTokens": [
         944
       ],
@@ -2169,7 +2169,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.036000000000001364,
+      "latencyMs": 0.07387500000001523,
       "promptTokens": [
         813
       ],
@@ -2191,7 +2191,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.025415999999978567,
+      "latencyMs": 0.024459000000007336,
       "promptTokens": [
         720
       ],
@@ -2213,7 +2213,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.026542000000006283,
+      "latencyMs": 0.026042000000018106,
       "promptTokens": [
         814
       ],
@@ -2235,7 +2235,7 @@
       "policyOverrides": 1,
       "validWithGoldWrites": true,
       "servedModel": null,
-      "latencyMs": 0.02333299999997962,
+      "latencyMs": 0.02487500000000864,
       "promptTokens": [
         716
       ],
