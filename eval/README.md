@@ -1,6 +1,13 @@
 # Evaluation
 
-Every file in `eval/results/` is written by a script, never by hand, and carries `{ gitSha, dirty, generatedAt, node, wrangler, seed, provider, model }`. `npm run results:render` renders the README's Results block from them; `npm run results:check` fails when the block differs, when a result was measured on a dirty tree, or when `src`, `migrations`, `fixtures`, `scripts`, `test`, `seed`, `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts` changed after the measured commit (SPEC section 14 names the first six; the tests, seeds and build and test configuration shape the measurements too).
+Every file in `eval/results/` is written by a script, never by hand, and carries `{ gitSha, commitDate, commitSubject, measuredTree, dirty, generatedAt, node, wrangler, seed, provider, model }`. `measuredTree` is a content address of the measured paths. `npm run results:render` renders the README's Results block from them. `npm run results:check` fails when:
+- the block differs;
+- a result was measured on a dirty tree;
+- HEAD's `src`, `migrations`, `fixtures`, `scripts`, `test`, `seed`, `wrangler.jsonc`, `package.json`, `package-lock.json`, `vite.config.ts` or `vitest.config.ts` differ from the measured content (SPEC section 14 names the first six; the tests, seeds and build and test configuration shape the measurements too);
+- the measured commit is not in the history, by id or, for the published copy, by author date and content;
+- or a measured file cites a commit id.
+
+`production.json`, written by `npm run cf:verify` against the deployed Worker, is checked the same way, except that measured code changed since it was taken is a note, because measuring it again needs a deploy.
 
 ## `simulation.json` (`npm run eval:sim`)
 

@@ -4,7 +4,7 @@ AgentBoard is an operations console for launching, monitoring and controlling ag
 
 **Everything People-related is simulated.** The HRIS, ITSM, access-management and notification systems are tables in a separate D1 database, filled with 60 fictional employees by a seeded generator. There are no real users, employees or HR systems behind it in any environment, production included.
 
-**Nothing is deployed.** Every measured number in this README was produced locally by this repository's own scripts. Deploy steps are below; production behavior has not been measured.
+**Nothing is deployed yet.** Every measured number in this README was produced locally by this repository's own scripts. The deploy path to Cloudflare's Workers Free plan is scripted and idempotent (`npm run cf:setup`, under "Production setup"), and has been checked only read-only against the real account (a dry run). Production behavior has not been measured; `npm run cf:verify` measures it once the Worker is deployed.
 
 The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the main decisions in [`docs/adr/`](docs/adr) (coordinator leases and queues, the integration ledger and call-bound tokens, policy-owned approvals with gating edges, derived run status with recovery cascades, measured results with a staleness check), and the milestone demo scripts in [`demos/`](demos).
 
@@ -96,17 +96,17 @@ The rules that make it safe under at-least-once delivery:
 
 | Capability | Local (this repo, offline) | Production or preview (after a Cloudflare login) |
 |---|---|---|
-| Worker, Hono API, static assets | workerd via `@cloudflare/vite-plugin` (`npm run dev`), `wrangler dev` on the built output (`npm run serve:built`, `eval:sim`), or Miniflare in vitest | Cloudflare Workers with static assets (not deployed) |
+| Worker, Hono API, static assets | workerd via `@cloudflare/vite-plugin` (`npm run dev`), `wrangler dev` on the built output (`npm run serve:built`, `eval:sim`), or Miniflare in vitest | Cloudflare Workers (Free plan) with static assets, `agentboard-production` and `agentboard-preview` on `nitish-ratakonda.workers.dev` (not deployed yet) |
 | Agents (SQLite Durable Objects) | local SQLite Durable Objects | Durable Objects |
 | Lease, approval and deadline wakes | Agent `schedule()` on Durable Object alarms (one-second granularity) plus the sweep on every RPC; tests use an injected clock | same code on Durable Object alarms |
 | Queues and DLQ | local queues | Cloudflare Queues |
 | D1 (console and simulated People systems) | local SQLite in `.wrangler/` | D1 |
 | History search | D1 FTS5 | D1 FTS5 (same code) |
-| Identity | `AUTH_MODE=dev`: RS256 JWTs from a locally generated key, verified by the same code as Access; dev login on loopback only | Cloudflare Access JWT in `Cf-Access-Jwt-Assertion` against the team JWKS (verified locally only against an intercepted JWKS) |
+| Identity | `AUTH_MODE=dev`: RS256 JWTs from a locally generated key, verified by the same code as Access; dev login on loopback only | Cloudflare Access (Zero Trust Free, One-time PIN) JWT in `Cf-Access-Jwt-Assertion` against the team JWKS, audience from the `ACCESS_AUD` Worker secret (verified locally only against an intercepted JWKS); without the secret the Worker fails closed |
 | LLM planning | deterministic stub in tests and the simulation; a local llama-server (Qwen3-1.7B Q4_0) for `eval:planner` | Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway (unit-tested with a fake binding only; never executed) |
 | MCP integrations | in-process Streamable HTTP to the simulated People systems; an external `/mcp` route for MCP Inspector only with `MCP_EXTERNAL=on` on loopback | the same in-process path to the same simulated systems; no external route (`MCP_EXTERNAL=on` is refused at load time) |
 | Fault directives (simulation) | on in tests and the simulation | off, enforced at load time |
-| Preview deployments | not applicable | `preview.yml` can deploy each pull request to the shared `preview` environment once the Cloudflare secrets and the `PREVIEW_DEPLOYS` variable exist; on GitHub its deploy job has been skipped every time, so nothing is deployed (the deploy was checked offline with `wrangler deploy --dry-run`) |
+| Preview deployments | not applicable | `preview.yml` deploys each pull request from this repository to the shared `agentboard-preview` Worker once the `preview` GitHub environment's token and the `PREVIEW_DEPLOYS` variable exist; on GitHub its deploy job has been skipped every time, so nothing is deployed (the deploy was checked offline with `wrangler deploy --dry-run`) |
 | Numbers in this README | all of them | none |
 
 ## Local setup
@@ -114,7 +114,7 @@ The rules that make it safe under at-least-once delivery:
 Requires Node 24 or newer and no Cloudflare login. CI on GitHub Actions uses Node 24 from `.nvmrc`; every local run in this repository, including the measurements below, used Node 25.9.
 
 1. `nvm use && npm ci`
-2. `npm run dev:keys` writes `.dev.vars` with a local RS256 dev keypair and an integration signing key (gitignored).
+2. `npm run dev:keys` writes `.dev.vars` with a local RS256 dev keypair, an integration signing key and `ACCESS_AUD=agentboard-dev` (gitignored). A checkout from before 2026-10-15 needs `npm run dev:keys -- --force`, or that line added, because `ACCESS_AUD` is no longer a var in `wrangler.jsonc`.
 3. `npm run db:migrate:local && npm run db:seed:local`
 4. `npm run dev`, open `http://127.0.0.1:5173/dev/login` and pick a seeded principal. Or run the built worker: `npm run serve:built -- --fresh`, then open `http://127.0.0.1:8784/dev/login`.
 5. `npm test` and `npm run test:sim`.
@@ -134,42 +134,148 @@ npm run dev:token -- --integration --tool hris.get_employee --args '{"employeeId
 
 It is bound to that one read tool and those exact arguments for 60 seconds; write tools are refused. Connect MCP Inspector over Streamable HTTP through its local proxy (the route sends no CORS headers) to `http://127.0.0.1:8784/mcp` (`serve:built`) or `http://127.0.0.1:5173/mcp` (`npm run dev`), with the token as the bearer token. Checked with curl against the built worker (initialize, tools/list, the bound call, a refused call with other arguments, 401 without a token, 404 for a non-loopback host); MCP Inspector itself was not run here.
 
-## Deploy (not done; needs an account)
+## Production setup (Workers Free plan; not run yet)
 
-1. `npx wrangler login`
-2. `npx wrangler d1 create agentboard` and `npx wrangler d1 create agentboard-people`; put the ids into `env.production`.
-3. `npx wrangler queues create agentboard-tasks` and `npx wrangler queues create agentboard-tasks-dlq`.
-4. Create AI Gateway `agentboard` in the dashboard (or set `AI_GATEWAY_ID` to an empty string). The planner's prompts carry the request text, which the console hides from roles without `pii:read`; the provider sends `collectLog: false` so the gateway does not log them. Keep it that way, or restrict who can read the gateway's logs.
-5. `openssl rand -base64 48 | npx wrangler secret put INTEGRATION_SIGNING_KEY --env production`
-6. `npx wrangler d1 migrations apply agentboard --remote --env production` and the same for `agentboard-people`; seed with `npx wrangler d1 execute agentboard-people --remote --env production --file seed/people.sql`; create the admin binding with `node scripts/bootstrap-admin.ts --email <you>` and execute its SQL with `--env production`.
-7. `npm run deploy` (`CLOUDFLARE_ENV=production vite build && wrangler deploy`).
-8. Zero Trust: create a self-hosted Access application for the `workers.dev` hostname, allow your identity, copy the AUD tag and team domain into `env.production` vars, set `ALLOWED_ORIGINS` to the hostname, redeploy.
-9. Open the URL, authenticate, confirm `/api/me` shows `admin`.
-10. A preview environment repeats steps 2 to 8 with `--env preview` on every `wrangler d1`, `wrangler queues` and `wrangler secret` command and the `-preview` names (`agentboard-preview`, `agentboard-people-preview`, `agentboard-preview-tasks`, `agentboard-preview-tasks-dlq`), deploying with `npm run deploy:preview`. Cloudflare does not generate preview URLs for Workers that implement Durable Objects, so there is one shared preview Worker, `agentboard-preview`.
-11. Per-PR preview deployments: in the GitHub repository, create an environment named `preview` with required reviewers, add `CLOUDFLARE_API_TOKEN` (scoped to the one account, with only what the deploy needs: Workers Scripts, D1 and Queues edit) and `CLOUDFLARE_ACCOUNT_ID` as secrets of that environment, and set the repository variable `PREVIEW_DEPLOYS` to `on`. `.github/workflows/preview.yml` then waits for a reviewer, applies new D1 migrations to the preview databases, builds with `CLOUDFLARE_ENV=preview`, refuses any built config that is not the preview one, and deploys the pull request to `agentboard-preview`, one deploy at a time. Only the migration and deploy steps receive the token; `npm ci`, the typecheck and the build run without it. Without the variable (and on pull requests from forks) it skips the deploy job. It has not run against a real account.
+Nothing below has been run against the account yet, except read-only checks: `npm run cf:doctor` and `npm run cf:setup -- --dry-run` (which builds locally and runs `wrangler deploy --dry-run`) on 2026-10-15, when the account had no D1 database, no queue and no AgentBoard Worker.
+
+The target, all on the Free plan:
+
+| Fact | Value |
+|---|---|
+| Cloudflare account | `dc93c3bc8aa4f9e09a0d7e7354a80873` (`account_id` in `wrangler.jsonc`) |
+| Workers | `agentboard-production` and `agentboard-preview` on `https://<name>.nitish-ratakonda.workers.dev` |
+| D1 | `agentboard`, `agentboard-people` (production); `agentboard-preview`, `agentboard-people-preview` (preview) |
+| Queues | `agentboard-tasks` and `agentboard-tasks-dlq`; `agentboard-preview-tasks` and `agentboard-preview-tasks-dlq` |
+| AI Gateway | `agentboard` (logs off, 30 calls a minute), Workers AI model `@cf/qwen/qwen3-30b-a3b-fp8` |
+| Zero Trust | team domain `https://old-truth-a7dc.cloudflareaccess.com`; sign-in through the existing One-time PIN identity provider `743683e8-42d4-44e9-9991-ba57a1bb0dec` |
+| Access | one self-hosted application per environment for its `workers.dev` hostname; reusable policies `agentboard-people` (Allow) and `agentboard-verify` (Service Auth); service tokens `agentboard-verify-operator` and `agentboard-verify-approver` |
+| People who can sign in | `nitishsancs@gmail.com` (admin), `nitishsancs+ops@gmail.com` (operator), `nitishsancs+approver@gmail.com` (approver), `nitishsancs+viewer@gmail.com` (viewer) |
+
+Every resource name starts with `agentboard`, and a unit test checks `wrangler.jsonc` against these facts.
+
+Credentials:
+
+- wrangler uses its OAuth login (`npx wrangler login`). Do not export `CLOUDFLARE_API_TOKEN`: the scripts remove it and every other credential variable from wrangler's environment, and `cf:setup` refuses to run unless `wrangler whoami` reports the OAuth login.
+- `CF_API_TOKEN` is an account API token for what wrangler does not cover. Its permissions: Access: Apps and Policies Edit, Access: Service Tokens Edit, AI Gateway Edit, Account Analytics Read. wrangler itself still reads `CF_API_TOKEN` as a deprecated alias of `CLOUDFLARE_API_TOKEN`, which is why the scripts strip it before running wrangler.
+- `cf:setup` writes the two service tokens' client secrets to `.secrets/cloudflare-service-tokens.json` (gitignored, mode 0600), where `cf:verify` reads them. No script prints a secret.
+
+Commands, from a clean checkout of the commit to deploy:
+
+```sh
+npx wrangler login                                      # once; OAuth
+npm run cf:doctor -- --env production                   # read-only: what exists and what is missing
+CF_API_TOKEN=... npm run cf:setup -- --env production --dry-run   # read-only plan, local build, wrangler deploy --dry-run
+CF_API_TOKEN=... npm run cf:setup -- --env production   # create, migrate, seed, deploy, Access, redeploy
+CF_API_TOKEN=... npm run cf:verify -- --env production  # small simulation against the deployed Worker
+npm run results:render                                  # then commit eval/results/production.json and README.md together
+```
+
+What `cf:setup` does, in order (each step checks first, so a second run changes nothing that is in place):
+
+1. Creates the two D1 databases and the two queues if missing (queue retention is the Free plan's fixed 24 hours).
+2. Creates AI Gateway `agentboard` with logs off (planner prompts carry request text, which the console hides from roles without `pii:read`) and a rate limit of 30 calls a minute.
+3. Applies pending D1 migrations; seeds the 60 fictional employees only into an empty People database; inserts the planner, executor and verifier control rows if missing.
+4. Creates the two verification service tokens (rotating one whose secret is not on this machine), and creates or updates the reusable policies: `agentboard-people` allows the four email addresses above, `agentboard-verify` (Service Auth) allows the two tokens.
+5. Upserts the role bindings for the four people and the two service-token principals (`svc:<client id>`).
+6. Builds with `CLOUDFLARE_ENV=<env>`, refuses any built configuration that is not that environment's, and deploys it tagged with the commit, with `INTEGRATION_SIGNING_KEY` generated once and sent as a secret through a 0600 temporary file. Until `ACCESS_AUD` exists the Worker fails closed: every route answers 500 `misconfigured`, and queue batches retry.
+7. Creates the self-hosted Access application for the Worker's `workers.dev` hostname (allowed identity provider: One-time PIN only, chosen without a picker; both policies attached), then redeploys with its AUD tag as the `ACCESS_AUD` secret. The application is hostname-based because Worker-level Access refuses WebSocket upgrades, and the live run view is a WebSocket.
+8. Checks that an unauthenticated request ends at the Access login.
+
+Without `CF_API_TOKEN`, steps 2, 4 and 7 are skipped and the Worker stays fail-closed; running it again with the token finishes the job. The deploy is skipped when the deployed version is already this commit with both secrets (`--redeploy` forces it).
+
+`cf:verify` checks that an unauthenticated request ends at the Access login and that each service token reaches `/api/me` with its role. It then launches four synthetic requests through the API (two address changes, a manager change it approves and a privileged grant it rejects, as the approver token, keeping separation of duties). Every run is planned by Workers AI, because a deployed Worker refuses every other planner. It waits for each run, cancels any run that needs attention or times out, and re-verifies every audit chain. It counts the runs' duplicate side effects in the integration ledger with a read-only `wrangler d1 execute` SELECT. It records every invocation's outcome and CPU time with `wrangler tail --format json`, and reads the GraphQL Analytics API: the Worker's CPU quantiles, Durable Object CPU time, today's Worker requests and D1 rows. It writes `eval/results/production.json` only for production and only when the deployed version is this checkout's committed code; otherwise it writes `eval/results/raw/`. Four runs cost at most 732 Workers AI neurons (6,000 planner tokens per run at most), out of the 10,000 a day this account's apps share.
+
+A preview environment repeats this with `--env preview`. Cloudflare does not generate preview URLs for Workers that implement Durable Objects, so there is one shared preview Worker, `agentboard-preview`.
+
+### Preview deployments from pull requests
+
+`.github/workflows/preview.yml` deploys each pull request from this repository to `agentboard-preview` once these exist (none of them exist yet):
+
+- GitHub environment `preview`, with **no required reviewer** and no branch restriction. It holds one secret, `CLOUDFLARE_API_TOKEN`.
+- Repository variable `PREVIEW_DEPLOYS` = `on`.
+- The preview resources, created once locally with `CF_API_TOKEN=... npm run cf:setup -- --env preview`.
+
+`CLOUDFLARE_ACCOUNT_ID` is not needed, because `account_id` is in `wrangler.jsonc`. Without the variable the deploy job is skipped. Without the secret, its steps are skipped. Either way the workflow passes. Pull requests from forks never deploy.
+
+Why no reviewer: the publish script merges a pull request only when `gh pr checks --watch` passes. A job waiting for an environment reviewer stays pending, so it would block every merge. The token is exposed only to code pushed to a branch of this repository by someone with write access, who could change the workflow itself anyway. It reaches only the `cf:setup --ci` step, never `npm ci` (dependency install scripts) or the build. In CI, `cf:setup --ci` creates nothing: it checks that the preview D1 databases, queues and both Worker secrets exist, applies pending migrations, refuses any build but the preview one, deploys, and checks that Access protects the URL.
+
+The CI deploy token is an account API token scoped to account `dc93c3bc8aa4f9e09a0d7e7354a80873` with these permissions, derived from the calls `cf:setup --ci` and wrangler 4.149.0 make (not yet exercised with a real token):
+
+| Permission | Why |
+|---|---|
+| Account: Workers Scripts Edit | upload the Worker, its static assets and its Durable Object migrations (part of the script upload; no separate permission), enable the `workers.dev` route, list secrets, read deployments and versions |
+| Account: D1 Edit | list the databases, resolve them by name, apply migrations |
+| Account: Queues Edit | check the queues exist and attach the queue consumers on deploy |
+| Account: Account Settings Read | account-level reads wrangler makes during deploy (the "Edit Cloudflare Workers" template includes it) |
+
+It needs no Access, AI Gateway, Workers AI or user-level permission: the Workers AI binding needs none at deploy time, and the workflow never runs `wrangler whoami`.
 
 The top-level configuration is the local one and has `workers_dev: false`, so an accidental top-level deploy is unreachable; production and preview refuse dev auth, fault injection, the stub LLM, the OpenAI-compatible LLM provider (it would send planner prompts, which carry request text, to an unauthenticated endpoint) and a short signing key at load time. The console's pages and every `/api` response forbid framing (`public/_headers` for the static assets, `hono/secure-headers` for the API), so another site cannot frame the approval and recovery buttons.
+
+## Cloudflare Free plan
+
+Nitish chose the Workers Free plan (2026-10-10), so production and preview must work within it. Each limit below was read on developers.cloudflare.com on 2026-10-15. The usage column comes from the code and from counts in the local simulation's state (100 runs, `eval:sim` at the measured commit), not from production, which has not run yet. `npm run cf:verify` measures the production side: per-invocation outcomes and CPU time, and today's Worker requests and D1 rows.
+
+| Feature | Free limit | Source | This app's usage | Verdict |
+|---|---|---|---|---|
+| CPU time per HTTP request | 10 ms ("some built-in flexibility" for infrequent overruns) | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) | API requests: an RS256 Access JWT check (WebCrypto, JWKS cached per isolate), Zod validation, a few D1 queries or one Durable Object call; the config is parsed once per isolate; static assets skip the Worker except `/api/*`, `/agents/*` and `/mcp` | not measured; `cf:verify` records the Worker's CPU quantiles (GraphQL Analytics API), each invocation's outcome including `exceededCpu` (`wrangler tail`), and per-invocation CPU time when the tail events carry it (the docs do not say they do) |
+| CPU time in Durable Objects | 30 s per request (no Free-specific figure) | [Durable Objects limits](https://developers.cloudflare.com/durable-objects/platform/limits/) | coordinator transactions, planning (the model call is I/O), MCP tool calls | fits |
+| Subrequests per invocation | 50 (fetch and Cloudflare services such as D1); 1,000 to internal services | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) | one coordinator outbox flush: at most 16 binding calls (8 rounds per lane, changed for Free); a queue consumer batch of 5 (changed for Free): about 2 calls per task message, at most 4 per dead letter; MCP calls stay in-process (no subrequest); a planner task: at most 2 Workers AI calls | fits |
+| D1 queries per invocation | 50 ("read subrequest limits") | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) | each outbox round is one `batch()` (the page does not say how batched statements count) | fits; a limit hit would show in `cf:verify`'s limit outcomes |
+| Worker requests per day | 100,000, reset 00:00 UTC; then error 1027 | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) | static assets are free and unlimited ([pricing](https://developers.cloudflare.com/workers/platform/pricing/)); the console's API calls; the live run view is one WebSocket | fits for a demo |
+| Memory; Worker size; startup | 128 MB per isolate; 64 MiB uncompressed; 1 s startup | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) | production upload 2,861 KiB (637 KiB gzip) per `wrangler deploy --dry-run` | fits (startup time not measured) |
+| Workers per account | 100 | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) | 2 | fits |
+| Durable Objects storage backend | SQLite-backed only | [Durable Objects limits](https://developers.cloudflare.com/durable-objects/platform/limits/) | all four classes are `new_sqlite_classes` (the Agents SDK needs SQLite) | fits |
+| Durable Object requests per day | 100,000 (HTTP, RPC sessions, WebSocket messages at 20:1, alarms); further operations fail | [Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/) | per task: the role-agent call plus its claim, trace and complete calls to the coordinator, plus scheduled wakes | fits for a demo (not measured) |
+| Durable Object SQLite rows written; read; storage | 100,000; 5 million a day; 5 GB | [Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/) | the coordinator inserted 83 rows per run in the simulation (32 audit events, 28 outbox rows, 7 tasks, 7 reports, 6 traces), before updates | the first daily limit likely to bind, at a few hundred runs a day |
+| Queues operations per day | 10,000 (a write, read or delete per 64 KB; a retry is a read) | [Queues pricing](https://developers.cloudflare.com/queues/platform/pricing/) | 6.8 task messages per run in the simulation, so about 20 operations per run | fits for a demo (a few hundred runs a day) |
+| Queue retention; queues per account | 24 hours, not configurable; 10,000 | [Queues limits](https://developers.cloudflare.com/queues/platform/limits/) | queues are created without a retention flag; messages are consumed within seconds and retries back off at most 300 s; 4 queues | fits (changed for Free: no retention flag) |
+| D1 databases; size; storage | 10 per account; 500 MB each; 5 GB | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) | 4 (2 per environment); the account had none on 2026-10-15, and the other apps planned for it will add theirs | fits; watch the 10-database cap across apps |
+| D1 rows read; written per day | 5 million; 100,000, then queries fail until 00:00 UTC | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) | the console database held 75 rows per run after the simulation (32 audit events, 14 search documents plus their FTS rows, 7 tasks, 6 tool calls), before mirror updates | fits for a demo; `cf:verify` reads today's totals |
+| Workers AI | 10,000 neurons a day; further calls fail | [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) | `@cf/qwen/qwen3-30b-a3b-fp8` costs 4,625 neurons per million input tokens and 30,475 per million output tokens; a run may spend 6,000 planner tokens (default budget), at most 183 neurons; `cf:verify` runs 4 (at most 732) | fits; shared with three other apps on the account |
+| Workers Logs | 200,000 events a day, 3 days retention | [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) | `observability` on, one event per invocation plus logs | fits |
+| Access seats | one seat per user who authenticates; service tokens take none | [Seat management](https://developers.cloudflare.com/cloudflare-one/team-and-resources/users/seat-management/) | 4 people (owner and 3 plus-address personas) and 2 service tokens (of 50 per account), 2 applications and 2 reusable policies (of 500 each, [account limits](https://developers.cloudflare.com/cloudflare-one/account-limits/)) | fits. The Free plan's cap of 50 users appears on cloudflare.com's pricing pages, not on developers.cloudflare.com |
+| Access on `workers.dev` | a self-hosted application for the hostname; Worker-level Access refuses WebSocket upgrades | [Workers and Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/) | hostname-based applications, so the live run WebSocket works | fits |
+
+What changed for the Free plan: one outbox flush makes at most 16 binding calls (it could make up to 100 while draining a backlog); deployed queue consumers take batches of 5 instead of 10; queues are created without a retention flag. Nothing else needed Workers Paid: no `limits` block, no Cron Triggers, no Smart Placement, no Logpush.
 
 ## Tests
 
 - `npm test` runs five projects: `worker` (workerd), `worker-ws` (WebSockets, isolation off as the Cloudflare known-issues page requires), `worker-access` (production Access verification against an intercepted JWKS), `web` (React components in happy-dom) and `node` (script math and launchers).
 - `npm run test:sim` drives all 100 synthetic requests through the real API, queue, coordinator, agents and MCP tools in workerd, with the same driver as `eval:sim`.
-- 108 tests are tagged `orchestration` or `authz`: the 100 planned in SPEC section 13.1, plus 4 added with the fixes of an independent review (`plan-guard.test.ts` #2, `planner.test.ts` #5 and #6, `websocket-auth.test.ts` #5), 2 added with later fixes (`planner.test.ts` #7, planner tasks sharing a catalog read in flight; `websocket-auth.test.ts` #6, WebSocket reauthorization) and 2 added with the fixes of a second review (`state-machine.test.ts` "verify and plan recovery ..."; `executor.test.ts` "journal fast path ..."). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 18 React tests of components and the dev login page, eval math, launchers and the toolchain gate) carry their own tags and are not part of that count.
-- `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`, then prints the worker bundle size. Its record on GitHub is under "History, pull requests and authorship" below. `preview.yml` and `release.yml` are described under Deploy and Releases.
+- 109 tests are tagged `orchestration` or `authz`: the 100 planned in SPEC section 13.1, plus 4 added with the fixes of an independent review (`plan-guard.test.ts` #2, `planner.test.ts` #5 and #6, `websocket-auth.test.ts` #5), 2 added with later fixes (`planner.test.ts` #7, planner tasks sharing a catalog read in flight; `websocket-auth.test.ts` #6, WebSocket reauthorization), 2 added with the fixes of a second review (`state-machine.test.ts` "verify and plan recovery ..."; `executor.test.ts` "journal fast path ...") and 1 added for the Free plan (`outbox-audit.test.ts` "one flush makes at most OUTBOX_ROUNDS_PER_FLUSH D1 calls ..."). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 18 React tests of components and the dev login page, eval math and results provenance, the deploy tooling, launchers and the toolchain gate) carry their own tags and are not part of that count.
+- `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`, then prints the worker bundle size. Its record on GitHub is under "History, pull requests and authorship" below. `preview.yml` and `release.yml` are described under "Preview deployments from pull requests" and Releases.
 
 ## Releases
 
-Four milestone tags, `v0.1.0` to `v0.4.0`, exist in this repository with a demo script each in `demos/` and a section each in `CHANGELOG.md`; no GitHub release has been published yet. `.github/workflows/release.yml` publishes one: pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. The four existing tags predate the workflow (GitHub runs the workflow file of the tagged commit), so their releases are created by running it by hand, for example `gh workflow run release.yml -f tag=v0.1.0`; an existing release is left untouched. A release run by hand does not run CI. The four tags are on GitHub, and pushing them ran each tagged commit's own `ci.yml` (its `push` trigger has no branch filter): it passed for `v0.1.0` to `v0.3.0` and failed for `v0.4.0`, whose result files cite the working repository's commit id rather than the published one (see below). Decide how to handle `v0.4.0` before publishing its release.
+Four milestone tags, `v0.1.0` to `v0.4.0`, exist with a demo script each in `demos/` and a section each in `CHANGELOG.md`. No GitHub release has been published yet. `.github/workflows/release.yml` publishes one. Pushing a `v*` tag runs the full CI workflow on the tagged commit, then creates the release with the tag's changelog section and its demo script as notes. An existing release is left untouched.
+
+The four existing tags predate the workflow (GitHub runs the workflow file of the tagged commit), so their releases are created by running it by hand from `main`. That reads the notes from `main`'s `CHANGELOG.md` and does not run CI:
+
+```sh
+gh workflow run release.yml --repo nitishsjsucs/agentboard --ref main -f tag=v0.1.0
+gh workflow run release.yml --repo nitishsjsucs/agentboard --ref main -f tag=v0.2.0
+gh workflow run release.yml --repo nitishsjsucs/agentboard --ref main -f tag=v0.3.0
+gh workflow run release.yml --repo nitishsjsucs/agentboard --ref main -f tag=v0.4.0
+gh run list --repo nitishsjsucs/agentboard --workflow release.yml --limit 4   # each should end in success
+gh release list --repo nitishsjsucs/agentboard
+```
+
+The notes step was run locally for all four tags. Each produced the changelog section's title ("v0.1.0: Foundations" and so on), its bullets, and the demo script under "Demo script".
+
+The tags' own CI (from pushing them) passed for `v0.1.0` to `v0.3.0` and failed for `v0.4.0` at `results:check`. Every step before it passed (types, typecheck, synthetic data, tests, the simulation, the test count); the build did not run. The tagged result files cite the working repository's commit id, which the published history does not contain. Re-running that CI as is fails again, because the tag's own scripts and result files are unchanged (reproduced on a clone of the published history). The tag stays where it is. Its release can be published by hand as above, and its changelog section now carries a note saying so. The `results:check` in later commits finds the measured commit by author date and measured content, so a new tag cut after this round passes on the published history (checked on a simulated copy, see `PROGRESS.md`). The next milestone tag is `v0.5.0`. Before tagging, rename the CHANGELOG's "Unreleased" heading to `## v0.5.0: <title>`, because the release workflow refuses a tag without a changelog section.
 
 ## History, pull requests and authorship
 
-The code, tests and docs were written with Claude Code (an AI coding agent) from `SPEC.md`, in rounds that independent reviews checked; `PROGRESS.md` records each round, its deviations from the spec and the review findings. In the working repository where the build commits, every commit except one (a README commit made by a parallel session, see `CHANGELOG.md`) carries a `Co-Authored-By: Claude` trailer. The GitHub repository is filled from that working repository by a separate publish step, which copies each commit without that trailer (so no commit on GitHub carries one), rewrites the commit ids cited in files to the published ones, and sends each increment up as a pull request that it opens and merges itself. The builders never push.
+How it is built: the code, tests and docs were written with Claude Code (an AI coding agent) from `SPEC.md`, in rounds. `PROGRESS.md` records each round, its deviations from the spec and the review findings. The reviews were AI reviews run by the same tooling; no human has reviewed the code.
 
-State of the GitHub repository on 2026-10-09 at about 20:20 UTC (the publish step keeps adding pull requests after that; check GitHub for later ones):
+How it reaches GitHub: the builders commit to a separate working repository and never push. A publish script copies each new commit into the GitHub repository as a new commit (same tree, author and dates, message without any `Co-Authored-By: Claude` trailer). It rewrites the commit ids cited in files to the published ones, and lands each increment as a pull request that it opens and merges itself with a merge commit. From 2026-10-15 the script merges a pull request only after its CI checks pass and leaves a red one open. Earlier pull requests were merged without waiting. In the working repository, every commit up to `b59f22c` except one (a README commit made by a parallel session, see `CHANGELOG.md`) carries a `Co-Authored-By: Claude` trailer; later commits carry none. No commit on GitHub carries one.
 
-- The first 8 commits were pushed straight to `main`. After that, pull requests #1 to #10 were each opened and merged by the publish step within 2 to 4 seconds, without review and before their CI had finished; #7 holds only a commit the publish step made itself (it points measured-commit references at the published history).
-- `ci.yml` ran 35 times and failed 16 times. `main` was red after merging #3 to #6, whose result files cited working-repository commit ids that the published history did not contain (the publish step did not rewrite them at the time), and after #8, which ended between three fixes and their re-measurement; it was green after #1, #2, #7, #9 and #10.
-- `preview.yml` ran on 8 pull requests; its deploy job was skipped every time (no Cloudflare secrets), and the repository has no deployments.
+State of the GitHub repository on 2026-10-15 (read with `gh`; later increments add to it):
+
+- The first 8 commits were pushed straight to `main`. After that, pull requests #1 to #11 were each opened and merged by the publish script within seconds, without review and before their CI had finished. #7 holds only a commit the publish script made itself, which points measured-commit references at the published history.
+- `ci.yml` ran 38 times and failed 16 times. `main` was red after merging #3 to #6, whose result files cited working-repository commit ids that the published history did not contain (the publish script did not rewrite them at the time). It was also red after #8, which ended between three fixes and their re-measurement. It was green after #1, #2, #7 and #9 to #11.
+- `preview.yml` ran 9 times; its deploy job was skipped every time (no Cloudflare secrets), and the repository has no deployments and no `preview` environment.
 - The tags `v0.1.0` to `v0.4.0` are there (CI as described under Releases); no GitHub release exists.
 
 ## Results
@@ -240,8 +346,8 @@ Not measured. Nothing has been deployed; every number above comes from local run
 Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
-- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events come from that change alone. The measurements at `b3f5ed8` (the first after it), `83fb6fb` and `6541d6e` all counted 573 tool calls and 3228 audit events.
-- Local latencies move between runs of the same code and with the load on the machine. The results above were measured by a final verification gate in a fresh clone of `6541d6e` (after `npm ci`, with no local secrets or `.wrangler` state), whose measured code is the same as at `83fb6fb`, on a laptop on AC power while other projects' processes were running. Every count, outcome and planner quality metric matched the previous measurement at `83fb6fb` (recorded in commit `ab705c7`), including all 100 per-request planner results; only latencies moved (at `83fb6fb`: planner latency p50 3250 ms and p95 8828 ms; simulation run duration p50 8398 ms and p95 14025 ms; search latency p95 3 ms). That measurement had matched the one at `b3f5ed8` (commit `baf61df`) in every count and every per-request planner result, that one the measurement at `52d601a` (commit `f3da1c3`) in every count except the 2 catalog reads described above, and that one the measurement at `b7db936` (commit `c499cfb`) in every count.
+- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events come from that change alone. The measurements at `b3f5ed8` (the first after it), `83fb6fb`, `6541d6e` and `b362e3e` all counted 573 tool calls and 3228 audit events.
+- Local latencies move between runs of the same code and with the load on the machine. The results above were measured at `b362e3e` on 2026-10-15 in the working tree, on a laptop on AC power while three other repositories' test suites ran on it (load averages between 15 and more than 100). Every count, outcome and planner quality metric matched the previous measurement at `6541d6e` (recorded in commit `d7811c7`), including all 100 per-request planner results. Only latencies moved, upwards: at `6541d6e` the planner latency was p50 3141 ms and p95 8530 ms, the simulation run duration p50 7296 ms and p95 10884 ms, and the search latency p50 2 ms and p95 5 ms. That measurement had matched the one at `83fb6fb` (commit `ab705c7`) in every count and every per-request planner result. That one matched the measurement at `b3f5ed8` (commit `baf61df`); that one the measurement at `52d601a` (commit `f3da1c3`) in every count except the 2 catalog reads described above; and that one the measurement at `b7db936` (commit `c499cfb`) in every count.
 - Every failure in the simulation is injected by dev-only fault directives at fixed counts from the seeded dataset (the "Injected" row), and every approval decision and recovery command is issued by the simulation driver acting as an operator. The retry, lease-expiry, refusal, budget, verifier and recovery rows measure how the system responds to those injected faults; none of them is an organic failure.
 - The two duplicate side-effect rows come from the integration's own ledger table (`side_effects`), whose insert carries the same guard as the effects. The domain-table row is the independent check: the rows in the simulated tickets, notifications and grants tables, compared with the distinct (run, step) pairs that have an applied call of that tool in the console's tool-call history. In-place updates (addresses, managers, statuses, revocations) are idempotent by nature, so a duplicate of one would not show up in state.
 - Some safety paths never fire in the simulation by design: no scenario re-runs a write that really applied, so logical replays stay at zero there, and no infrastructure failure exhausts queue retries, so the DLQ stays empty. The executor journal never answers either: with the default 2 shards the shard hash always sends a lease-expiry redispatch (attempt + 1) to the other shard (`queue/sharding.ts` says why), so all 6 crashes after a call are recovered by ledger replays. These paths are covered by tests (`idempotency.test.ts` "the idempotency key is stable across attempts and changes with generation ...", in `retries.test.ts` "the DLQ consumer ... dead-letters a task only for its current dispatchId ..." and "DLQ replay redispatches ...", and `executor.test.ts` "journal fast path ...").
@@ -254,11 +360,12 @@ Reading the results:
 
 - The People organization, its systems and its employees are simulated. Nothing here has served real users.
 - Only the planner calls a model. The executor and verifier are deterministic Agents SDK Durable Objects by design.
-- The 100-run simulation uses the stub planner; planning quality is measured separately by `eval:planner` against a small local model. Workers AI and AI Gateway are untested here (no account).
+- The 100-run simulation uses the stub planner; planning quality is measured separately by `eval:planner` against a small local model. Workers AI and AI Gateway have not run yet (nothing is deployed); `cf:verify` plans four production runs with Workers AI once the Worker is deployed.
+- The Workers Free plan's daily allowances (Worker and Durable Object requests, Durable Object and D1 rows, 10,000 queue operations, 10,000 Workers AI neurons shared with three other apps) bound the deployment to a demo of a few hundred runs a day; past one of them, operations of that kind fail until 00:00 UTC. See "Cloudflare Free plan".
 - Every class runs in one Worker that holds the integration signing key, so call-bound tokens defend against confused or buggy call paths (wrong tool, tampered arguments, replay into another task or after the lease), not against arbitrary code running inside the Worker.
 - Rejection does not compensate steps that already ran; by construction only reads run before an approval gate.
 - A run WebSocket is authorized at the upgrade, which checks the identity token and the principal's role binding, and must be authorized again 5 minutes later: before the first snapshot after that time the coordinator closes it normally, and the client reconnects through the same checks. Once the token has expired the socket is closed with code 4401 instead, and the client stops. So a removed or downgraded role binding reaches an open socket at its first snapshot after at most 5 minutes; every HTTP request re-checks the binding.
-- `npm audit` reports one high-severity advisory, GHSA-6qxp-vccf-f47h, for the pinned MCP SDK packages (`@modelcontextprotocol/client` 2.0.0 and `@modelcontextprotocol/sdk` 1.30.0, also reached through `agents`): the SDK's OAuth client could send credentials to an authorization server chosen by the MCP server. AgentBoard's only MCP client connects in-process to its own People Ops server with a fixed bearer token (a minimal `authProvider: { token }`, which the SDK does not treat as an OAuth provider), so the OAuth flow never runs. The pins stay at the versions SPEC section 2.2 verified; the fixed versions are client 2.2.0 and sdk 1.31.0.
+- `npm audit` reports one high-severity advisory, GHSA-6qxp-vccf-f47h, for the pinned MCP SDK packages (`@modelcontextprotocol/client` 2.0.0 and `@modelcontextprotocol/sdk` 1.30.0, also reached through `agents`): the SDK's OAuth client could send credentials to an authorization server chosen by the MCP server. The fixed versions are client 2.2.0 and sdk 1.31.0. They are not installed because `agents` 0.27.0, the version SPEC section 2.2 pins, declares exact peers `@modelcontextprotocol/sdk` 1.30.0 and `@modelcontextprotocol/client` 2.0.0. `npm audit`'s only fix is `agents` 0.28.1, a semver-major change that re-pins all three MCP packages (checked 2026-10-15). The vulnerable flow cannot run here, for three reasons. AgentBoard's only MCP client passes a minimal `authProvider: { token }`, which the SDK's `isOAuthClientProvider` does not treat as an OAuth provider (that needs `tokens()` and `clientInformation()`). Its `fetch` calls the in-process People Ops endpoint, so no request leaves the Worker. And the Agents SDK's OAuth callback handler is never reached: no code calls `addMcpServer`, and the agent route answers 404 to every non-WebSocket request before it reaches an agent.
 - Local latencies come from `wrangler dev` on a laptop and say nothing about production.
 - D1 export does not support FTS5 virtual tables: to back up, drop `search_fts`, export, recreate it, then rebuild with `INSERT INTO search_fts(search_fts) VALUES('rebuild')`.
 

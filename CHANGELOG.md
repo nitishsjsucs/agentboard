@@ -44,6 +44,16 @@ Fixes from a second independent review (correctness, security and honesty):
 - README and PROGRESS describe the state of the GitHub repository: CI history, the automated pull requests, the tags and the published commits without trailers.
 - A final verification gate measured everything again in a fresh clone of `6541d6e` (same measured code as `83fb6fb`): every count, outcome and planner quality metric matched, including all 100 per-request planner results; only local latencies moved, and the README now shows the gate's numbers.
 
+Deploy path for the Workers Free plan (not deployed yet):
+
+- `npm run cf:setup -- --env production|preview` creates whatever the environment lacks (D1 databases, the task queue and its dead-letter queue, AI Gateway, migrations, the simulated People seed, agent controls, two Access service tokens, the reusable Access policies, role bindings), deploys the committed code fail-closed, creates the Access application for the `workers.dev` hostname with the One-time PIN identity provider, and redeploys with its AUD tag. Every step checks first, so a re-run changes nothing that is in place. `--dry-run` reads the account, builds, runs `wrangler deploy --dry-run` and prints the plan. `npm run cf:doctor` is a read-only report; `npm run cf:verify` runs four Workers AI-planned runs through Access and records outcomes, audit chains, duplicate side effects and CPU time in `eval/results/production.json`, which the README Results block renders.
+- `wrangler.jsonc`'s production and preview environments carry the account id, the Zero Trust team domain and the `workers.dev` origins, and name their D1 databases and queues without ids (wrangler resolves them by name). Queue consumers there take batches of 5.
+- Deployed environments require `ACCESS_AUD` to be an Access AUD tag (64 hex characters) and get it as a Worker secret, so a placeholder or a missing application fails closed with 500 `misconfigured`. Locally `npm run dev:keys` writes `ACCESS_AUD=agentboard-dev` into `.dev.vars`; in an existing checkout, run `npm run dev:keys -- --force` or add that line.
+- One outbox flush makes at most 16 binding calls (8 rounds per lane), well under the Free plan's 50 subrequests per invocation; a backlog drains over the following wakes.
+- `preview.yml` deploys through `cf:setup --ci`, skips cleanly without the `PREVIEW_DEPLOYS` variable or the `preview` environment's `CLOUDFLARE_API_TOKEN`, and needs no reviewer (a waiting job would block the publish script's merge on green checks).
+- `results:check` no longer depends on a particular commit id: results record the measured commit's author date and a content address of the measured paths, and the check finds the measured commit by id or, in the published history, by author date and content. It also fails when a measured file cites a commit id. This is what made the `v0.4.0` tag's own CI fail on GitHub (see the note under v0.4.0). For `eval/results/production.json` alone, code changed since the measurement is a note, because measuring production again needs a deploy.
+- Simulation, planner and test results measured again on the code above (109 tagged tests).
+
 History note: commit `7ff7a92` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `b7a3199` were written by a parallel session working in the same tree, not by this build's commit sequence; read them as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags). In the working repository the build commits to, every commit except that README commit carries a `Co-Authored-By: Claude` trailer. The GitHub history is copied from that repository by a separate publish step that removes those trailers, so no commit on GitHub carries one.
 
 ## v0.4.0: Evaluation and release
@@ -53,6 +63,8 @@ History note: commit `7ff7a92` ("docs: README with status, architecture, design 
 - `npm run count:tests` for the 100 tagged orchestration and authorization tests.
 - README Results block rendered from `eval/results/*.json`, with a staleness and dirty-tree check in CI.
 - README with architecture, local setup, deploy steps, the local versus production matrix and limitations.
+
+Note added after the tag: on GitHub, this tag's own CI run failed at `results:check`. Every step before it passed (types, typecheck, synthetic data check, tests, the 100-run simulation and the tagged test count), and the build step did not run. The tagged result files cite the working repository's commit id, which the published history does not contain. The tag was not moved. The `results:check` that tags cut later run identifies the measured commit by author date and measured content instead.
 
 ## v0.3.0: Console
 
