@@ -13,7 +13,7 @@ function productionEnv(overrides: Record<string, unknown> = {}): Env {
     ENVIRONMENT: "production",
     AUTH_MODE: "access",
     ACCESS_TEAM_DOMAIN: "https://agentboard-test.cloudflareaccess.com",
-    ACCESS_AUD: "agentboard-test-aud",
+    ACCESS_AUD: "4f1c".repeat(16),
     FAULT_INJECTION: "off",
     MCP_EXTERNAL: "off",
     LLM_PROVIDER: "workers-ai",
@@ -37,6 +37,8 @@ const BROKEN: [string, Record<string, unknown>][] = [
   ["a stub LLM", { LLM_PROVIDER: "stub" }],
   ["an OpenAI-compatible LLM endpoint (unauthenticated; planner prompts carry request text)", { LLM_PROVIDER: "openai-compatible" }],
   ["a short signing key", { INTEGRATION_SIGNING_KEY: btoa("too-short-key") }],
+  ["no Access AUD (the Access application and its AUD secret are not set up yet)", { ACCESS_AUD: undefined }],
+  ["an Access AUD that is not an AUD tag (a placeholder)", { ACCESS_AUD: "<application AUD tag>" }],
   ["a violated timing invariant (LEASE_TTL_MS < 2 * TOOL_TIMEOUT_MS + 1000)", { LEASE_TTL_MS: "9000" }],
 ];
 
