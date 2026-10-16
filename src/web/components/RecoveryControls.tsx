@@ -116,8 +116,9 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
   useLayoutEffect(() => {
     if (confirmedCount > 0) outcomeRef.current?.focus();
   }, [confirmedCount]);
-  // The budget form's values as typed, in the units shown (active time in minutes).
+  // The budget form's values as typed, in the units shown (active time in minutes), and as first shown.
   const [form, setForm] = useState<Record<BudgetField, string>>({ maxToolCalls: "", maxLlmTokens: "", maxAttemptsPerTask: "", maxActiveMs: "" });
+  const [prefilled, setPrefilled] = useState<Record<BudgetField, string>>({ maxToolCalls: "", maxLlmTokens: "", maxAttemptsPerTask: "", maxActiveMs: "" });
 
   const { status, tasks } = snapshot;
   const terminal = TERMINAL.has(status);
@@ -142,9 +143,11 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
   const showBudget = canBudget && !terminal;
 
   // A raise must increase at least one field and lower none (the coordinator refuses anything else).
+  // A field left as it was shown means its current limit: active time is shown rounded to 0.01 minute,
+  // so converting the shown text back could land below or above the stored milliseconds.
   const requested = (field: BudgetField): number => {
     const typed = form[field].trim();
-    if (typed === "" || !Number.isFinite(Number(typed))) return snapshot.budget[field];
+    if (typed === "" || typed === prefilled[field] || !Number.isFinite(Number(typed))) return snapshot.budget[field];
     return field === "maxActiveMs" ? Math.round(Number(typed) * MINUTE) : Number(typed);
   };
   const isRaise = BUDGET_FIELDS.some((f) => requested(f) > snapshot.budget[f]) && BUDGET_FIELDS.every((f) => requested(f) >= snapshot.budget[f]);
@@ -154,12 +157,14 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
     // A new command starts from a clean slate: the previous outcome no longer describes the page.
     setOutcome(null);
     if (next.kind === "budget") {
-      setForm({
+      const current = {
         maxToolCalls: String(shown("maxToolCalls", snapshot.budget)),
         maxLlmTokens: String(shown("maxLlmTokens", snapshot.budget)),
         maxAttemptsPerTask: String(shown("maxAttemptsPerTask", snapshot.budget)),
         maxActiveMs: String(shown("maxActiveMs", snapshot.budget)),
-      });
+      };
+      setForm(current);
+      setPrefilled(current);
     }
     setAction(next);
   };

@@ -238,6 +238,44 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     expect(screen.getByRole("button", { name: "Retry s2 verify (hris.update_address)" }).textContent).toBe("Retry");
   });
 
+  it("treats an untouched active-time field as its current limit, whatever the minute rounding, and sends only the fields that were raised", async () => {
+    const api = serve();
+    const withActive = (maxActiveMs: number) => snapshot({ budget: { ...snapshot().budget, maxToolCalls: 2, maxActiveMs }, usage: { ...snapshot().usage, toolCalls: 2, toolCallsReserved: 0 } });
+    const reason = () => fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "more calls" } });
+    const confirm = () => screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement;
+
+    // 50000 ms shows as 0.83 minutes (49800 ms): raising only tool calls must not read as lowering active time.
+    const rounded = controls("admin", withActive(50_000));
+    fireEvent.click(screen.getByRole("button", { name: "Raise budget" }));
+    expect((screen.getByLabelText(/^Active time in minutes/) as HTMLInputElement).value).toBe("0.83");
+    reason();
+    fireEvent.change(screen.getByLabelText(/^Tool calls/), { target: { value: "12" } });
+    expect(confirm().disabled).toBe(false);
+    fireEvent.click(confirm());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.seen.filter((r) => r.method === "PATCH").at(-1)?.body).toEqual({ maxToolCalls: 12, reason: "more calls" });
+    rounded.unmount();
+
+    // 1000 ms shows as 0.02 minutes (1200 ms): an untouched form is not a raise, and active time is never sent.
+    controls("admin", withActive(1000));
+    fireEvent.click(screen.getByRole("button", { name: "Raise budget" }));
+    expect((screen.getByLabelText(/^Active time in minutes/) as HTMLInputElement).value).toBe("0.02");
+    reason();
+    expect(confirm().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(/^Tool calls/), { target: { value: "5" } });
+    fireEvent.click(confirm());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.seen.filter((r) => r.method === "PATCH").at(-1)?.body).toEqual({ maxToolCalls: 5, reason: "more calls" });
+
+    // Typing a new active time still sends it, in milliseconds.
+    fireEvent.click(screen.getByRole("button", { name: "Raise budget" }));
+    reason();
+    fireEvent.change(screen.getByLabelText(/^Active time in minutes/), { target: { value: "1" } });
+    fireEvent.click(confirm());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.seen.filter((r) => r.method === "PATCH").at(-1)?.body).toEqual({ maxActiveMs: 60_000, reason: "more calls" });
+  });
+
   it("says that retrying a rejected approval-gated task asks for a new approval", () => {
     const gated = snapshot({
       statusReason: "approval_expired",
