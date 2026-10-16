@@ -263,3 +263,7 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .unlocks__toggle { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; }
 .unlocks__chevron { transition: none; }
 .unlocks__toggle[aria-expanded="true"] .unlocks__chevron { transform: rotate(90deg); }
+
+/* Time left on a pending approval: the text, then a meter (fuller is closer to expiry). */
+.expiry { display: flex; flex-direction: column; gap: 4px; max-width: 360px; }
+.queue-summary { margin: 0; }

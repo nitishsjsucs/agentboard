@@ -4,6 +4,7 @@ import type { ApprovalListItem, RunDetailResponse, TaskView } from "../../shared
 import { api, ApiRequestError } from "../api/client.ts";
 import { useCan, usePolling, useSession } from "../api/hooks.ts";
 import { ErrorNotice } from "./ErrorNotice.tsx";
+import { ExpiryMeter } from "./ExpiryMeter.tsx";
 import { buildPlanGraph, dependentsOf, type StepNode } from "./planGraph.ts";
 import { LoadingLine } from "./PolledView.tsx";
 import { formatTime } from "./RunTable.tsx";
@@ -17,7 +18,8 @@ export function isDecisionConflict(error: unknown): boolean {
 }
 
 function decisionLine(approval: ApprovalListItem): string {
-  if (approval.status === "pending") return `; expires ${formatTime(approval.expiresAt)}`;
+  // A pending approval's expiry is in its meter below the line.
+  if (approval.status === "pending") return "";
   if (approval.status === "expired") return approval.decisionNote ? `; expired: ${approval.decisionNote}` : `; expired ${formatTime(approval.decidedAt ?? approval.expiresAt)}`;
   return `; decided by ${approval.decidedBy ?? "unknown"}${approval.decisionNote ? `: ${approval.decisionNote}` : ""}`;
 }
@@ -152,6 +154,7 @@ export function ApprovalCard({
         requested by {approval.requester}, {formatTime(approval.requestedAt)}
         {decisionLine(approval)}
       </div>
+      {approval.status === "pending" ? <ExpiryMeter requestedAt={approval.requestedAt} expiresAt={approval.expiresAt} /> : null}
       {approval.status === "pending" ? (
         <div className="unlocks">
           <button type="button" className="link-button small unlocks__toggle" aria-expanded={open} aria-controls={unlocksId} onClick={toggleUnlocks}>

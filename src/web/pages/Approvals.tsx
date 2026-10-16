@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router";
 import type { ApprovalListItem, Page } from "../../shared/api-types.ts";
 import { api, query } from "../api/client.ts";
 import { describeError } from "../api/describeError.ts";
-import { usePolling, useSession } from "../api/hooks.ts";
+import { useCan, usePolling, useSession } from "../api/hooks.ts";
+import { formatDuration, useNow } from "../api/time.ts";
 import { ApprovalCard, type Decision } from "../components/ApprovalCard.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { usePageTitle } from "../api/usePageTitle.ts";
@@ -19,6 +20,20 @@ function statusFromParam(value: string | null): StatusTab {
   return STATUSES.find((s) => s !== "" && s === value) ?? "pending";
 }
 
+/**
+ * The pending tab's one-line summary: how many wait, how many this principal can decide, how many are
+ * high risk, and when the next expires (the list is soonest expiry first).
+ */
+export function queueSummary(page: Page<ApprovalListItem>, options: { canDecide: boolean; now: number }): string {
+  const { items, nextCursor } = page;
+  const head = nextCursor !== null ? `${items.length}+ waiting; showing the ${items.length} that expire soonest` : `${items.length} waiting`;
+  const body = options.canDecide
+    ? `${head}: ${items.filter((a) => a.canDecide).length} you can decide, ${items.filter((a) => a.risk === "high").length} high risk.`
+    : `${head}. Approvers and admins decide them.`;
+  const next = items.map((a) => Date.parse(a.expiresAt)).find((at) => at > options.now);
+  return `${body} ${next !== undefined ? `Next expires in ${formatDuration(next - options.now)}.` : "Every one shown is past its expiry; the list updates shortly."}`;
+}
+
 type Announcement = { kind: "decided"; decision: Decision; approval: ApprovalListItem } | { kind: "conflict"; error: unknown };
 
 const NOTE_INPUTS = 'input[data-note]:not(:disabled)';
@@ -26,6 +41,8 @@ const NOTE_INPUTS = 'input[data-note]:not(:disabled)';
 export function Approvals() {
   usePageTitle("Approval queue");
   const { me } = useSession();
+  const canDecide = useCan("approvals:decide");
+  const now = useNow(30_000);
   const [params, setParams] = useSearchParams();
   const status = statusFromParam(params.get("status"));
   // Switching the status tab clears the previous tab's cards before the new answer arrives.
@@ -132,6 +149,11 @@ export function Approvals() {
             <EmptyState title={status ? `No ${status} approvals.` : "No approvals yet."} />
           ) : (
             <div className="stack" ref={listRef}>
+              {status === "pending" ? (
+                <p className="small muted queue-summary" data-testid="queue-summary">
+                  {queueSummary(page, { canDecide, now })}
+                </p>
+              ) : null}
               {page.items.map((approval) => (
                 <ApprovalCard
                   key={approval.id}
