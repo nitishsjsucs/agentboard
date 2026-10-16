@@ -154,6 +154,16 @@ function LaunchForm() {
     setError(null);
   };
 
+  /**
+   * Unlocks the fields after a lost answer but keeps the key. If the lost launch never arrived, the
+   * edited request is created under it; if it did, the server refuses the edit as an idempotency
+   * conflict (explained below) instead of starting a second run of the same People operation.
+   */
+  const editRequest = () => {
+    setUnanswered(null);
+    setError(null);
+  };
+
   const chooseSample = (ref: string) => {
     setSampleRef(ref);
     const sample = samples.find((s) => s.ref === ref);
@@ -267,12 +277,15 @@ function LaunchForm() {
         </div>
         {unanswered ? (
           <div className="notice notice--warning" role="alert" data-testid="launch-unanswered">
-            <div>The launch may not have reached AgentBoard. Try again sends the same request with the same key, so it cannot start a second run.</div>
+            <div>
+              The launch may not have reached AgentBoard. Try again resends it unchanged. Try again and Edit request both keep this form&apos;s key, so neither can
+              start a second run.
+            </div>
             <div className="row" style={{ marginTop: "var(--space-2)" }}>
               <button type="button" className="btn btn--small btn--primary" disabled={busy} onClick={() => void send(unanswered)}>
                 Try again
               </button>
-              <button type="button" className="btn btn--small" disabled={busy} onClick={startNew}>
+              <button type="button" className="btn btn--small" disabled={busy} onClick={editRequest}>
                 Edit request
               </button>
             </div>

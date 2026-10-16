@@ -136,7 +136,7 @@ describe("Launch submits", { tags: ["ui"] }, () => {
     expect((first?.body as { clientRequestId: string }).clientRequestId).toMatch(/^web-/);
   });
 
-  it("Edit request after a lost answer unlocks the fields and uses a new key", async () => {
+  it("Edit request after a lost answer unlocks the fields and keeps the key, so an edit of a launch that never arrived is created under it", async () => {
     let attempt = 0;
     const api = serve({
       launch: () => {
@@ -148,13 +148,49 @@ describe("Launch submits", { tags: ["ui"] }, () => {
     page();
     await fillValidForm();
     fireEvent.click(launchButton());
-    fireEvent.click(await screen.findByRole("button", { name: "Edit request" }));
+    expect((await screen.findByTestId("launch-unanswered")).textContent).toContain("Try again and Edit request both keep this form's key, so neither can start a second run.");
+    fireEvent.click(screen.getByRole("button", { name: "Edit request" }));
     expect((screen.getByLabelText("Request text") as HTMLTextAreaElement).readOnly).toBe(false);
     fireEvent.change(screen.getByLabelText("Request text"), { target: { value: `${TEXT} Effective Monday.` } });
     fireEvent.click(launchButton());
     await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/runs/run_edited"));
     const [first, second] = posts(api.seen).map((p) => (p.body as { clientRequestId: string }).clientRequestId);
-    expect(second).not.toBe(first);
+    expect(second).toBe(first);
+  });
+
+  it("when the lost launch did arrive, the edited request is refused as a conflict with Runs and Start a new request, not run twice", async () => {
+    // The server's per-requester reservation: the first body landed, but its answer was lost.
+    const reserved = new Map<string, string>();
+    const api = serve({
+      launch: ({ body, rawBody }) => {
+        const { clientRequestId } = body as { clientRequestId: string };
+        const previous = reserved.get(clientRequestId);
+        if (previous === undefined) {
+          reserved.set(clientRequestId, rawBody ?? "");
+          if (reserved.size === 1) throw new TypeError("Failed to fetch");
+          return reply({ runId: "run_new_key", status: "queued", deduplicated: false }, 201);
+        }
+        if (previous !== rawBody) return apiError(409, "conflict", "clientRequestId was used with a different request", "idempotency_conflict");
+        return reply({ runId: "run_landed", status: "queued", deduplicated: true });
+      },
+    });
+    page();
+    await fillValidForm();
+    fireEvent.click(launchButton());
+    fireEvent.click(await screen.findByRole("button", { name: "Edit request" }));
+    fireEvent.change(screen.getByLabelText("Request text"), { target: { value: `${TEXT} Thanks.` } });
+    fireEvent.click(launchButton());
+    const conflict = await screen.findByTestId("launch-conflict");
+    expect(conflict.textContent).toContain("This form already launched a different request. Check Runs for it, or start a new request.");
+    expect(screen.getByTestId("location").textContent).toBe("/launch");
+    expect(reserved.size).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start a new request" }));
+    fireEvent.click(launchButton());
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/runs/run_new_key"));
+    const keys = posts(api.seen).map((p) => (p.body as { clientRequestId: string }).clientRequestId);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
   });
 
   it("explains an idempotency conflict with a link to Runs, and Start a new request mints a new key", async () => {
