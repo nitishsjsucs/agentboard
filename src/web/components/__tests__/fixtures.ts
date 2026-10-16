@@ -92,6 +92,8 @@ export function approvalItem(overrides: Partial<ApprovalListItem> = {}): Approva
     decidedAt: null,
     decisionNote: null,
     canDecide: true,
+    runTitle: "Manager change for Rosalind Galloway (E-1017)",
+    requestType: "manager_change",
     ...overrides,
   };
 }

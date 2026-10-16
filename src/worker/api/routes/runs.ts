@@ -281,7 +281,7 @@ export const runRoutes = new Hono<AppEnv>()
       tasks: tasks.results.map((t) => taskFromRow(t, pii)),
       approvals: approvals.results.map((row): ApprovalListItem => {
         const view = approvalFromRow(row);
-        return { ...view, canDecide: canDecide(view, identity) };
+        return { ...view, canDecide: canDecide(view, identity), runTitle: run.title, requestType: run.request_type };
       }),
     };
     return c.json(detail);

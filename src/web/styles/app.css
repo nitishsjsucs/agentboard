@@ -135,3 +135,4 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
   .note-row { flex-wrap: wrap; }
   .note-row .input { flex-basis: 100%; }
 }
+.status-line:focus { outline: none; }

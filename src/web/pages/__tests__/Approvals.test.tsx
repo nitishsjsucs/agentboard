@@ -17,7 +17,7 @@ describe("Approvals loading and failure states", { tags: ["ui"] }, () => {
   it("shows a loading line, not the empty state, while the first request is in flight", async () => {
     stubApi(() => pending());
     page();
-    expect((await screen.findByRole("status")).textContent).toBe("Loading approvals...");
+    expect((await screen.findByText("Loading approvals...")).getAttribute("role")).toBe("status");
     expect(document.body.textContent).not.toContain("No pending approvals.");
   });
 
@@ -60,6 +60,82 @@ describe("Approvals loading and failure states", { tags: ["ui"] }, () => {
     expect(await screen.findByText("Change the manager of E-1017 to E-1004")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "rejected" }));
     expect(screen.queryByText("Change the manager of E-1017 to E-1004")).toBeNull();
-    expect((await screen.findByRole("status")).textContent).toBe("Loading approvals...");
+    expect((await screen.findByText("Loading approvals...")).getAttribute("role")).toBe("status");
+  });
+
+});
+
+describe("Approvals decisions", { tags: ["ui"] }, () => {
+  const first = approvalItem();
+  const second = approvalItem({
+    id: "apr_01J00000000000000000000002",
+    runId: "run_01J00000000000000000000002",
+    tool: "access.grant_role",
+    summary: "Grant okta:super-admin to E-1024",
+    risk: "high",
+    runTitle: "Privileged access for Dorian Oakhurst (E-1024)",
+    requestType: "privileged_access",
+  });
+
+  it("announces an approval with the run's title and moves focus to the next card's note", async () => {
+    let decided = false;
+    stubApi(({ method, path }) => {
+      if (method === "POST" && path === `/api/approvals/${first.id}/decision`) {
+        decided = true;
+        return reply({ ...first, status: "approved", canDecide: false });
+      }
+      if (path.startsWith("/api/approvals")) return reply({ items: decided ? [second] : [first, second], nextCursor: null });
+      return undefined;
+    });
+    page();
+    const [note] = await screen.findAllByLabelText("Decision note");
+    fireEvent.change(note as HTMLElement, { target: { value: "Checked against the reorg plan." } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Approve" })[0] as HTMLElement);
+
+    const status = screen.getByTestId("decision-status");
+    await waitFor(() => expect(status.textContent).toContain("Approved: Change the manager of E-1017 to E-1004. Manager change for Rosalind Galloway (E-1017) continues."));
+    expect(status.getAttribute("role")).toBe("status");
+    expect(screen.getByRole("link", { name: "Open the run" }).getAttribute("href")).toBe(`/runs/${first.runId}`);
+    await waitFor(() => expect(screen.queryByText(first.summary, { selector: "div" })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Decision note")));
+    expect(document.activeElement?.closest("[data-approval-id]")?.getAttribute("data-approval-id")).toBe(second.id);
+  });
+
+  it("announces a rejection and moves focus to the status line when no card is left", async () => {
+    let decided = false;
+    stubApi(({ method, path }) => {
+      if (method === "POST") {
+        decided = true;
+        return reply({ ...second, status: "rejected", canDecide: false });
+      }
+      if (path.startsWith("/api/approvals")) return reply({ items: decided ? [] : [second], nextCursor: null });
+      return undefined;
+    });
+    page();
+    fireEvent.change(await screen.findByLabelText("Decision note"), { target: { value: "Rejected: no business justification." } });
+    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+    const status = screen.getByTestId("decision-status");
+    await waitFor(() => expect(status.textContent).toContain("Rejected: Grant okta:super-admin to E-1024. The run ends as rejected; no writes ran."));
+    await screen.findByText("No pending approvals.");
+    await waitFor(() => expect(document.activeElement).toBe(status));
+  });
+
+  it("refreshes the list and explains it when someone else decided first, instead of the raw refusal", async () => {
+    let refused = false;
+    const api = stubApi(({ method, path }) => {
+      if (method === "POST") {
+        refused = true;
+        return apiError(409, "conflict", "decision refused: already_decided", "already_decided");
+      }
+      if (path.startsWith("/api/approvals")) return reply({ items: refused ? [] : [first], nextCursor: null });
+      return undefined;
+    });
+    page();
+    fireEvent.change(await screen.findByLabelText("Decision note"), { target: { value: "looks right" } });
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(screen.getByTestId("decision-status").textContent).toBe("This approval was already decided or has expired. The list now shows its current state."));
+    await screen.findByText("No pending approvals.");
+    expect(document.body.textContent).not.toContain("decision refused");
+    expect(api.paths().filter((p) => p.startsWith("/api/approvals?")).length).toBeGreaterThanOrEqual(2);
   });
 });

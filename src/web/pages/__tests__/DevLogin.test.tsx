@@ -108,7 +108,7 @@ describe("DevLogin", { tags: ["ui"] }, () => {
     window.history.replaceState(null, "", "/dev/login");
     render(<App />);
     await screen.findByText("admin@agentboard.test", { selector: ".principal" });
-    const admin = screen.getByRole("button", { name: /^Admin/ });
+    const admin = await screen.findByRole("button", { name: /^Admin/ });
     await waitFor(() => expect(admin.textContent).toContain("signed in"));
     expect(admin.getAttribute("aria-current")).toBe("true");
     expect(screen.getByRole("button", { name: /Lee Approver/ }).textContent).not.toContain("signed in");
