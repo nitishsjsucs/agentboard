@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiError, pending, reply, stubApi } from "../../components/__tests__/api.ts";
-import { metricsSummary } from "../../components/__tests__/fixtures.ts";
+import { metricsSummary, runSummaryItem } from "../../components/__tests__/fixtures.ts";
 import { renderAt } from "../../components/__tests__/session.tsx";
 import { Dashboard } from "../Dashboard.tsx";
 
@@ -83,13 +83,13 @@ describe("Dashboard loading and failure states", { tags: ["ui"] }, () => {
     let fail = false;
     api({ "/api/metrics/summary": () => (fail ? apiError(502, "internal", "bad gateway") : reply(SUMMARY)) });
     render(renderAt("operator", <Dashboard />));
-    await screen.findByRole("link", { name: /^4 runs need attention/ });
+    await screen.findByRole("link", { name: /^Needs attention: 4 runs/ });
     fail = true;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect((await screen.findAllByTestId("stale-notice"))[0]?.textContent).toMatch(/the last refresh failed/);
-    expect(screen.getByRole("link", { name: /^4 runs need attention/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /^Needs attention: 4 runs/ })).toBeTruthy();
   });
 
   it("renders an Agent roles error card instead of dropping the panel when /api/agents fails", async () => {
@@ -109,7 +109,7 @@ describe("Dashboard Needs a person", { tags: ["ui"] }, () => {
   it("shows the operator who acts on runs that need attention, with the oldest age, and the split sums to the count", async () => {
     api();
     render(renderAt("operator", <Dashboard />));
-    const link = await screen.findByRole("link", { name: "4 runs need attention, oldest unchanged for 2 hours, 3 need an operator and 1 an admin" });
+    const link = await screen.findByRole("link", { name: "Needs attention: 4 runs, oldest unchanged for 2 hours, 3 need an operator and 1 an admin" });
     expect(link.getAttribute("href")).toBe("/runs?status=needs_attention");
     expect(tile("needs_attention")?.querySelector(".stat__value")?.textContent).toBe("4");
     expect(lines("needs_attention")).toEqual(["oldest unchanged for 2 h", "3 need an operator, 1 an admin"]);
@@ -117,10 +117,34 @@ describe("Dashboard Needs a person", { tags: ["ui"] }, () => {
     expect(screen.getByRole("heading", { level: 2, name: "Moving" })).toBeTruthy();
   });
 
+  it("starts every tile's accessible name with its visible label, so a voice command with the label finds it", async () => {
+    api();
+    render(renderAt("admin", <Dashboard />));
+    await screen.findByRole("link", { name: /^Needs attention: 4 runs/ });
+    const tiles = [...document.querySelectorAll<HTMLElement>("a[data-tile]")];
+    expect(tiles.map((t) => t.dataset["tile"])).toEqual(["approvals", "needs_attention", "held", "paused", "dlq"]);
+    for (const t of tiles) {
+      const label = t.querySelector(".stat__label")?.textContent ?? "";
+      expect([label, t.getAttribute("aria-label")?.startsWith(`${label}: `)]).toEqual([label, true]);
+    }
+  });
+
+  it("puts the run lists and the agent panels under h2s of their own, not under 'Moving'", async () => {
+    api({ "/api/runs?status=needs_attention": () => reply({ items: [runSummaryItem({ status: "needs_attention" })], nextCursor: null }) });
+    render(renderAt("admin", <Dashboard />));
+    await screen.findByRole("link", { name: /^Needs attention: 4 runs/ });
+    await screen.findByRole("heading", { level: 3, name: "Needs attention" });
+    const outline = [...document.querySelectorAll("h1, h2, h3")].map((h) => `${h.tagName} ${h.textContent}`);
+    expect(outline).toEqual(["H1 Dashboard", "H2 Needs a person", "H2 Moving", "H2 Runs", "H3 Needs attention", "H3 Recent runs", "H2 Agents and dead letters", "H3 Agent roles", "H3 Dead-letter queue"]);
+    // The new headings name their sections for screen readers; on screen the cards' own headings do.
+    expect(screen.getByRole("heading", { level: 2, name: "Runs" }).classList.contains("visually-hidden")).toBe(true);
+    expect(screen.getByRole("region", { name: "Runs" }).contains(screen.getByRole("heading", { name: "Recent runs" }))).toBe(true);
+  });
+
   it("tells an operator or a viewer who decides approvals, and an approver how many they can decide and when the next expires", async () => {
     api();
     const operator = render(renderAt("operator", <Dashboard />));
-    const pending = await screen.findByRole("link", { name: "3 pending approvals, approvers and admins decide these" });
+    const pending = await screen.findByRole("link", { name: "Pending approvals: 3, approvers and admins decide these" });
     expect(pending.getAttribute("href")).toBe("/approvals");
     expect(lines("approvals")).toEqual(["Approvers and admins decide these"]);
     operator.unmount();
@@ -128,7 +152,7 @@ describe("Dashboard Needs a person", { tags: ["ui"] }, () => {
 
     api({}, { ...SUMMARY, approvals: { ...SUMMARY.approvals, decidableByYou: 2 } });
     render(renderAt("approver", <Dashboard />));
-    const decide = await screen.findByRole("link", { name: "2 approvals you can decide, of 3 pending, next expires in 2 days 23 hours" });
+    const decide = await screen.findByRole("link", { name: "Approvals you can decide: 2, of 3 pending, next expires in 2 days 23 hours" });
     expect(decide.getAttribute("href")).toBe("/approvals");
     expect(tile("approvals")?.querySelector(".stat__label")?.textContent).toBe("Approvals you can decide");
     expect(lines("approvals")).toEqual(["of 3 pending", "next expires in 2 d 23 h"]);
@@ -137,20 +161,20 @@ describe("Dashboard Needs a person", { tags: ["ui"] }, () => {
   it("names the disabled role that holds runs, links to the Agent roles card, and the paused tile to the paused runs", async () => {
     api();
     render(renderAt("operator", <Dashboard />));
-    const held = await screen.findByRole("link", { name: "1 run held by a disabled role, executor role disabled, an admin can enable it" });
+    const held = await screen.findByRole("link", { name: "Held by a disabled role: 1 run, executor role disabled, an admin can enable it" });
     expect(held.getAttribute("href")).toBe("#agent-roles");
     expect(lines("held")).toEqual(["executor role disabled; an admin can enable it"]);
     expect(document.getElementById("agent-roles")).toBeTruthy();
-    const paused = screen.getByRole("link", { name: "1 paused run, oldest paused for 14 minutes" });
+    const paused = screen.getByRole("link", { name: "Paused: 1 run, oldest paused for 14 minutes" });
     expect(paused.getAttribute("href")).toBe("/runs?status=paused");
-    const dlq = screen.getByRole("link", { name: "0 open dead letters" });
+    const dlq = screen.getByRole("link", { name: "Open dead letters: 0" });
     expect(dlq.getAttribute("href")).toBe("#dead-letters");
   });
 
   it("shows no dead-letter tile to a viewer, whose summary has dlqOpen null", async () => {
     api({}, { ...SUMMARY, dlqOpen: null });
     render(renderAt("viewer", <Dashboard />));
-    await screen.findByRole("link", { name: /^4 runs need attention/ });
+    await screen.findByRole("link", { name: /^Needs attention: 4 runs/ });
     expect(tile("dlq")).toBeNull();
     expect(screen.queryByRole("link", { name: /dead letter/ })).toBeNull();
   });
@@ -158,20 +182,23 @@ describe("Dashboard Needs a person", { tags: ["ui"] }, () => {
   it("puts active runs in one Moving tile with the longest time without a change and the held ones, and finished runs in one line", async () => {
     api();
     render(renderAt("operator", <Dashboard />));
-    await screen.findByRole("link", { name: /^4 runs need attention/ });
+    await screen.findByRole("link", { name: /^Needs attention: 4 runs/ });
     const moving = tile("active");
     expect(moving?.tagName).toBe("DIV");
     expect(moving?.querySelector(".stat__value")?.textContent).toBe("3");
     expect(lines("active")).toEqual(["longest without a change: 9 min", "includes 1 held"]);
     expect(screen.getByTestId("finished-line").textContent).toBe("87 succeeded, 6 rejected, 4 cancelled (all time).");
     // No header button any more: the approvals tile replaces it.
-    expect(screen.queryByRole("link", { name: /pending approvals$/ })?.classList.contains("btn") ?? false).toBe(false);
+    expect(screen.queryByRole("link", { name: /^Pending approvals/ })?.classList.contains("btn") ?? false).toBe(false);
   });
 
   it("says plainly when nothing needs a person", async () => {
     api({}, metricsSummary({ approvals: { pending: 0, decidableByYou: null, soonestExpiry: null } }));
     render(renderAt("operator", <Dashboard />));
-    expect(await screen.findByRole("link", { name: "0 runs need attention" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Needs attention: 0 runs" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Pending approvals: 0, approvers and admins decide these" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Held by a disabled role: 0 runs" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Paused: 0 runs" })).toBeTruthy();
     expect(lines("needs_attention")).toEqual(["none right now"]);
     expect(lines("held")).toEqual(["No runs are held"]);
     expect(lines("paused")).toEqual(["none paused"]);

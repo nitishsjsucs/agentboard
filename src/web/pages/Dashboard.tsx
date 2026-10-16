@@ -30,7 +30,7 @@ interface Tile {
   value: number | null;
   /** Sub-lines under the label, in plain words (ages and who acts are text, never colour). */
   lines: string[];
-  /** The link's accessible name: the count and the sub-lines as a sentence. */
+  /** The link's accessible name: the visible label first (so "click Needs attention" finds it), then the count and the sub-lines. */
   name: string;
   /** A route (react-router) or an in-page anchor; neither makes a plain tile. */
   to?: string;
@@ -105,8 +105,8 @@ export function dashboardTiles(summary: MetricsSummary | null, options: { canDec
     const spoken = !approvals
       ? notLoaded(label)
       : approvals.pending === 0
-        ? "0 approvals you can decide, none pending"
-        : `${count(value ?? 0, "approval", "approvals")} you can decide, of ${approvals.pending} pending${expiry !== null ? `, next expires in ${formatDurationWords(expiry)}` : ""}`;
+        ? `${label}: 0, none pending`
+        : `${label}: ${value ?? 0}, of ${approvals.pending} pending${expiry !== null ? `, next expires in ${formatDurationWords(expiry)}` : ""}`;
     tiles.push({ key: "approvals", label, value, lines, name: spoken, to: "/approvals" });
   } else {
     const label = "Pending approvals";
@@ -116,7 +116,7 @@ export function dashboardTiles(summary: MetricsSummary | null, options: { canDec
       label,
       value,
       lines: loaded ? ["Approvers and admins decide these"] : [],
-      name: approvals ? `${count(approvals.pending, "pending approval", "pending approvals")}, approvers and admins decide these` : notLoaded(label),
+      name: approvals ? `${label}: ${approvals.pending}, approvers and admins decide these` : notLoaded(label),
       to: "/approvals",
     });
   }
@@ -131,8 +131,8 @@ export function dashboardTiles(summary: MetricsSummary | null, options: { canDec
     const name = !loaded
       ? notLoaded(label)
       : !row || row.count === 0
-        ? "0 runs need attention"
-        : `${count(row.count, "run needs", "runs need")} attention, oldest unchanged for ${formatDurationWords(age)}${split ? `, ${split.spoken}` : ""}`;
+        ? `${label}: 0 runs`
+        : `${label}: ${count(row.count, "run", "runs")}, oldest unchanged for ${formatDurationWords(age)}${split ? `, ${split.spoken}` : ""}`;
     tiles.push({ key: "needs_attention", label, value, lines, name, to: "/runs?status=needs_attention" });
   }
 
@@ -145,8 +145,8 @@ export function dashboardTiles(summary: MetricsSummary | null, options: { canDec
     const name = !held
       ? notLoaded(label)
       : held.total === 0
-        ? "0 runs held by a disabled role"
-        : `${count(held.total, "run", "runs")} held by a disabled role, ${disabled}, an admin can enable ${roles.length === 1 ? "it" : "them"}`;
+        ? `${label}: 0 runs`
+        : `${label}: ${count(held.total, "run", "runs")}, ${disabled}, an admin can enable ${roles.length === 1 ? "it" : "them"}`;
     tiles.push({ key: "held", label, value: held ? held.total : null, lines, name, href: "#agent-roles" });
   }
 
@@ -156,7 +156,7 @@ export function dashboardTiles(summary: MetricsSummary | null, options: { canDec
     const value = loaded ? (row?.count ?? 0) : null;
     const age = row ? ageMs(row.oldestUpdatedAt, now) : 0;
     const lines = !loaded ? [] : !row || row.count === 0 ? ["none paused"] : [`oldest paused for ${formatDuration(age)}`];
-    const name = !loaded ? notLoaded(label) : !row || row.count === 0 ? "0 paused runs" : `${count(row.count, "paused run", "paused runs")}, oldest paused for ${formatDurationWords(age)}`;
+    const name = !loaded ? notLoaded(label) : !row || row.count === 0 ? `${label}: 0 runs` : `${label}: ${count(row.count, "run", "runs")}, oldest paused for ${formatDurationWords(age)}`;
     tiles.push({ key: "paused", label, value, lines, name, to: "/runs?status=paused" });
   }
 
@@ -165,7 +165,7 @@ export function dashboardTiles(summary: MetricsSummary | null, options: { canDec
     const label = "Open dead letters";
     const value = summary?.dlqOpen ?? null;
     const lines = value === null ? [] : value === 0 ? ["nothing to replay"] : ["an admin can replay them"];
-    const name = value === null ? notLoaded(label) : value === 0 ? "0 open dead letters" : `${count(value, "open dead letter", "open dead letters")}, an admin can replay them`;
+    const name = value === null ? notLoaded(label) : value === 0 ? `${label}: 0` : `${label}: ${value}, an admin can replay them`;
     tiles.push({ key: "dlq", label, value, lines, name, href: "#dead-letters" });
   }
 
@@ -248,54 +248,65 @@ export function Dashboard() {
         ) : null}
       </section>
 
-      {attention.data && attention.data.items.length > 0 ? (
+      {/* The lists and panels below get h2s of their own, so they do not read as parts of "Moving". */}
+      <section className="stack" aria-labelledby="dash-runs">
+        <h2 id="dash-runs" className="visually-hidden">
+          Runs
+        </h2>
+        {attention.data && attention.data.items.length > 0 ? (
+          <div className="card">
+            <div className="card__header">
+              <h3>Needs attention</h3>
+              <Link to="/runs?status=needs_attention" className="small">
+                all
+              </Link>
+            </div>
+            {attention.error ? (
+              <div className="card__body">
+                <StaleNotice updatedAt={attention.updatedAt} onRetry={attention.refresh} />
+              </div>
+            ) : null}
+            <RunTable runs={attention.data.items} />
+          </div>
+        ) : attention.error && !attention.data ? (
+          <PolledView polled={attention} loading="Loading runs that need attention..." action="read runs" card="Needs attention">
+            {() => null}
+          </PolledView>
+        ) : null}
+
         <div className="card">
           <div className="card__header">
-            <h3>Needs attention</h3>
-            <Link to="/runs?status=needs_attention" className="small">
-              all
+            <h3>Recent runs</h3>
+            <Link to="/runs" className="small">
+              all runs
             </Link>
           </div>
-          {attention.error ? (
-            <div className="card__body">
-              <StaleNotice updatedAt={attention.updatedAt} onRetry={attention.refresh} />
-            </div>
-          ) : null}
-          <RunTable runs={attention.data.items} />
-        </div>
-      ) : attention.error && !attention.data ? (
-        <PolledView polled={attention} loading="Loading runs that need attention..." action="read runs" card="Needs attention">
-          {() => null}
-        </PolledView>
-      ) : null}
-
-      <div className="card">
-        <div className="card__header">
-          <h3>Recent runs</h3>
-          <Link to="/runs" className="small">
-            all runs
-          </Link>
-        </div>
-        <PolledView polled={recent} loading="Loading runs..." action="read runs" padded>
-          {(page) => <RunTable runs={page.items} />}
-        </PolledView>
-      </div>
-
-      <div className="grid grid--two">
-        {/* Anchors for the "Held by a disabled role" and "Open dead letters" tiles. */}
-        <div id="agent-roles" tabIndex={-1} className="anchor-target">
-          <PolledView polled={agents} loading="Loading agent roles..." action="read agent roles" card="Agent roles">
-            {(data) => <AgentRolePanel roles={data.roles} onChange={() => (agents.refresh(), summary.refresh())} />}
+          <PolledView polled={recent} loading="Loading runs..." action="read runs" padded>
+            {(page) => <RunTable runs={page.items} />}
           </PolledView>
         </div>
-        {canReadDlq ? (
-          <div id="dead-letters" tabIndex={-1} className="anchor-target">
-            <PolledView polled={dlq} loading="Loading dead letters..." action="read the dead-letter queue" card="Dead-letter queue">
-              {(page) => <DlqPanel messages={page.items} onChange={() => (dlq.refresh(), summary.refresh())} />}
+      </section>
+
+      <section aria-labelledby="dash-agents">
+        <h2 id="dash-agents" className="visually-hidden">
+          {canReadDlq ? "Agents and dead letters" : "Agents"}
+        </h2>
+        <div className="grid grid--two">
+          {/* Anchors for the "Held by a disabled role" and "Open dead letters" tiles. */}
+          <div id="agent-roles" tabIndex={-1} className="anchor-target">
+            <PolledView polled={agents} loading="Loading agent roles..." action="read agent roles" card="Agent roles">
+              {(data) => <AgentRolePanel roles={data.roles} onChange={() => (agents.refresh(), summary.refresh())} />}
             </PolledView>
           </div>
-        ) : null}
-      </div>
+          {canReadDlq ? (
+            <div id="dead-letters" tabIndex={-1} className="anchor-target">
+              <PolledView polled={dlq} loading="Loading dead letters..." action="read the dead-letter queue" card="Dead-letter queue">
+                {(page) => <DlqPanel messages={page.items} onChange={() => (dlq.refresh(), summary.refresh())} />}
+              </PolledView>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }
