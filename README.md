@@ -291,7 +291,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-16 at commit `122bfac`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-16 at commit `2307198`.
 
 | Metric | Value |
 |---|---|
@@ -313,14 +313,14 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
 | Audit events; runs with a valid hash chain | 3228; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7322 ms; 10925 ms |
-| Search latency p50; p95 (local) | 3 ms; 9 ms |
+| Run duration p50; p95 (local wall clock) | 7237 ms; 10923 ms |
+| Search latency p50; p95 (local) | 2 ms; 3 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-16 at commit `122bfac`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-16 at commit `2307198`.
 
 | Metric | Value |
 |---|---|
@@ -333,12 +333,12 @@ Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving 
 | Tool-set F1 (macro) | 0.932 |
 | Argument accuracy (gold fields of matched steps) | 0.982 |
 | Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
-| Latency p50; p95 | 3839 ms; 9550 ms |
+| Latency p50; p95 | 2288 ms; 6042 ms |
 | Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-16 at commit `122bfac`.
+Command: `npm run count:tests`. Measured 2026-10-16 at commit `2307198`.
 
 Tagged tests: 67 orchestration + 42 authorization = 109; passing: 109.
 
