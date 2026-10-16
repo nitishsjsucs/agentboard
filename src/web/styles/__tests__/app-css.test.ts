@@ -29,4 +29,9 @@ describe("app.css layout rules", { tags: ["ui"] }, () => {
     // The scroller's -6px margins on each side are added back, so it spans the figure exactly.
     expect(declarations(".plan-map__scroll")).toMatch(/flex:\s*0 0 calc\(100% \+ 12px\)/);
   });
+
+  it("strokes plan map connectors and arrowheads with --text-faint, which keeps 3:1 against the card in both themes", () => {
+    expect(declarations(".plan-map__edges path")).toMatch(/stroke:\s*var\(--text-faint\)/);
+    expect(declarations(".plan-map__edges .plan-map__arrow path")).toMatch(/fill:\s*var\(--text-faint\)/);
+  });
 });

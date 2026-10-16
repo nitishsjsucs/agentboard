@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it } from "vitest";
 import type { TaskView } from "../../../shared/api-types.ts";
 import type { RunStatus } from "../../../shared/domain.ts";
-import { PlanMap } from "../PlanMap.tsx";
+import { COL_PITCH, NODE_H, NODE_W, PlanMap, ROW_PITCH } from "../PlanMap.tsx";
 import { TaskTimeline } from "../TaskTimeline.tsx";
 import { task } from "./fixtures.ts";
 import { addressChange, offboardingGated, offboardingLinear } from "./planFixtures.ts";
@@ -13,6 +13,75 @@ afterEach(cleanup);
 const show = (tasks: TaskView[], status: RunStatus = "awaiting_approval") => render(withSession("viewer", <PlanMap tasks={tasks} status={status} />));
 const names = () => screen.getAllByTestId("plan-node").map((n) => n.getAttribute("aria-label"));
 const sentence = () => screen.queryByTestId("plan-blocker")?.textContent ?? null;
+
+type Point = [number, number];
+
+/** Points along an SVG path made of absolute M, L, Q and C commands (the only ones the plan map writes). */
+function samplePath(d: string, steps = 40): Point[] {
+  const tokens = d.match(/[MLQC]|-?\d+(?:\.\d+)?/g) ?? [];
+  const points: Point[] = [];
+  let at: Point = [0, 0];
+  let i = 0;
+  const num = () => Number(tokens[i++]);
+  while (i < tokens.length) {
+    const command = tokens[i++];
+    if (command === "M") {
+      at = [num(), num()];
+      points.push(at);
+      continue;
+    }
+    const control: Point[] = [];
+    const count = command === "L" ? 1 : command === "Q" ? 2 : 3;
+    for (let k = 0; k < count; k++) control.push([num(), num()]);
+    const pts = [at, ...control];
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      // De Casteljau on the segment's control points.
+      let layer = pts;
+      while (layer.length > 1) layer = layer.slice(1).map((p, k) => [p[0] * t + (layer[k] as Point)[0] * (1 - t), p[1] * t + (layer[k] as Point)[1] * (1 - t)] as Point);
+      points.push(layer[0] as Point);
+    }
+    at = control.at(-1) as Point;
+  }
+  return points;
+}
+
+/** Each step's box in the canvas, from its --col and --row. */
+function boxes(): Map<string, { x: number; y: number }> {
+  return new Map(
+    [...document.querySelectorAll<HTMLElement>(".plan-map__item")].map((li) => [
+      li.dataset["step"] ?? "",
+      { x: Number(li.style.getPropertyValue("--col")) * COL_PITCH, y: Number(li.style.getPropertyValue("--row")) * ROW_PITCH },
+    ]),
+  );
+}
+
+/** For every connector, the steps (other than its own two) that one of its points falls inside. */
+function crossings(): Record<string, string[]> {
+  const all = boxes();
+  const result: Record<string, string[]> = {};
+  for (const path of screen.getByTestId("plan-edges").querySelectorAll<SVGPathElement>("path[data-edge]")) {
+    const edge = path.getAttribute("data-edge") ?? "";
+    const [from, to] = edge.split("-");
+    const hit = new Set<string>();
+    for (const [x, y] of samplePath(path.getAttribute("d") ?? "")) {
+      for (const [step, box] of all) {
+        if (step === from || step === to) continue;
+        if (x > box.x && x < box.x + NODE_W && y > box.y && y < box.y + NODE_H) hit.add(step);
+      }
+    }
+    result[edge] = [...hit];
+  }
+  return result;
+}
+
+/** A plan of read steps with the given step dependencies (no verify tasks), for layout tests. */
+function plan(steps: [string, string[]][]): TaskView[] {
+  return [
+    task({ id: "p", kind: "plan", status: "succeeded", attempts: 1 }),
+    ...steps.map(([stepId, deps]) => task({ id: `x_${stepId}`, kind: "execute", stepId, tool: "hris.get_employee", dependsOn: deps.map((d) => `x_${d}`), status: "succeeded", attempts: 1 })),
+  ];
+}
 
 describe("PlanMap", { tags: ["ui"] }, () => {
   it("is a figure named 'Plan map' with a summary sentence, and one node per step (no verify nodes)", () => {
@@ -53,19 +122,66 @@ describe("PlanMap", { tags: ["ui"] }, () => {
     expect([canvas?.style.getPropertyValue("--cols"), canvas?.style.getPropertyValue("--rows")]).toEqual(["3", "3"]);
     const edges = screen.getByTestId("plan-edges");
     expect(edges.getAttribute("aria-hidden")).toBe("true");
-    expect(edges.querySelectorAll("path")).toHaveLength(4);
+    expect(edges.querySelectorAll("path[data-edge]")).toHaveLength(4);
   });
 
-  it("arcs a gating edge that skips over steps above the first row, and leaves room for it", () => {
+  it("arcs a gating edge that skips over steps from the source's top edge to the target's, above the row, and leaves room for it", () => {
     show(offboardingLinear());
     expect(names().slice(3)).toEqual(["s4 itsm.create_ticket, write, not started, runs after s2 and s3", "s5 notify.send, write, not started, runs after s2 and s4"]);
     const canvas = document.querySelector<HTMLElement>(".plan-map__canvas");
     expect(canvas?.style.getPropertyValue("--cols")).toBe("5");
-    expect(Number.parseInt(canvas?.style.getPropertyValue("--arc-pad") ?? "0", 10)).toBeGreaterThan(20);
-    const paths = [...screen.getByTestId("plan-edges").querySelectorAll("path")].map((p) => p.getAttribute("d") ?? "");
-    expect(paths).toHaveLength(6);
-    // s2 -> s4 and s2 -> s5 bend above the row (negative control points); s3 -> s4 stays level.
-    expect(paths.filter((d) => /C\d+ -\d+/.test(d))).toHaveLength(2);
+    const pad = Number.parseInt(canvas?.style.getPropertyValue("--arc-pad") ?? "0", 10);
+    const edges = screen.getByTestId("plan-edges");
+    const d = (edge: string) => edges.querySelector(`path[data-edge="${edge}"]`)?.getAttribute("d") ?? "";
+    expect([...edges.querySelectorAll("path[data-edge]")].map((p) => p.getAttribute("data-edge"))).toEqual(["s1-s2", "s2-s3", "s2-s4", "s3-s4", "s2-s5", "s4-s5"]);
+    // s2 -> s4 leaves s2's top edge near its right side and lands on s4's top edge near its left side; s2 -> s5 the same, one lane higher.
+    const s2Right = 1 * COL_PITCH + NODE_W;
+    const ends = (edge: string) => [samplePath(d(edge))[0], samplePath(d(edge)).at(-1)];
+    expect(ends("s2-s4")).toEqual([
+      [s2Right - 16, 0],
+      [3 * COL_PITCH + 16, 0],
+    ]);
+    expect(ends("s2-s5")).toEqual([
+      [s2Right - 16, 0],
+      [4 * COL_PITCH + 16, 0],
+    ]);
+    const peak = (edge: string) => Math.min(...samplePath(d(edge), 200).map(([, y]) => y));
+    expect(peak("s2-s4")).toBeLessThan(-12);
+    expect(peak("s2-s5")).toBeLessThan(peak("s2-s4"));
+    // The pad above the row holds the highest arc.
+    expect(pad).toBeGreaterThanOrEqual(-peak("s2-s5"));
+    // No connector passes behind a step that is neither its source nor its target (before: both arcs crossed s3).
+    expect(crossings()).toEqual({ "s1-s2": [], "s2-s3": [], "s2-s4": [], "s3-s4": [], "s2-s5": [], "s4-s5": [] });
+  });
+
+  it("routes an edge that skips columns outside the first row through the gaps between steps", () => {
+    // Depth 0: s1. Depth 1: s2, s3. Depth 2: s4 (after s2), s6 (after s3). Depth 3: s5 (after s4 and s1), s7 (after s3 and s4).
+    show(plan([["s1", []], ["s2", ["s1"]], ["s3", ["s1"]], ["s4", ["s2"]], ["s5", ["s4", "s1"]], ["s6", ["s3"]], ["s7", ["s3", "s4"]]]), "succeeded");
+    const at = (step: string) => {
+      const li = document.querySelector<HTMLElement>(`.plan-map__item[data-step="${step}"]`);
+      return [li?.style.getPropertyValue("--col"), li?.style.getPropertyValue("--row")];
+    };
+    expect(["s1", "s2", "s3", "s4", "s6", "s5", "s7"].map(at)).toEqual([
+      ["0", "0"],
+      ["1", "0"],
+      ["1", "1"],
+      ["2", "0"],
+      ["2", "1"],
+      ["3", "0"],
+      ["3", "1"],
+    ]);
+    const hits = crossings();
+    expect(Object.keys(hits).sort()).toEqual(["s1-s2", "s1-s3", "s1-s5", "s2-s4", "s3-s6", "s3-s7", "s4-s5", "s4-s7"]);
+    // s1 -> s5 arcs over the first row; s3 -> s7 (row 1 to row 1) and the others never pass behind another step.
+    for (const edge of Object.keys(hits)) expect([edge, hits[edge]]).toEqual([edge, []]);
+  });
+
+  it("ends every connector in an arrowhead at the step that waits", () => {
+    show(offboardingLinear());
+    const edges = screen.getByTestId("plan-edges");
+    const marker = edges.querySelector("marker");
+    expect(marker?.id).toBeTruthy();
+    for (const path of edges.querySelectorAll("path[data-edge]")) expect(path.getAttribute("marker-end")).toBe(`url(#${marker?.id})`);
   });
 
   it("rings the step waiting for approval and says who acts and what waits behind it", () => {

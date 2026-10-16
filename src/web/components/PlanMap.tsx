@@ -185,42 +185,97 @@ function focusTaskRow(taskId: string): void {
   row.scrollIntoView?.({ block: "nearest" });
 }
 
+/** The empty space between two columns (14 px) and between two rows (12 px): connectors that skip steps travel there. */
+const GUTTER = COL_PITCH - NODE_W;
+const ROW_GAP = ROW_PITCH - NODE_H;
+/** An arc leaves its source and lands on its target this far in from their facing sides. */
+const ARC_INSET = 16;
+const CORNER = 5;
+
+const arcControlY = (lane: number) => -28 - 14 * lane;
+
+/** A polyline with rounded corners (a quadratic curve at each corner), as absolute M, L and Q commands. */
+function rounded(points: readonly [number, number][]): string {
+  const first = points[0];
+  if (!first) return "";
+  let d = `M${first[0]} ${first[1]}`;
+  for (let i = 1; i < points.length; i++) {
+    const [x, y] = points[i] as [number, number];
+    const next = points[i + 1];
+    if (!next) {
+      d += ` L${x} ${y}`;
+      break;
+    }
+    const [px, py] = points[i - 1] as [number, number];
+    const inLen = Math.hypot(x - px, y - py);
+    const outLen = Math.hypot(next[0] - x, next[1] - y);
+    const r = Math.min(CORNER, inLen / 2, outLen / 2);
+    const before: [number, number] = [x - ((x - px) / inLen) * r, y - ((y - py) / inLen) * r];
+    const after: [number, number] = [x + ((next[0] - x) / outLen) * r, y + ((next[1] - y) / outLen) * r];
+    d += ` L${before[0]} ${before[1]} Q${x} ${y} ${after[0]} ${after[1]}`;
+  }
+  return d;
+}
+
 /**
- * Connector from the source's right middle to the target's left middle. Most are a gentle S-curve; an
- * edge in the first row that skips over steps (a gating edge, such as s2 to s4) arcs above the row, in
- * its own lane, so it does not hide behind the steps between.
+ * The connector from one step to a step that runs after it. Between neighbouring columns it is a short
+ * S-curve from the source's right middle to the target's left middle, inside the gutter between them.
+ * An edge that skips columns must not pass behind the steps between, so:
+ * - in the first row (a gating edge such as s2 to s4 in a linear plan) it arcs over the row, from the
+ *   source's top edge to the target's top edge, at the height of its lane;
+ * - anywhere else it runs through the empty space: into the gutter after the source, along the gap above
+ *   the lower of the two rows, and down or up the gutter before the target.
+ * Every connector ends at its target, where the SVG draws an arrowhead.
  */
 export function connector(from: StepNode, to: StepNode, lane: number | null): string {
   const x1 = from.depth * COL_PITCH + NODE_W;
   const y1 = from.row * ROW_PITCH + NODE_H / 2;
   const x2 = to.depth * COL_PITCH;
   const y2 = to.row * ROW_PITCH + NODE_H / 2;
-  if (lane !== null) {
-    const top = arcControlY(lane);
-    return `M${x1} ${y1} C${x1 + 30} ${top}, ${x2 - 30} ${top}, ${x2} ${y2}`;
+  if (to.depth - from.depth <= 1) {
+    const bend = Math.max(12, (x2 - x1) / 2);
+    return `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
   }
-  const bend = Math.max(12, (x2 - x1) / 2);
-  return `M${x1} ${y1} C${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+  if (from.row === 0 && to.row === 0) {
+    const top = arcControlY(lane ?? 0);
+    const sx = x1 - ARC_INSET;
+    const ex = x2 + ARC_INSET;
+    return `M${sx} 0 C${sx} ${top} ${ex} ${top} ${ex} 0`;
+  }
+  const gapY = Math.max(from.row, to.row) * ROW_PITCH - ROW_GAP / 2;
+  const out = x1 + GUTTER / 2;
+  const into = x2 - GUTTER / 2;
+  return rounded([
+    [x1, y1],
+    [out, y1],
+    [out, gapY],
+    [into, gapY],
+    [into, y2],
+    [x2, y2],
+  ]);
 }
 
-const arcControlY = (lane: number) => -36 - 14 * lane;
-
-/** Edges in the first row that pass over a step between them get an arc lane each. */
-function arcLanes(graph: PlanGraph): Map<string, number> {
-  const lanes = new Map<string, number>();
-  const firstRow = graph.nodes.filter((n) => n.row === 0);
+/**
+ * Lanes for the arcs over the first row, one per distinct span: a longer arc flies higher, so arcs that
+ * start at the same step (s2 to s4 and s2 to s5) nest instead of crossing.
+ */
+export function arcLanes(graph: PlanGraph): Map<string, number> {
+  const byStep = new Map(graph.nodes.map((n) => [n.stepId, n]));
+  const arcs: { key: string; span: number }[] = [];
   for (const edge of graph.edges) {
-    const from = firstRow.find((n) => n.stepId === edge.from);
-    const to = firstRow.find((n) => n.stepId === edge.to);
-    if (!from || !to) continue;
-    if (firstRow.some((n) => n.depth > from.depth && n.depth < to.depth)) lanes.set(`${edge.from}-${edge.to}`, lanes.size);
+    const from = byStep.get(edge.from);
+    const to = byStep.get(edge.to);
+    if (!from || !to || from.row !== 0 || to.row !== 0 || to.depth - from.depth <= 1) continue;
+    arcs.push({ key: `${edge.from}-${edge.to}`, span: to.depth - from.depth });
   }
-  return lanes;
+  const spans = [...new Set(arcs.map((a) => a.span))].sort((a, b) => a - b);
+  return new Map(arcs.map((a) => [a.key, spans.indexOf(a.span)]));
 }
 
 export function PlanMap({ tasks, status }: { tasks: RunSnapshot["tasks"]; status: RunStatus }) {
   const titleId = useId();
   const summaryId = useId();
+  const arrowId = useId();
   const graph = buildPlanGraph(tasks);
   const line = planLine(graph.plan, status);
   const sentence = planMapSentence(graph, status);
@@ -231,8 +286,9 @@ export function PlanMap({ tasks, status }: { tasks: RunSnapshot["tasks"]; status
   const width = (cols - 1) * COL_PITCH + NODE_W;
   const height = (rows - 1) * ROW_PITCH + NODE_H;
   const lanes = arcLanes(graph);
-  // Room above the first row for the highest arc (a cubic's peak is (y1 + y2) / 8 + 3/4 of its control y).
-  const arcPad = lanes.size === 0 ? 0 : Math.ceil(-(NODE_H / 8 + 0.75 * arcControlY(lanes.size - 1))) + 4;
+  const topLane = Math.max(-1, ...lanes.values());
+  // Room above the first row for the highest arc (both ends on the row's top edge, so its peak is 3/4 of its control y).
+  const arcPad = topLane < 0 ? 0 : Math.ceil(-0.75 * arcControlY(topLane)) + 4;
 
   return (
     <div className="card plan-map" data-testid="plan-map">
@@ -252,11 +308,16 @@ export function PlanMap({ tasks, status }: { tasks: RunSnapshot["tasks"]; status
           <div className="plan-map__scroll">
             <div className="plan-map__canvas" style={{ "--cols": cols, "--rows": rows, "--arc-pad": `${arcPad}px` } as CSSProperties}>
               <svg className="plan-map__edges" width={width} height={height} aria-hidden="true" data-testid="plan-edges">
+                <defs>
+                  <marker id={arrowId} className="plan-map__arrow" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                    <path d="M0 0.5L6 3L0 5.5z" />
+                  </marker>
+                </defs>
                 {graph.edges.map((edge) => {
                   const from = byStep.get(edge.from);
                   const to = byStep.get(edge.to);
                   const key = `${edge.from}-${edge.to}`;
-                  return from && to ? <path key={key} d={connector(from, to, lanes.get(key) ?? null)} /> : null;
+                  return from && to ? <path key={key} data-edge={key} d={connector(from, to, lanes.get(key) ?? null)} markerEnd={`url(#${arrowId})`} /> : null;
                 })}
               </svg>
               <ol className="plan-map__nodes">

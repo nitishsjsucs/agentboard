@@ -176,7 +176,9 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .plan-map__scroll { overflow-x: auto; padding: 6px; margin: -6px; }
 .plan-map__nodes { list-style: none; margin: 0; padding: 0; }
 .plan-map__edges { display: none; }
-.plan-map__edges path { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+/* Connectors carry the dependencies on wide screens, so they keep 3:1 against the card (--text-faint), and each ends in an arrowhead at the step that waits. */
+.plan-map__edges path { fill: none; stroke: var(--text-faint); stroke-width: 1; }
+.plan-map__edges .plan-map__arrow path { fill: var(--text-faint); stroke: none; }
 .plan-node {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-content: center; text-align: left;
   width: 100%; padding: 3px 8px; border: 1px solid var(--border-strong); border-left-width: 3px; border-radius: var(--radius);
