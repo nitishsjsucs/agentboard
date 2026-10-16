@@ -291,7 +291,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-15 at commit `0dbe380`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-16 at commit `122bfac`.
 
 | Metric | Value |
 |---|---|
@@ -313,14 +313,14 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
 | Audit events; runs with a valid hash chain | 3228; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7261 ms; 10921 ms |
-| Search latency p50; p95 (local) | 2 ms; 3 ms |
+| Run duration p50; p95 (local wall clock) | 7322 ms; 10925 ms |
+| Search latency p50; p95 (local) | 3 ms; 9 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-15 at commit `0dbe380`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-16 at commit `122bfac`.
 
 | Metric | Value |
 |---|---|
@@ -333,12 +333,12 @@ Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving 
 | Tool-set F1 (macro) | 0.932 |
 | Argument accuracy (gold fields of matched steps) | 0.982 |
 | Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
-| Latency p50; p95 | 3841 ms; 10565 ms |
+| Latency p50; p95 | 3839 ms; 9550 ms |
 | Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-15 at commit `0dbe380`.
+Command: `npm run count:tests`. Measured 2026-10-16 at commit `122bfac`.
 
 Tagged tests: 67 orchestration + 42 authorization = 109; passing: 109.
 
@@ -369,8 +369,9 @@ Command: `npm run cf:verify -- --env production` against https://agentboard-prod
 Reading the results:
 
 - The simulation uses the deterministic stub planner, so it measures orchestration (leases, retries, replays, approvals, budgets, recovery, audit, search indexing), not planning quality.
-- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events come from that change alone. The measurements at `b3f5ed8` (the first after it), `83fb6fb`, `6541d6e`, `b362e3e` and `0dbe380` all counted 573 tool calls and 3228 audit events.
-- Local latencies move between runs of the same code and with the load on the machine. The results above were measured at `0dbe380` on 2026-10-15 in the working tree, on a laptop on AC power with a light load. Every count, outcome and planner quality metric matched the two previous measurements, including all 100 per-request planner results:
+- Each planner shard reads the tool catalog (`tools/list`, recorded as a tool call with its own audit event) once per 5-minute cache lifetime, and planner tasks that reach the shard while that read is in flight wait for it. The simulation finishes well within 5 minutes, so the tool-call and audit-event totals include exactly one catalog read per shard (2; checked in the eval's local D1). Up to commit `52d601a` concurrent tasks could each read the catalog before the cache was filled, so those totals varied by a few between runs (575 and 577 tool calls); the 2 fewer tool calls and audit events come from that change alone. The measurements at `b3f5ed8` (the first after it), `83fb6fb`, `6541d6e`, `b362e3e`, `0dbe380` and `122bfac` all counted 573 tool calls and 3228 audit events.
+- Local latencies move between runs of the same code and with the load on the machine. The results above were measured at `122bfac` on 2026-10-16 UTC (the evening of 2026-10-15 local time), after the console workflow changes, in the working tree on a laptop on AC power with a moderate load (load averages about 3 to 5). Every count, outcome and planner quality metric matched the three previous measurements, including all 100 per-request planner results:
+  - at `0dbe380` (commit `4197e2a`), with a light load: planner p50 3841 ms and p95 10565 ms, simulation run duration p50 7261 ms and p95 10921 ms, search p50 2 ms and p95 3 ms;
   - at `b362e3e` (commit `82b324e`), taken the same day while three other repositories' test suites loaded the Mac (load averages from 15 to over 100), only latencies differed: planner p50 4745 ms and p95 15284 ms, simulation run duration p50 10334 ms and p95 15957 ms, search p50 18 ms and p95 25 ms;
   - at `6541d6e` (commit `d7811c7`), likewise: planner p50 3141 ms and p95 8530 ms, run duration p50 7296 ms and p95 10884 ms, search p50 2 ms and p95 5 ms.
 
