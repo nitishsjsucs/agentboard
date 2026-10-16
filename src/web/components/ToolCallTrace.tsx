@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { ToolCallView } from "../../shared/api-types.ts";
+import { useSession } from "../api/hooks.ts";
 import { EmptyState } from "./EmptyState.tsx";
 import { JsonView } from "./JsonView.tsx";
 import { LoadingLine } from "./PolledView.tsx";
@@ -9,6 +10,9 @@ import { StatusBadge } from "./StatusBadge.tsx";
 /** `calls` is null while the first load is in flight, so "No tool calls yet." only ever means an empty answer. */
 export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null }) {
   const [open, setOpen] = useState<string | null>(null);
+  const { me } = useSession();
+  // Without pii:read the server redacts arguments and results (src/worker/audit/redaction.ts); say what changed.
+  const redacted = me !== null && !me.permissions.includes("pii:read");
   if (calls === null) return <LoadingLine text="Loading tool calls..." />;
   if (calls.length === 0) return <EmptyState title="No tool calls yet." />;
   return (
@@ -64,6 +68,11 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null
               {expanded ? (
                 <tr id={detailsId}>
                   <td colSpan={6}>
+                    {redacted ? (
+                      <div className="notice" style={{ marginBottom: "var(--space-2)" }} data-testid="redaction-notice">
+                        Personal data is redacted for your role: addresses show only city, region and country, and personal email addresses are masked.
+                      </div>
+                    ) : null}
                     <div className="grid grid--two">
                       <div>
                         <div className="small muted">Arguments</div>

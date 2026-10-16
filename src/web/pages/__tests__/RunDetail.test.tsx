@@ -161,3 +161,18 @@ describe("RunDetail keyboard and screen readers", { tags: ["ui"] }, () => {
     await waitFor(() => expect(document.title).toBe("Run: Address change for Halia Elsworth (E-1048) | AgentBoard"));
   });
 });
+
+describe("RunDetail for viewers", { tags: ["ui"] }, () => {
+  it("tells a viewer the request text is hidden for their role, and shows operators the text with no notice", async () => {
+    serve(runDetail({ requestText: null }));
+    const viewer = page("viewer");
+    expect((await screen.findByTestId("request-hidden")).textContent).toBe("Request text is hidden for your role (it needs personal-data access).");
+    viewer.unmount();
+    vi.unstubAllGlobals();
+
+    serve(runDetail());
+    page("operator");
+    expect(await screen.findByText("Please update the home address for E-1048 to 12 Elm Street, Austin.")).toBeTruthy();
+    expect(screen.queryByTestId("request-hidden")).toBeNull();
+  });
+});

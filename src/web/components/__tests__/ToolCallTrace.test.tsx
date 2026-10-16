@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ToolCallView } from "../../../shared/api-types.ts";
 import { ToolCallTrace } from "../ToolCallTrace.tsx";
+import { withSession } from "./session.tsx";
 
 afterEach(cleanup);
 
@@ -92,5 +93,21 @@ describe("ToolCallTrace", { tags: ["ui"] }, () => {
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("idempotency key ik_key")).toBeNull();
+  });
+
+  it("says what redaction changed in an expanded call, for a session without pii:read only", () => {
+    const calls = [call({ id: "call_r", tool: "hris.update_address", args: { employeeId: "E-1007", address: { city: "Austin", region: "TX", country: "US" } } })];
+    for (const role of ["operator", "approver", "admin"] as const) {
+      const view = render(withSession(role, <ToolCallTrace calls={calls} />));
+      fireEvent.click(rowOf("hris.update_address"));
+      expect(screen.getByText("Arguments")).toBeTruthy();
+      expect(screen.queryByTestId("redaction-notice")).toBeNull();
+      view.unmount();
+    }
+    render(withSession("viewer", <ToolCallTrace calls={calls} />));
+    fireEvent.click(rowOf("hris.update_address"));
+    expect(screen.getByTestId("redaction-notice").textContent).toBe(
+      "Personal data is redacted for your role: addresses show only city, region and country, and personal email addresses are masked.",
+    );
   });
 });

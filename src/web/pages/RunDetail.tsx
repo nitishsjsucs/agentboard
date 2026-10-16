@@ -50,6 +50,7 @@ export function RunDetail() {
     setParams(updated, { replace: true });
   };
   const canAudit = useCan("audit:read");
+  const canReadPii = useCan("pii:read");
   const live = useRunLive(id);
   // Live version bumps refetch without clearing (no loading flash); a new run id or tab starts from loading.
   const detail = usePolling(() => api.get<RunDetailResponse>(`/api/runs/${id}`), [id, live.snapshot?.version], { resetKey: id });
@@ -136,6 +137,11 @@ export function RunDetail() {
           <p className="small" style={{ marginBottom: 0 }}>
             <span className="muted">Request: </span>
             {run.requestText}
+          </p>
+        ) : !canReadPii ? (
+          // The server sends no request text without pii:read; say so instead of leaving a gap.
+          <p className="small muted" style={{ marginBottom: 0 }} data-testid="request-hidden">
+            Request text is hidden for your role (it needs personal-data access).
           </p>
         ) : null}
       </div>
