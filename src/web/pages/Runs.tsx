@@ -8,9 +8,11 @@ import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { PolledView } from "../components/PolledView.tsx";
 import { RunTable } from "../components/RunTable.tsx";
 import { SearchBar } from "../components/SearchBar.tsx";
+import { usePageTitle } from "../api/usePageTitle.ts";
 import { SearchResults } from "../components/SearchResults.tsx";
 
 export function Runs() {
+  usePageTitle("Runs");
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const status = params.get("status") ?? "";
@@ -53,7 +55,7 @@ export function Runs() {
     <div className="stack">
       <div className="page-header">
         <div>
-          <h1>Runs</h1>
+          <h1 tabIndex={-1}>Runs</h1>
           <p>Search the history (runs, tasks, tool calls, approvals) or filter the run list.</p>
         </div>
       </div>

@@ -111,6 +111,6 @@ describe("ConfirmDialog", { tags: ["ui"] }, () => {
     fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "end of the day" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(document.activeElement).toBe(opener);
+    await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });

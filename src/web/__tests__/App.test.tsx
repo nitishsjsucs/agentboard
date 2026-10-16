@@ -116,3 +116,54 @@ describe("App session states", { tags: ["ui"] }, () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Dashboard" })).toBeTruthy());
   });
 });
+
+describe("App navigation for keyboard and screen-reader users", { tags: ["ui"] }, () => {
+  function signedInApi() {
+    return stubApi(({ path }) => {
+      if (path === "/api/health") return reply(DEV_HEALTH);
+      if (path === "/api/me") return reply(me("operator", "ops.lead@agentboard.test"));
+      if (path === "/api/metrics/summary") return reply({ byStatus: {}, byType: {}, pendingApprovals: 0, needsAttention: 0, dlqOpen: 0 });
+      if (path.startsWith("/api/runs") || path.startsWith("/api/approvals") || path === "/api/dlq") return reply({ items: [], nextCursor: null });
+      if (path === "/api/agents") return reply({ roles: [] });
+      if (path === "/api/people/directory") return reply({ employees: EMPLOYEES });
+      if (path === "/api/dev/samples") return reply({ samples: [] });
+      return undefined;
+    });
+  }
+
+  it("starts with a Skip to content link that focuses main", async () => {
+    signedInApi();
+    window.history.replaceState(null, "", "/");
+    render(<App />);
+    await screen.findByRole("heading", { name: "Dashboard" });
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    const focusable = document.body.querySelectorAll("a[href], button, input, select, textarea");
+    expect(focusable[0]).toBe(skip);
+    fireEvent.click(skip);
+    const main = document.getElementById("main");
+    expect(main?.tagName).toBe("MAIN");
+    expect(main?.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement).toBe(main);
+  });
+
+  it("titles every page and moves focus to the new page's heading after a client-side navigation", async () => {
+    signedInApi();
+    window.history.replaceState(null, "", "/");
+    render(<App />);
+    await screen.findByRole("heading", { name: "Dashboard" });
+    await waitFor(() => expect(document.title).toBe("Dashboard | AgentBoard"));
+    for (const [link, heading, title] of [
+      ["Runs", "Runs", "Runs | AgentBoard"],
+      ["Approvals", "Approval queue", "Approval queue | AgentBoard"],
+      ["Launch", "Launch a run", "Launch a run | AgentBoard"],
+      ["Dashboard", "Dashboard", "Dashboard | AgentBoard"],
+    ] as const) {
+      fireEvent.click(screen.getByRole("link", { name: link }));
+      const h1 = await screen.findByRole("heading", { level: 1, name: heading });
+      await waitFor(() => expect(document.title).toBe(title));
+      await waitFor(() => expect(document.activeElement).toBe(h1));
+    }
+    fireEvent.click(screen.getByRole("link", { name: "switch user" }));
+    await waitFor(() => expect(document.title).toBe("Dev login | AgentBoard"));
+  });
+});

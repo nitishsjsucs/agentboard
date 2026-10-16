@@ -6,6 +6,7 @@ import { AgentRolePanel } from "../components/AgentRolePanel.tsx";
 import { DlqPanel } from "../components/DlqPanel.tsx";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { LoadingLine, PolledView, StaleNotice } from "../components/PolledView.tsx";
+import { usePageTitle } from "../api/usePageTitle.ts";
 import { RunTable } from "../components/RunTable.tsx";
 
 const STAT_ORDER = ["running", "awaiting_approval", "needs_attention", "paused", "succeeded", "rejected", "cancelled"] as const;
@@ -24,6 +25,7 @@ function StatValue({ value }: { value: number | null }) {
 }
 
 export function Dashboard() {
+  usePageTitle("Dashboard");
   const canReadDlq = useCan("dlq:read");
   const summary = usePolling(() => api.get<MetricsSummary>("/api/metrics/summary"), []);
   const recent = usePolling(() => api.get<Page<RunSummary>>("/api/runs?limit=10"), []);
@@ -41,7 +43,7 @@ export function Dashboard() {
     <div className="stack">
       <div className="page-header">
         <div>
-          <h1>Dashboard</h1>
+          <h1 tabIndex={-1}>Dashboard</h1>
           <p>Agent runs serving a simulated People-operations team.</p>
         </div>
         <Link to="/approvals" className="btn">

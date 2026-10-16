@@ -78,4 +78,19 @@ describe("ToolCallTrace", { tags: ["ui"] }, () => {
     render(<ToolCallTrace calls={[]} />);
     expect(screen.getByText("No tool calls yet.")).toBeTruthy();
   });
+
+  it("offers a real button per call that toggles the details row, with aria-expanded and aria-controls", () => {
+    render(<ToolCallTrace calls={[call({ id: "call_k", tool: "hris.update_address", idempotencyKey: "ik_key" })]} />);
+    const toggle = screen.getByRole("button", { name: "hris.update_address" }) as HTMLButtonElement;
+    expect(toggle.type).toBe("button");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const details = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+    expect(details?.textContent).toContain("idempotency key ik_key");
+    // The button's click does not also reach the row, which would close it again.
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("idempotency key ik_key")).toBeNull();
+  });
 });

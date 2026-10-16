@@ -139,3 +139,25 @@ describe("Approvals decisions", { tags: ["ui"] }, () => {
     expect(api.paths().filter((p) => p.startsWith("/api/approvals?")).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("Approvals status in the URL", { tags: ["ui"] }, () => {
+  it("opens the tab named by ?status= and writes ?status= when another tab is chosen", async () => {
+    const api = stubApi(() => reply({ items: [], nextCursor: null }));
+    page("/approvals?status=rejected");
+    expect(await screen.findByText("No rejected approvals.")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "rejected" }).getAttribute("aria-selected")).toBe("true");
+    expect(api.paths()[0]).toBe("/api/approvals?status=rejected&limit=50");
+    fireEvent.click(screen.getByRole("tab", { name: "all" }));
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/approvals?status=all"));
+    expect(await screen.findByText("No approvals yet.")).toBeTruthy();
+    expect(api.paths().at(-1)).toBe("/api/approvals?limit=50");
+    fireEvent.click(screen.getByRole("tab", { name: "expired" }));
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/approvals?status=expired"));
+  });
+
+  it("falls back to pending for an unknown ?status=", async () => {
+    stubApi(() => reply({ items: [], nextCursor: null }));
+    page("/approvals?status=bogus");
+    expect(await screen.findByText("No pending approvals.")).toBeTruthy();
+  });
+});

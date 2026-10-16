@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ErrorNotice } from "./ErrorNotice.tsx";
 
 export interface ConfirmDialogProps {
@@ -33,7 +33,8 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
   const hintId = `${ids}-hint`;
   const valid = reason.trim().length >= 3 && reason.trim().length <= 500;
 
-  useEffect(() => {
+  // A layout effect, so focus is back on the opener in the same commit that removes the dialog.
+  useLayoutEffect(() => {
     reasonRef.current?.focus();
     const returnTo = opener.current;
     return () => {

@@ -4,6 +4,7 @@ import type { AgentRolesResponse, LaunchRunResponse } from "../../shared/api-typ
 import { PRIORITIES, REQUEST_TYPES, type RequestType } from "../../shared/domain.ts";
 import { api, ApiRequestError } from "../api/client.ts";
 import { useCan, useSession } from "../api/hooks.ts";
+import { usePageTitle } from "../api/usePageTitle.ts";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
 interface Employee {
@@ -47,6 +48,7 @@ function isIdempotencyConflict(error: unknown): boolean {
 }
 
 export function Launch() {
+  usePageTitle("Launch a run");
   const canLaunch = useCan("runs:launch");
   const { me } = useSession();
   if (!canLaunch) {
@@ -55,7 +57,7 @@ export function Launch() {
       <div className="stack" style={{ maxWidth: 760 }}>
         <div className="page-header">
           <div>
-            <h1>Launch a run</h1>
+            <h1 tabIndex={-1}>Launch a run</h1>
           </div>
         </div>
         <div className="notice" data-testid="cannot-launch">
@@ -168,7 +170,7 @@ function LaunchForm() {
     <div className="stack" style={{ maxWidth: 760 }}>
       <div className="page-header">
         <div>
-          <h1>Launch a run</h1>
+          <h1 tabIndex={-1}>Launch a run</h1>
           <p>The planner turns the request into steps; approval policy, allowlists and subject pinning are enforced by the console, not the model.</p>
         </div>
       </div>

@@ -25,11 +25,27 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null
           </tr>
         </thead>
         <tbody>
-          {calls.map((call) => (
+          {calls.map((call) => {
+            const expanded = open === call.id;
+            const toggle = () => setOpen(expanded ? null : call.id);
+            const detailsId = `call-details-${call.id}`;
+            return (
             <Fragment key={call.id}>
-              <tr onClick={() => setOpen(open === call.id ? null : call.id)} style={{ cursor: "pointer" }}>
+              <tr onClick={toggle} style={{ cursor: "pointer" }}>
                 <td>
-                  <span className="mono">{call.tool}</span>
+                  {/* The row stays clickable; this button makes the details reachable from the keyboard. */}
+                  <button
+                    type="button"
+                    className="link-button mono"
+                    aria-expanded={expanded}
+                    aria-controls={detailsId}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggle();
+                    }}
+                  >
+                    {call.tool}
+                  </button>
                   {call.stepId ? <span className="faint small"> {call.stepId}</span> : null}
                 </td>
                 <td>
@@ -45,8 +61,8 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null
                 <td className="small">{call.durationMs} ms</td>
                 <td className="small muted">{formatTime(call.startedAt)}</td>
               </tr>
-              {open === call.id ? (
-                <tr>
+              {expanded ? (
+                <tr id={detailsId}>
                   <td colSpan={6}>
                     <div className="grid grid--two">
                       <div>
@@ -63,7 +79,8 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null
                 </tr>
               ) : null}
             </Fragment>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

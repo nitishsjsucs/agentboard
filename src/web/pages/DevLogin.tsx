@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { api } from "../api/client.ts";
 import { useSession } from "../api/hooks.ts";
 import { safeNext } from "../api/navigation.ts";
+import { usePageTitle } from "../api/usePageTitle.ts";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
 interface DevUser {
@@ -13,6 +14,7 @@ interface DevUser {
 
 /** Dev login (loopback dev mode only): pick a seeded principal; the server signs a local JWT cookie. */
 export function DevLogin() {
+  usePageTitle("Dev login");
   const { health, me, reload } = useSession();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -47,7 +49,7 @@ export function DevLogin() {
     <div className="stack">
       <div className="page-header">
         <div>
-          <h1>Dev login</h1>
+          <h1 tabIndex={-1}>Dev login</h1>
           <p>Local development only. Pick a seeded principal; the worker signs a 12-hour JWT with the local dev key.</p>
         </div>
       </div>

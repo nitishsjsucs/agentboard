@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { useSession } from "../api/hooks.ts";
 import { devLoginPath } from "../api/navigation.ts";
@@ -29,10 +29,49 @@ function SessionEndedBanner() {
   );
 }
 
+/** After a client-side navigation (not on first load, not on a query change), focus the new page's h1. */
+function useRouteFocus(): void {
+  const { pathname } = useLocation();
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    let tries = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const attempt = () => {
+      const heading = document.querySelector<HTMLElement>("main h1");
+      if (heading) {
+        if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+        heading.focus();
+        return;
+      }
+      // Some pages show their heading once their data arrives; fall back to the main region.
+      tries += 1;
+      if (tries < 40) timer = setTimeout(attempt, 50);
+      else document.getElementById("main")?.focus();
+    };
+    attempt();
+    return () => clearTimeout(timer);
+  }, [pathname]);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { health } = useSession();
+  useRouteFocus();
   return (
     <>
+      <a
+        href="#main"
+        className="skip-link"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main")?.focus();
+        }}
+      >
+        Skip to content
+      </a>
       <NavBar />
       <SessionEndedBanner />
       {health?.faultInjection ? (
@@ -40,7 +79,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           Simulation mode: fault injection is on. The People systems and every employee are simulated.
         </div>
       ) : null}
-      <main className="main">{children}</main>
+      <main id="main" className="main" tabIndex={-1}>
+        {children}
+      </main>
     </>
   );
 }

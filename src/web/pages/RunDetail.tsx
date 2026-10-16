@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router";
 import type { AuditEventView, Page, RunDetailResponse, RunSnapshot, TimelineEntry, ToolCallView } from "../../shared/api-types.ts";
 import { api, ApiRequestError, query } from "../api/client.ts";
 import { useCan, usePolling } from "../api/hooks.ts";
+import { usePageTitle } from "../api/usePageTitle.ts";
 import { useRunLive } from "../api/useRunLive.ts";
 import { ApprovalCard } from "../components/ApprovalCard.tsx";
 import { AuditTable } from "../components/AuditTable.tsx";
@@ -15,14 +16,39 @@ import { LoadingLine, PolledView } from "../components/PolledView.tsx";
 import { RecoveryControls } from "../components/RecoveryControls.tsx";
 import { formatTime } from "../components/RunTable.tsx";
 import { StatusBadge } from "../components/StatusBadge.tsx";
+import { TabList, TabPanel } from "../components/Tabs.tsx";
 import { TaskTimeline } from "../components/TaskTimeline.tsx";
 import { ToolCallTrace } from "../components/ToolCallTrace.tsx";
 
-type Tab = "timeline" | "calls" | "approvals" | "audit";
+const TABS = ["timeline", "calls", "approvals", "audit"] as const;
+type Tab = (typeof TABS)[number];
+
+/** ?tab= holds the open tab, so a reload or a shared link keeps it; anything unknown is the timeline. */
+function tabFromParam(value: string | null): Tab {
+  return (TABS as readonly string[]).includes(value ?? "") ? (value as Tab) : "timeline";
+}
+
+/** Announces a status change pushed after the page loaded (not the first status shown). */
+function useStatusAnnouncement(status: string | null): string {
+  const previous = useRef<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    if (status === null) return;
+    if (previous.current !== null && previous.current !== status) setAnnouncement(`Status: ${status.replaceAll("_", " ")}`);
+    previous.current = status;
+  }, [status]);
+  return announcement;
+}
 
 export function RunDetail() {
   const { id = "" } = useParams();
-  const [tab, setTab] = useState<Tab>("timeline");
+  const [params, setParams] = useSearchParams();
+  const tab = tabFromParam(params.get("tab"));
+  const setTab = (next: Tab) => {
+    const updated = new URLSearchParams(params);
+    updated.set("tab", next);
+    setParams(updated, { replace: true });
+  };
   const canAudit = useCan("audit:read");
   const live = useRunLive(id);
   // Live version bumps refetch without clearing (no loading flash); a new run id or tab starts from loading.
@@ -33,6 +59,8 @@ export function RunDetail() {
     resetKey: `${id}:${tab}`,
     enabled: tab === "audit" && canAudit,
   });
+  usePageTitle(detail.data ? `Run: ${detail.data.run.title}` : "Run");
+  const statusAnnouncement = useStatusAnnouncement(live.snapshot?.status ?? detail.data?.run.status ?? null);
 
   if (detail.error && !detail.data) {
     if (detail.error instanceof ApiRequestError && detail.error.status === 404) {
@@ -71,6 +99,9 @@ export function RunDetail() {
 
   return (
     <div className="stack">
+      <div role="status" className="visually-hidden" data-testid="status-announcer">
+        {statusAnnouncement}
+      </div>
       <div className="page-header">
         <div>
           <div className="row small muted breadcrumb">
@@ -79,7 +110,7 @@ export function RunDetail() {
             <span className="mono">{run.id}</span>
             <LiveIndicator connected={live.connected} />
           </div>
-          <h1>{run.title}</h1>
+          <h1 tabIndex={-1}>{run.title}</h1>
           <div className="row" style={{ marginTop: 6 }}>
             <StatusBadge status={snapshot.status} />
             {snapshot.statusReason && snapshot.status !== "succeeded" ? <span className="small muted">{snapshot.statusReason}</span> : null}
@@ -112,21 +143,19 @@ export function RunDetail() {
       {/* Stacked on narrow screens; the Recovery card comes first when recovery is the next step. */}
       <div className={`run-layout${snapshot.status === "needs_attention" || snapshot.status === "paused" ? " run-layout--recovery-first" : ""}`} data-testid="run-layout">
         <div>
-          <div className="tabs" role="tablist">
-            {(
-              [
-                ["timeline", "Timeline"],
-                ["calls", "Tool calls"],
-                ["approvals", `Approvals (${data.approvals.length})`],
-                ["audit", "Audit"],
-              ] as [Tab, string][]
-            ).map(([key, title]) => (
-              <button key={key} type="button" role="tab" className="tab" aria-selected={tab === key} onClick={() => setTab(key)}>
-                {title}
-              </button>
-            ))}
-          </div>
-          {tab === "timeline" ? (
+          <TabList
+            id="run-tabs"
+            label="Run details"
+            tabs={[
+              { key: "timeline", label: "Timeline" },
+              { key: "calls", label: "Tool calls" },
+              { key: "approvals", label: `Approvals (${data.approvals.length})` },
+              { key: "audit", label: "Audit" },
+            ]}
+            selected={tab}
+            onSelect={setTab}
+          />
+          <TabPanel id="run-tabs" tabKey="timeline" selected={tab === "timeline"}>
             <div className="stack">
               <TaskTimeline tasks={snapshot.tasks} />
               <div className="card">
@@ -140,6 +169,14 @@ export function RunDetail() {
                     ) : (
                       <div className="table-wrap">
                         <table className="table">
+                          <thead>
+                            <tr>
+                              <th>Seq</th>
+                              <th>Time</th>
+                              <th>Actor</th>
+                              <th>Event</th>
+                            </tr>
+                          </thead>
                           <tbody>
                             {entries.map((entry) => (
                               <tr key={entry.seq}>
@@ -159,14 +196,14 @@ export function RunDetail() {
                 </PolledView>
               </div>
             </div>
-          ) : null}
-          {tab === "calls" ? (
+          </TabPanel>
+          <TabPanel id="run-tabs" tabKey="calls" selected={tab === "calls"}>
             <PolledView polled={calls} loading="Loading tool calls..." action="read tool calls">
               {(page) => <ToolCallTrace calls={page.items} />}
             </PolledView>
-          ) : null}
-          {tab === "approvals" ? (
-            data.approvals.length === 0 ? (
+          </TabPanel>
+          <TabPanel id="run-tabs" tabKey="approvals" selected={tab === "approvals"}>
+            {data.approvals.length === 0 ? (
               <EmptyState title="No approvals for this run." />
             ) : (
               <div className="stack">
@@ -174,17 +211,17 @@ export function RunDetail() {
                   <ApprovalCard key={approval.id} approval={approval} onDecided={refresh} />
                 ))}
               </div>
-            )
-          ) : null}
-          {tab === "audit" ? (
-            canAudit ? (
+            )}
+          </TabPanel>
+          <TabPanel id="run-tabs" tabKey="audit" selected={tab === "audit"}>
+            {canAudit ? (
               <PolledView polled={audit} loading="Loading audit events..." action="read the audit log">
                 {(trail) => <AuditTable events={trail.events} chain={trail.chain} />}
               </PolledView>
             ) : (
               <EmptyState title="Needs audit:read." />
-            )
-          ) : null}
+            )}
+          </TabPanel>
         </div>
         <div className="card run-layout__recovery">
           <div className="card__header">

@@ -1,22 +1,38 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import type { ApprovalListItem, Page } from "../../shared/api-types.ts";
 import { api, query } from "../api/client.ts";
 import { describeError } from "../api/describeError.ts";
 import { usePolling, useSession } from "../api/hooks.ts";
 import { ApprovalCard, type Decision } from "../components/ApprovalCard.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
+import { usePageTitle } from "../api/usePageTitle.ts";
 import { PolledView } from "../components/PolledView.tsx";
+import { TabList, TabPanel } from "../components/Tabs.tsx";
 
 const STATUSES = ["pending", "approved", "rejected", "expired", ""] as const;
+type StatusTab = (typeof STATUSES)[number];
+
+/** ?status= holds the tab ("all" for every status); anything unknown falls back to pending. */
+function statusFromParam(value: string | null): StatusTab {
+  if (value === "all") return "";
+  return STATUSES.find((s) => s !== "" && s === value) ?? "pending";
+}
 
 type Announcement = { kind: "decided"; decision: Decision; approval: ApprovalListItem } | { kind: "conflict"; error: unknown };
 
 const NOTE_INPUTS = 'input[data-note]:not(:disabled)';
 
 export function Approvals() {
+  usePageTitle("Approval queue");
   const { me } = useSession();
-  const [status, setStatus] = useState<(typeof STATUSES)[number]>("pending");
+  const [params, setParams] = useSearchParams();
+  const status = statusFromParam(params.get("status"));
+  const setStatus = (next: StatusTab) => {
+    const updated = new URLSearchParams(params);
+    updated.set("status", next || "all");
+    setParams(updated, { replace: true });
+  };
   // Switching the status tab clears the previous tab's cards before the new answer arrives.
   const approvals = usePolling(() => api.get<Page<ApprovalListItem>>(`/api/approvals${query({ status, limit: 50 })}`), [status], { resetKey: status });
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
@@ -52,16 +68,17 @@ export function Approvals() {
     <div className="stack">
       <div className="page-header">
         <div>
-          <h1>Approval queue</h1>
+          <h1 tabIndex={-1}>Approval queue</h1>
           <p>Manager changes, terminations and privileged grants wait here. Only reads ran before each gate, so a rejection never leaves a write behind.</p>
         </div>
-        <div className="tabs" role="tablist" style={{ marginBottom: 0, borderBottom: 0 }}>
-          {STATUSES.map((s) => (
-            <button key={s || "all"} type="button" role="tab" className="tab" aria-selected={status === s} onClick={() => setStatus(s)}>
-              {s || "all"}
-            </button>
-          ))}
-        </div>
+        <TabList
+          id="approval-status"
+          label="Approval status"
+          tabs={STATUSES.map((s) => ({ key: s, label: s || "all" }))}
+          selected={status}
+          onSelect={setStatus}
+          style={{ marginBottom: 0, borderBottom: 0 }}
+        />
       </div>
       <div role="status" tabIndex={-1} ref={statusRef} data-testid="decision-status" className="status-line">
         {announcement?.kind === "decided" ? (
@@ -75,6 +92,10 @@ export function Approvals() {
           <div className="notice notice--warning">{describeError(announcement.error, { me, action: "decide approvals" }).message}</div>
         ) : null}
       </div>
+      {STATUSES.filter((s) => s !== status).map((s) => (
+        <TabPanel key={s || "all"} id="approval-status" tabKey={s} selected={false} />
+      ))}
+      <TabPanel id="approval-status" tabKey={status} selected>
       <PolledView polled={approvals} loading="Loading approvals..." action="read approvals">
         {(page) =>
           page.items.length === 0 ? (
@@ -88,6 +109,7 @@ export function Approvals() {
           )
         }
       </PolledView>
+      </TabPanel>
     </div>
   );
 }
