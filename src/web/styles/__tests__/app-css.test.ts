@@ -21,4 +21,12 @@ describe("app.css layout rules", { tags: ["ui"] }, () => {
     expect(declarations(".nav__links")).toMatch(/overflow-x:\s*auto/);
     expect(declarations(".nav__link:focus-visible")).toMatch(/outline-offset:\s*-2px/);
   });
+
+  it("puts the plan line on the plan map caption's row when it fits, and keeps the node canvas on a full-width row of its own", () => {
+    const figure = declarations(".plan-map__figure");
+    expect(figure).toMatch(/flex-direction:\s*row/);
+    expect(figure).toMatch(/flex-wrap:\s*wrap/);
+    // The scroller's -6px margins on each side are added back, so it spans the figure exactly.
+    expect(declarations(".plan-map__scroll")).toMatch(/flex:\s*0 0 calc\(100% \+ 12px\)/);
+  });
 });
