@@ -150,3 +150,76 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-align: left; }
 .link-button:hover { text-decoration: underline; }
 .link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Tone colours for icons and marks; the word next to them always carries the meaning too. */
+.tone--success { color: var(--success); }
+.tone--info { color: var(--info); }
+.tone--warning { color: var(--warning); }
+.tone--danger { color: var(--danger); }
+.tone--faint { color: var(--text-faint); }
+
+/* Task list on the Timeline tab: one dense row per task inside one card. */
+.task-list { list-style: none; margin: 0; padding: 0; }
+.task-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.task-row:last-child { border-bottom: 0; }
+/* Rows take focus only from the plan map (tabIndex -1), so a plain :focus ring shows where it went. */
+.task-row:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.task-row__time { white-space: nowrap; }
+
+/* Plan map: nodes in columns by depth (144 px boxes at a 158 px pitch) and rows (76 px pitch), connectors behind them. */
+.plan-map { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.plan-map__figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.plan-map__caption { display: flex; align-items: baseline; gap: var(--space-1) var(--space-3); flex-wrap: wrap; }
+.plan-map__line { margin: 0; }
+.plan-map__note { margin: 0; font-size: var(--text-sm); color: var(--text); }
+/* A graph wider than the column scrolls inside the card; the padding leaves room for focus and blocker rings. */
+.plan-map__scroll { overflow-x: auto; padding: 6px; margin: -6px; }
+.plan-map__nodes { list-style: none; margin: 0; padding: 0; }
+.plan-map__edges { display: none; }
+.plan-map__edges path { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+.plan-node {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-content: center; text-align: left;
+  width: 100%; padding: 3px 8px; border: 1px solid var(--border-strong); border-left-width: 3px; border-radius: var(--radius);
+  background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-xs); line-height: 14px; cursor: pointer;
+}
+.plan-node:hover { background: var(--surface-muted); }
+.plan-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.plan-node--success { border-left-color: var(--success); }
+.plan-node--info { border-left-color: var(--info); }
+.plan-node--warning { border-left-color: var(--warning); }
+.plan-node--danger { border-left-color: var(--danger); }
+.plan-node--faint { border-left-color: var(--text-faint); }
+.plan-node--blocker { box-shadow: 0 0 0 2px var(--accent); }
+.plan-node--blocker:focus-visible { outline-offset: 3px; }
+.plan-node__head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.plan-node__id { font-weight: 650; }
+.plan-node__kind { color: var(--text-muted); }
+.plan-node__lock { color: var(--text-muted); flex: none; }
+.plan-node__pips { display: inline-flex; gap: 3px; margin-left: auto; }
+.plan-pip { flex: none; }
+.plan-node__tool { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* The state word is never cut: it may take a second line (for example "held: executor role disabled"). */
+.plan-node__state { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.plan-node__icon { flex: none; margin-top: 1px; }
+.plan-node__after { color: var(--text-muted); }
+@media (min-width: 721px) {
+  .plan-map__canvas { position: relative; width: calc((var(--cols) - 1) * 158px + 144px); height: calc((var(--rows) - 1) * 76px + 64px); margin-top: var(--arc-pad, 0px); }
+  .plan-map__edges { display: block; position: absolute; left: 0; top: 0; overflow: visible; }
+  .plan-map__item { position: absolute; left: calc(var(--col) * 158px); top: calc(var(--row) * 76px); width: 144px; height: 64px; }
+  .plan-node { height: 100%; }
+  .plan-node__after { display: none; }
+}
+@media (max-width: 720px) {
+  /* A vertical stepper: the same list in flow, a rail on the left, and "after s2" in words instead of connectors. */
+  .plan-map__note { order: -1; }
+  .plan-map__nodes { display: flex; flex-direction: column; gap: var(--space-2); margin-left: 3px; padding-left: var(--space-3); border-left: 2px solid var(--border); }
+  .plan-node { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-3); }
+  .plan-node__head { grid-column: 1; }
+  .plan-node__tool { grid-column: 2; }
+  .plan-node__state { grid-column: 1; }
+  .plan-node__after { grid-column: 2; }
+}
+/* Without colours (Windows high contrast): borders and words stay; the blocker keeps a heavier border. */
+@media (forced-colors: active) {
+  .plan-node--blocker { border-width: 3px; border-style: double; }
+}

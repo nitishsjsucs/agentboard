@@ -176,3 +176,19 @@ describe("RunDetail for viewers", { tags: ["ui"] }, () => {
     expect(screen.queryByTestId("request-hidden")).toBeNull();
   });
 });
+
+describe("RunDetail plan map", { tags: ["ui"] }, () => {
+  it("renders the plan map first in the Timeline panel, before the task list, and fetches no new path for it", async () => {
+    const api = serve(runDetail());
+    page();
+    await screen.findByRole("heading", { level: 1 });
+    const panel = screen.getByRole("tabpanel", { name: "Timeline" });
+    const map = await screen.findByRole("figure", { name: "Plan map" });
+    const list = screen.getByRole("list", { name: "Tasks" });
+    expect(panel.contains(map)).toBe(true);
+    expect(map.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(panel.querySelector("[data-testid=plan-map]")).toBe(panel.querySelector(".stack")?.firstElementChild);
+    await screen.findByText("No events yet.");
+    expect(new Set(api.paths())).toEqual(new Set([`/api/runs/${RUN}`, `/api/runs/${RUN}/timeline`]));
+  });
+});

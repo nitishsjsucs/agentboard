@@ -17,16 +17,33 @@ export function orderTasks(tasks: readonly TaskView[]): TaskView[] {
   });
 }
 
+/**
+ * One dense row per task, in a single card. Rows carry id `task-<taskId>` and tabIndex -1, so the
+ * plan map can move focus to a step's row.
+ */
 export function TaskTimeline({ tasks }: { tasks: readonly TaskView[] }) {
   return (
-    <ol className="stack" style={{ listStyle: "none", padding: 0, margin: 0, gap: "var(--space-2)" }}>
-      {orderTasks(tasks).map((task) => (
-        <li key={task.id} className="card card__body" data-testid="task-row" data-task-id={task.id}>
-          <div className="row">
-            <strong>{task.kind === "plan" ? "Plan" : `${task.stepId} ${task.kind}`}</strong>
-            {task.tool ? <span className="mono small">{task.tool}</span> : null}
+    <ol className="card task-list" aria-label="Tasks">
+      {orderTasks(tasks).map((task) => {
+        const sentence = taskErrorSentence(task.lastError);
+        return (
+          <li key={task.id} id={`task-${task.id}`} tabIndex={-1} className="task-row" data-testid="task-row" data-task-id={task.id}>
+            <strong className="task-row__name">{task.kind === "plan" ? "Plan" : `${task.stepId} ${task.kind}`}</strong>
+            {task.tool ? <span className="mono small task-row__tool">{task.tool}</span> : null}
             <StatusBadge status={task.status} />
             {task.requiresApproval ? <span className="badge badge--warning">approval</span> : null}
+            {task.holdReason ? <span className="badge badge--warning">held: {task.holdReason.replace("_", " ")}</span> : null}
+            {task.lease ? (
+              <span className="small muted" data-testid="lease">
+                leased by {task.lease.owner}, epoch {task.lease.epoch}, until {formatTime(task.lease.expiresAt)}
+              </span>
+            ) : null}
+            {task.lastError ? (
+              <span className="error-text" data-testid="last-error">
+                {sentence ? <span>{sentence} </span> : null}
+                <span className="mono">{task.lastError}</span>
+              </span>
+            ) : null}
             <span className="spacer" />
             <span className="badge" data-testid="attempts">
               attempt {task.attempts}
@@ -36,25 +53,10 @@ export function TaskTimeline({ tasks }: { tasks: readonly TaskView[] }) {
                 gen {task.generation}
               </span>
             ) : null}
-          </div>
-          <div className="row small muted" style={{ marginTop: 4 }}>
-            {task.lease ? (
-              <span data-testid="lease">
-                leased by {task.lease.owner}, epoch {task.lease.epoch}, until {formatTime(task.lease.expiresAt)}
-              </span>
-            ) : null}
-            {task.holdReason ? <span className="badge badge--warning">held: {task.holdReason.replace("_", " ")}</span> : null}
-            {task.lastError ? (
-              <span className="error-text" data-testid="last-error">
-                {taskErrorSentence(task.lastError) ? <span>{taskErrorSentence(task.lastError)} </span> : null}
-                <span className="mono">{task.lastError}</span>
-              </span>
-            ) : null}
-            <span className="spacer" />
-            <span className="faint">updated {formatTime(task.updatedAt)}</span>
-          </div>
-        </li>
-      ))}
+            <span className="small faint task-row__time">updated {formatTime(task.updatedAt)}</span>
+          </li>
+        );
+      })}
     </ol>
   );
 }

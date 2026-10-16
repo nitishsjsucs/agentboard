@@ -12,6 +12,7 @@ import { EmptyState } from "../components/EmptyState.tsx";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { NextStep } from "../components/NextStep.tsx";
+import { PlanMap } from "../components/PlanMap.tsx";
 import { LoadingLine, PolledView } from "../components/PolledView.tsx";
 import { RecoveryControls } from "../components/RecoveryControls.tsx";
 import { formatTime } from "../components/RunTable.tsx";
@@ -163,6 +164,7 @@ export function RunDetail() {
           />
           <TabPanel id="run-tabs" tabKey="timeline" selected={tab === "timeline"}>
             <div className="stack">
+              <PlanMap tasks={snapshot.tasks} status={snapshot.status} />
               <TaskTimeline tasks={snapshot.tasks} />
               <div className="card">
                 <div className="card__header">
