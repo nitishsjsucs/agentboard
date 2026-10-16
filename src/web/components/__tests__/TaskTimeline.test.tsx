@@ -34,4 +34,11 @@ describe("TaskTimeline", { tags: ["ui"] }, () => {
     expect(held?.querySelector('[data-testid="generation"]')).toBeNull();
     expect(held?.textContent).toContain("held: role disabled");
   });
+
+  it("puts a readable sentence next to the raw lastError code", () => {
+    render(withSession("viewer", <TaskTimeline tasks={[task({ id: "p", kind: "plan", status: "failed", attempts: 3, lastError: "agent_exception" })]} />));
+    const error = screen.getByTestId("last-error");
+    expect(error.textContent).toBe("The agent raised an error instead of finishing the task. agent_exception");
+    expect(error.querySelector(".mono")?.textContent).toBe("agent_exception");
+  });
 });

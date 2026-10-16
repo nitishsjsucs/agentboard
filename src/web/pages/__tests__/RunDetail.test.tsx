@@ -92,3 +92,13 @@ describe("RunDetail tab loading", { tags: ["ui"] }, () => {
     expect(await screen.findByText("No tool calls yet.")).toBeTruthy();
   });
 });
+
+describe("RunDetail next step", { tags: ["ui"] }, () => {
+  it("explains why the run needs attention and keeps the raw statusReason and lastError codes visible", async () => {
+    serve(runDetail());
+    page("operator");
+    expect((await screen.findByTestId("next-step")).textContent).toContain("The verifier found that the write of step s2 (hris.update_address) did not take effect.");
+    expect(screen.getByText("task_failed:postcondition_failed")).toBeTruthy();
+    expect(screen.getByTestId("last-error").textContent).toContain("postcondition_failed");
+  });
+});

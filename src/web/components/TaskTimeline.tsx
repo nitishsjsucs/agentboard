@@ -1,4 +1,5 @@
 import type { TaskView } from "../../shared/api-types.ts";
+import { taskErrorSentence } from "./explain.ts";
 import { formatTime } from "./RunTable.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
@@ -43,7 +44,12 @@ export function TaskTimeline({ tasks }: { tasks: readonly TaskView[] }) {
               </span>
             ) : null}
             {task.holdReason ? <span className="badge badge--warning">held: {task.holdReason.replace("_", " ")}</span> : null}
-            {task.lastError ? <span className="error-text">{task.lastError}</span> : null}
+            {task.lastError ? (
+              <span className="error-text" data-testid="last-error">
+                {taskErrorSentence(task.lastError) ? <span>{taskErrorSentence(task.lastError)} </span> : null}
+                <span className="mono">{task.lastError}</span>
+              </span>
+            ) : null}
             <span className="spacer" />
             <span className="faint">updated {formatTime(task.updatedAt)}</span>
           </div>

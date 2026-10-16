@@ -10,6 +10,7 @@ import { BudgetMeter } from "../components/BudgetMeter.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
+import { NextStep } from "../components/NextStep.tsx";
 import { LoadingLine, PolledView } from "../components/PolledView.tsx";
 import { RecoveryControls } from "../components/RecoveryControls.tsx";
 import { formatTime } from "../components/RunTable.tsx";
@@ -88,6 +89,8 @@ export function RunDetail() {
           </div>
         </div>
       </div>
+
+      <NextStep snapshot={snapshot} approvals={data.approvals} requester={run.requester} onOpenApprovals={() => setTab("approvals")} />
 
       <div className="card card__body">
         <div className="row" style={{ gap: "var(--space-6)", alignItems: "flex-start" }}>
