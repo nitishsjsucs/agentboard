@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { api } from "../api/client.ts";
 import { useSession } from "../api/hooks.ts";
+import { safeNext } from "../api/navigation.ts";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
 interface DevUser {
@@ -12,8 +13,9 @@ interface DevUser {
 
 /** Dev login (loopback dev mode only): pick a seeded principal; the server signs a local JWT cookie. */
 export function DevLogin() {
-  const { health, reload } = useSession();
+  const { health, me, reload } = useSession();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [users, setUsers] = useState<DevUser[]>([]);
   const [error, setError] = useState<unknown>(null);
 
@@ -34,7 +36,8 @@ export function DevLogin() {
       await api.post("/api/dev/login", { principal });
       // Wait for the new principal's permissions, so the dashboard never fetches with the previous one's.
       await reload();
-      navigate("/");
+      // Back to where the session ended (a same-origin path only), or the dashboard.
+      navigate(safeNext(params.get("next")), { replace: true });
     } catch (e) {
       setError(e);
     }
@@ -50,13 +53,19 @@ export function DevLogin() {
       </div>
       {error ? <ErrorNotice error={error} /> : null}
       <div className="login-list">
-        {users.map((user) => (
-          <button key={user.principal} type="button" className="login-option" onClick={() => void login(user.principal)}>
-            <div style={{ fontWeight: 600 }}>{user.displayName}</div>
-            <div className="mono small muted">{user.principal}</div>
-            <span className="badge badge--accent">{user.role}</span>
-          </button>
-        ))}
+        {users.map((user) => {
+          const current = me?.principal.id === user.principal;
+          return (
+            <button key={user.principal} type="button" className="login-option" aria-current={current ? "true" : undefined} onClick={() => void login(user.principal)}>
+              <div style={{ fontWeight: 600 }}>{user.displayName}</div>
+              <div className="mono small muted">{user.principal}</div>
+              <div className="row">
+                <span className="badge badge--accent">{user.role}</span>
+                {current ? <span className="badge badge--success">signed in</span> : null}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

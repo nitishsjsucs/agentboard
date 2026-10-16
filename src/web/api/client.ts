@@ -27,6 +27,23 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** What a request saw that may mean the session ended: a 401, or a non-JSON page (an Access login page). */
+export interface SessionProblem {
+  status: number;
+  code: ClientErrorCode;
+  path: string;
+}
+
+/**
+ * Every 401 and every non-JSON answer is announced here as a "problem" event, so the session can show a
+ * banner without the page navigating away (and losing what the user typed).
+ */
+export const sessionEvents = new EventTarget();
+
+function announce(problem: SessionProblem): void {
+  sessionEvents.dispatchEvent(new CustomEvent<SessionProblem>("problem", { detail: problem }));
+}
+
 function isApiError(value: unknown): value is ApiError {
   if (!value || typeof value !== "object" || !("error" in value)) return false;
   const error = (value as { error: unknown }).error;
@@ -56,13 +73,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       parsed = JSON.parse(text) as unknown;
     } catch {
       // Not AgentBoard's JSON: an HTML login or error page from something in front of the Worker.
+      announce({ status: response.status, code: "unavailable", path });
       throw new ApiRequestError(response.status, null, { code: "unavailable", message: "the response was not AgentBoard JSON" });
     }
   }
   if (!response.ok) {
     // Recovery commands answer 409 with a ControlResponse body; let callers see it.
     if (response.status === 409 && parsed && typeof parsed === "object" && "accepted" in parsed) return parsed as T;
-    throw new ApiRequestError(response.status, isApiError(parsed) ? parsed : null);
+    const error = new ApiRequestError(response.status, isApiError(parsed) ? parsed : null);
+    if (response.status === 401) announce({ status: 401, code: error.code, path });
+    throw error;
   }
   return parsed as T;
 }

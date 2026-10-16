@@ -23,7 +23,7 @@ export const DEV_HEALTH: Health = { ok: true, version: "test", environment: "dev
 export function withSession(role: Role, children: ReactNode, id?: string) {
   return (
     <MemoryRouter>
-      <SessionContext.Provider value={{ me: me(role, id), health: null, reload: async () => undefined }}>{children}</SessionContext.Provider>
+      <SessionContext.Provider value={{ me: me(role, id), health: null, loaded: true, reload: async () => undefined }}>{children}</SessionContext.Provider>
     </MemoryRouter>
   );
 }
@@ -39,7 +39,7 @@ export function renderAt(role: Role, element: ReactNode, options: { url?: string
   const { url = "/", path = "*", id, health = DEV_HEALTH } = options;
   return (
     <MemoryRouter initialEntries={[url]}>
-      <SessionContext.Provider value={{ me: me(role, id), health, reload: async () => undefined }}>
+      <SessionContext.Provider value={{ me: me(role, id), health, loaded: true, reload: async () => undefined }}>
         <Routes>
           <Route path={path} element={element} />
           <Route path="*" element={<div>other page</div>} />

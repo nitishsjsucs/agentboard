@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserRouter, useLocation, useNavigate } from "react-router";
 import type { MeResponse } from "../shared/api-types.ts";
-import { api, ApiRequestError } from "./api/client.ts";
+import { api, ApiRequestError, sessionEvents, type SessionProblem } from "./api/client.ts";
 import { SessionContext, type Health } from "./api/hooks.ts";
+import { devLoginPath } from "./api/navigation.ts";
 import { AppShell } from "./components/AppShell.tsx";
+import { SessionGate } from "./components/SessionGate.tsx";
 import { AppRoutes } from "./routes.tsx";
 
 function SessionProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
-  const [unauthenticated, setUnauthenticated] = useState(false);
+  const [meError, setMeError] = useState<unknown>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const latest = useRef(0);
+  const current = useRef<{ me: MeResponse | null; health: Health | null }>({ me: null, health: null });
+  current.current = { me, health };
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,22 +30,41 @@ function SessionProvider({ children }: { children: React.ReactNode }) {
     setHealth(healthResult.status === "fulfilled" ? healthResult.value : null);
     if (meResult.status === "fulfilled") {
       setMe(meResult.value);
-      setUnauthenticated(false);
+      setMeError(null);
+      setSessionEnded(false);
     } else {
       setMe(null);
-      setUnauthenticated(meResult.reason instanceof ApiRequestError && meResult.reason.status === 401);
+      setMeError(meResult.reason);
     }
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
+  // A 401 (or, behind Access, a login page) after the session loaded: show a banner and stay on the page,
+  // so whatever the user typed is still there.
   useEffect(() => {
-    if (unauthenticated && health?.authMode === "dev" && location.pathname !== "/dev/login") navigate("/dev/login");
-  }, [unauthenticated, health?.authMode, location.pathname, navigate]);
+    const onProblem = (event: Event) => {
+      const problem = (event as CustomEvent<SessionProblem>).detail;
+      const { me: signedIn, health: known } = current.current;
+      if (!signedIn) return;
+      const authMode = known?.authMode ?? signedIn.authMode;
+      if (problem.status === 401 || (problem.code === "unavailable" && authMode === "access")) setSessionEnded(true);
+    };
+    sessionEvents.addEventListener("problem", onProblem);
+    return () => sessionEvents.removeEventListener("problem", onProblem);
+  }, []);
 
-  return <SessionContext.Provider value={{ me, health, reload }}>{children}</SessionContext.Provider>;
+  const unauthenticated = meError instanceof ApiRequestError && meError.status === 401;
+  useEffect(() => {
+    if (unauthenticated && health?.authMode === "dev" && location.pathname !== "/dev/login") {
+      navigate(devLoginPath(`${location.pathname}${location.search}`), { replace: true });
+    }
+  }, [unauthenticated, health?.authMode, location.pathname, location.search, navigate]);
+
+  return <SessionContext.Provider value={{ me, health, loaded, meError, sessionEnded, reload }}>{children}</SessionContext.Provider>;
 }
 
 export function App() {
@@ -47,7 +72,9 @@ export function App() {
     <BrowserRouter>
       <SessionProvider>
         <AppShell>
-          <AppRoutes />
+          <SessionGate>
+            <AppRoutes />
+          </SessionGate>
         </AppShell>
       </SessionProvider>
     </BrowserRouter>

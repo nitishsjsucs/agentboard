@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router";
 import { useSession } from "../api/hooks.ts";
+import { ACCESS_LOGOUT } from "./SessionGate.tsx";
 
 const LINKS: { to: string; label: string; permission?: "runs:launch" }[] = [
   { to: "/", label: "Dashboard" },
@@ -10,13 +11,16 @@ const LINKS: { to: string; label: string; permission?: "runs:launch" }[] = [
 
 export function NavBar() {
   const { me, health } = useSession();
+  const authMode = health?.authMode ?? me?.authMode;
+  // A principal without a role sees one explanation page, so the page links are left out.
+  const links = me && me.role !== null ? LINKS.filter((link) => !link.permission || me.permissions.includes(link.permission)) : [];
   return (
     <nav className="nav" aria-label="Primary">
       <Link to="/" className="nav__brand">
         AgentBoard
       </Link>
       <div className="nav__links">
-        {LINKS.filter((link) => !link.permission || me?.permissions.includes(link.permission)).map((link) => (
+        {links.map((link) => (
           <NavLink key={link.to} to={link.to} end={link.to === "/"} className={({ isActive }) => `nav__link${isActive ? " active" : ""}`}>
             {link.label}
           </NavLink>
@@ -30,10 +34,15 @@ export function NavBar() {
             <span className="badge badge--accent">{me.role ?? "no role"}</span>
           </>
         ) : null}
-        {health?.authMode === "dev" ? (
+        {authMode === "dev" ? (
           <Link to="/dev/login" className="small nav__switch">
             switch user
           </Link>
+        ) : null}
+        {authMode === "access" && me ? (
+          <a href={ACCESS_LOGOUT} className="small nav__switch">
+            Sign out
+          </a>
         ) : null}
       </div>
     </nav>

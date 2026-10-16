@@ -14,11 +14,17 @@ export interface Health {
 export interface Session {
   me: MeResponse | null;
   health: Health | null;
+  /** True once the first /api/health and /api/me answers (or failures) are in. */
+  loaded: boolean;
+  /** Why /api/me failed, when it did (a 401 means not signed in). */
+  meError?: unknown;
+  /** A request after the session loaded was refused as signed out (or, behind Access, got a login page). */
+  sessionEnded?: boolean;
   /** Loads /api/health and /api/me again; resolves once the session holds the answers. */
   reload: () => Promise<void>;
 }
 
-export const SessionContext = createContext<Session>({ me: null, health: null, reload: async () => undefined });
+export const SessionContext = createContext<Session>({ me: null, health: null, loaded: false, reload: async () => undefined });
 
 export function useSession(): Session {
   return useContext(SessionContext);
