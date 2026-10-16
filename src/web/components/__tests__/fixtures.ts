@@ -1,4 +1,4 @@
-import type { ApprovalListItem, AuditEventView, MetricsSummary, RunDetailResponse, RunSnapshot, TaskView } from "../../../shared/api-types.ts";
+import type { ApprovalListItem, AuditEventView, MetricsSummary, RunDetailResponse, RunSnapshot, RunSummary, TaskView } from "../../../shared/api-types.ts";
 
 export function task(overrides: Partial<TaskView> & Pick<TaskView, "id" | "kind">): TaskView {
   return {
@@ -67,6 +67,7 @@ export function runDetail(overrides: { status?: RunSnapshot["status"]; statusRea
       budget: snap.budget,
       usage: snap.usage,
       pendingApprovals: 0,
+      heldTasks: 0,
       syntheticRef: null,
       requestText: overrides.requestText === undefined ? "Please update the home address for E-1048 to 12 Elm Street, Austin." : overrides.requestText,
     },
@@ -129,4 +130,11 @@ export function metricsSummary(overrides: Partial<MetricsSummary> = {}): Metrics
     heldRuns: { total: 0, byRole: [] },
     ...overrides,
   };
+}
+
+/** A run list item (RunSummary), with overrides. */
+export function runSummaryItem(overrides: Partial<RunSummary> = {}): RunSummary {
+  const { run } = runDetail();
+  const { requestText: _text, ...summary } = run;
+  return { ...summary, ...overrides };
 }

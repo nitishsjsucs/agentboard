@@ -196,6 +196,8 @@ export interface RunSummary {
   budget: Budget;
   usage: Usage;
   pendingApprovals: number;
+  /** Tasks held because their agent role is disabled; 0 unless the run is queued, planning or running. */
+  heldTasks: number;
   syntheticRef: string | null;
 }
 

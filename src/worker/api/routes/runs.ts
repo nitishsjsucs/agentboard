@@ -60,6 +60,7 @@ interface RunRow {
   finished_at: string | null;
   version: number;
   pending_approvals?: number;
+  held_tasks?: number;
 }
 
 export function runSummary(row: RunRow): RunSummary {
@@ -78,6 +79,7 @@ export function runSummary(row: RunRow): RunSummary {
     budget: JSON.parse(row.budget_json) as Budget,
     usage: JSON.parse(row.usage_json) as Usage,
     pendingApprovals: row.pending_approvals ?? 0,
+    heldTasks: row.held_tasks ?? 0,
     syntheticRef: row.synthetic_ref,
   };
 }
@@ -164,10 +166,18 @@ function toolCallFromRow(row: ToolCallRow, canReadPii: boolean): ToolCallView {
   };
 }
 
+/**
+ * Tasks held by a disabled agent role, for a run that would otherwise be moving. Holds exist only on
+ * open runs (cancelling clears them), and the guard skips the subquery for every other status; it reads
+ * the tasks_held index, so it stays bounded by the held tasks, not by history.
+ */
+const HELD_TASKS = `CASE WHEN r.status IN ('queued', 'planning', 'running') THEN
+  (SELECT COUNT(*) FROM tasks t WHERE t.run_id = r.id AND t.status = 'held' AND t.hold_reason = 'role_disabled') ELSE 0 END AS held_tasks`;
+
 async function loadRun(c: Context<AppEnv>, runId: string): Promise<RunRow | null> {
   if (!RUN_ID_PATTERN.test(runId)) return null;
   return c.env.DB.prepare(
-    `SELECT r.*, (SELECT COUNT(*) FROM approvals a WHERE a.run_id = r.id AND a.status = 'pending') AS pending_approvals FROM runs r WHERE r.id = ?`,
+    `SELECT r.*, (SELECT COUNT(*) FROM approvals a WHERE a.run_id = r.id AND a.status = 'pending') AS pending_approvals, ${HELD_TASKS} FROM runs r WHERE r.id = ?`,
   )
     .bind(runId)
     .first<RunRow>();
@@ -260,7 +270,7 @@ export const runRoutes = new Hono<AppEnv>()
     if (after) (clauses.push("(r.created_at < ? OR (r.created_at = ? AND r.id < ?))"), params.push(after.at, after.at, after.id));
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
     const { results } = await c.env.DB.prepare(
-      `SELECT r.*, (SELECT COUNT(*) FROM approvals a WHERE a.run_id = r.id AND a.status = 'pending') AS pending_approvals
+      `SELECT r.*, (SELECT COUNT(*) FROM approvals a WHERE a.run_id = r.id AND a.status = 'pending') AS pending_approvals, ${HELD_TASKS}
        FROM runs r ${where} ORDER BY r.created_at DESC, r.id DESC LIMIT ?`,
     )
       .bind(...params, limit + 1)
