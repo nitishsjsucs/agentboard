@@ -1,5 +1,6 @@
 // Time in each status: one bar on a real time axis from the run's creation to its finish (or now),
-// and the table under it as the text alternative. Data: the run's timeline, which the page already loads.
+// and, as its text alternative, a table of each status's total and a list of every interval behind
+// "Each interval". Data: the run's timeline, which the page already loads.
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { TimelineEntry } from "../../shared/api-types.ts";
@@ -57,10 +58,13 @@ export function StatusTimeBar({ entries, run }: { entries: readonly TimelineEntr
   const now = useNow(30_000);
   const titleId = useId();
   const clipId = useId();
-  const tipId = useId();
+  const intervalsId = useId();
   const [width, measure] = useWidth();
   const [active, setActive] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
+  const [showIntervals, setShowIntervals] = useState(false);
+  // What the live region says: set only when an arrow, Home or End key moves to an interval, never by the pointer.
+  const [announced, setAnnounced] = useState("");
   const history = statusIntervals(entries, run, now);
   const rows = statusTotals(history);
   const span = Math.max(1, history.end - history.start);
@@ -79,6 +83,8 @@ export function StatusTimeBar({ entries, run }: { entries: readonly TimelineEntr
     }
     event.preventDefault();
     setActive(next);
+    const interval = history.intervals[next];
+    if (interval) setAnnounced(intervalText(interval, longSpan));
   };
   // The pointer only has to be over the bar's band, not on a 12 px mark: the interval under its x wins.
   const onPointer = (event: PointerEvent<HTMLDivElement>) => {
@@ -108,27 +114,35 @@ export function StatusTimeBar({ entries, run }: { entries: readonly TimelineEntr
         {rows.length > 1 ? <span className="small muted">Shares are rounded to whole percents.</span> : null}
       </figcaption>
       <div className="status-time__plot">
-        {/* Always mounted, so a screen reader hears each interval as the arrow keys move; empty when hidden. */}
+        {/* The tooltip is for the eye; screen readers get the table, the interval list and the live region below. */}
         <div
-          id={tipId}
           ref={tipRef}
           className={`status-time__tip${tipInterval ? " status-time__tip--shown" : ""}`}
-          role="status"
+          aria-hidden="true"
           data-testid="status-tip"
           style={{ left: tipLeft }}
         >
           {tipText}
+          {tipInterval && focused ? (
+            <span className="status-time__keys" data-testid="status-keys">
+              Left and right arrow keys: other intervals
+            </span>
+          ) : null}
+        </div>
+        {/* Always mounted and empty until a key moves to an interval, so a pointer passing over the bar is never read out. */}
+        <div className="visually-hidden" role="status" data-testid="interval-announcer">
+          {announced}
         </div>
         <div
           ref={measure}
           className="status-time__bar"
           tabIndex={0}
           role="img"
-          aria-label={`Time in each status from ${clock(history.start, longSpan)} to ${history.finished ? clock(history.end, longSpan) : "now"}. The table below lists each status. Left and right arrow keys show each interval.`}
+          aria-label={`Time in each status from ${clock(history.start, longSpan)} to ${history.finished ? clock(history.end, longSpan) : "now"}. The table below gives each status's total, and Each interval lists every interval with its start and end.`}
           data-testid="status-bar"
           onKeyDown={onKey}
           onFocus={() => (setFocused(true), setActive((a) => a ?? last))}
-          onBlur={() => (setFocused(false), setActive(null))}
+          onBlur={() => (setFocused(false), setActive(null), setAnnounced(""))}
           onPointerMove={onPointer}
           onPointerLeave={() => (focused ? undefined : setActive(null))}
         >
@@ -189,6 +203,47 @@ export function StatusTimeBar({ entries, run }: { entries: readonly TimelineEntr
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="status-time__intervals">
+        <button type="button" className="link-button small unlocks__toggle" aria-expanded={showIntervals} aria-controls={intervalsId} onClick={() => setShowIntervals(!showIntervals)}>
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" className="unlocks__chevron">
+            <path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Each interval ({history.intervals.length})
+        </button>
+        <div id={intervalsId} hidden={!showIntervals} data-testid="status-intervals">
+          {showIntervals ? (
+            <div className="table-wrap">
+              <table className="table status-time__table">
+                <caption className="visually-hidden">Each interval, in order</caption>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>When</th>
+                    <th>Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.intervals.map((interval) => (
+                    <tr key={`${interval.status}-${interval.start}`} data-testid="interval-row">
+                      <td>
+                        <span className="status-time__name">
+                          <span className={`status-swatch ${statusClass(interval.status)}`} aria-hidden="true" />
+                          <span>{label(interval.status)}</span>
+                        </span>
+                      </td>
+                      {/* Each time stays on one line; on a phone the cell wraps at "to". */}
+                      <td className="num">
+                        <span className="nowrap">{clock(interval.start, longSpan)}</span> to <span className="nowrap">{interval.soFar ? "now" : clock(interval.end, longSpan)}</span>
+                      </td>
+                      <td className="nowrap">{interval.soFar ? `${formatElapsed(interval.end - interval.start)} so far` : formatElapsed(interval.end - interval.start)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
       </div>
     </figure>
   );

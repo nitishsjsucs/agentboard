@@ -62,26 +62,75 @@ describe("StatusTimeBar", { tags: ["ui"] }, () => {
     ]);
   });
 
-  it("moves between intervals with the arrow keys, and the tooltip reads like the interval", () => {
+  it("moves between intervals with the arrow keys; the tooltip reads like the interval and the live region speaks only after a key", () => {
     render(<StatusTimeBar entries={SUCCEEDED} run={{ createdAt: at(0), status: "succeeded", finishedAt: at(1820) }} />);
     const bar = screen.getByTestId("status-bar");
     const tip = screen.getByTestId("status-tip");
+    const announcer = screen.getByTestId("interval-announcer");
+    const tipText = () => tip.firstChild?.textContent ?? "";
     expect(tip.textContent).toBe("");
+    // The tooltip is for the eye only; the live region is a separate, visually hidden status.
+    expect(tip.getAttribute("aria-hidden")).toBe("true");
+    expect(tip.getAttribute("role")).toBeNull();
+    expect(announcer.getAttribute("role")).toBe("status");
     fireEvent.focus(bar);
-    // Focus starts on the latest interval.
-    expect(tip.textContent).toBe(`running, ${time(1810)} to ${time(1820)} (10 s)`);
+    // Focus starts on the latest interval and shows the arrow-key hint; focusing announces nothing beyond the bar's name.
+    expect(tipText()).toBe(`running, ${time(1810)} to ${time(1820)} (10 s)`);
+    expect(screen.getByTestId("status-keys").textContent).toBe("Left and right arrow keys: other intervals");
+    expect(announcer.textContent).toBe("");
     fireEvent.keyDown(bar, { key: "ArrowLeft" });
-    expect(tip.textContent).toBe(`awaiting approval, ${time(10)} to ${time(1810)} (30 min)`);
-    expect(tip.getAttribute("role")).toBe("status");
+    expect(tipText()).toBe(`awaiting approval, ${time(10)} to ${time(1810)} (30 min)`);
+    expect(announcer.textContent).toBe(`awaiting approval, ${time(10)} to ${time(1810)} (30 min)`);
     fireEvent.keyDown(bar, { key: "Home" });
-    expect(tip.textContent).toBe(`queued, ${time(0)} to ${time(2)} (2 s)`);
+    expect(tipText()).toBe(`queued, ${time(0)} to ${time(2)} (2 s)`);
     fireEvent.keyDown(bar, { key: "ArrowLeft" });
-    expect(tip.textContent).toBe(`queued, ${time(0)} to ${time(2)} (2 s)`);
+    expect(announcer.textContent).toBe(`queued, ${time(0)} to ${time(2)} (2 s)`);
     fireEvent.keyDown(bar, { key: "End" });
     fireEvent.keyDown(bar, { key: "ArrowRight" });
-    expect(tip.textContent).toBe(`running, ${time(1810)} to ${time(1820)} (10 s)`);
+    expect(tipText()).toBe(`running, ${time(1810)} to ${time(1820)} (10 s)`);
     fireEvent.blur(bar);
     expect(tip.textContent).toBe("");
+    expect(announcer.textContent).toBe("");
+  });
+
+  it("shows the interval under the pointer without announcing it", () => {
+    render(<StatusTimeBar entries={SUCCEEDED} run={{ createdAt: at(0), status: "succeeded", finishedAt: at(1820) }} />);
+    const bar = screen.getByTestId("status-bar");
+    bar.getBoundingClientRect = () => ({ left: 0, width: 1820, top: 0, right: 1820, bottom: 24, height: 24, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.pointerMove(bar, { clientX: 900 });
+    expect(screen.getByTestId("status-tip").textContent).toBe(`awaiting approval, ${time(10)} to ${time(1810)} (30 min)`);
+    expect(screen.queryByTestId("status-keys")).toBeNull();
+    expect(screen.getByTestId("interval-announcer").textContent).toBe("");
+  });
+
+  it("names the bar without key instructions, and lists every interval with its start, end and duration behind 'Each interval'", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0 + 3_600_000);
+    const PAUSED = [created(), change(2, "queued", "planning"), change(5, "planning", "running"), change(10, "running", "paused"), change(70, "paused", "running"), change(80, "running", "awaiting_approval")];
+    render(<StatusTimeBar entries={PAUSED} run={{ createdAt: at(0), status: "awaiting_approval", finishedAt: null }} />);
+    const label = screen.getByTestId("status-bar").getAttribute("aria-label") ?? "";
+    expect(label).toBe(`Time in each status from ${time(0)} to now. The table below gives each status's total, and Each interval lists every interval with its start and end.`);
+    expect(label).not.toMatch(/arrow/i);
+    const toggle = screen.getByRole("button", { name: "Each interval (6)" });
+    const list = screen.getByTestId("status-intervals");
+    expect([toggle.getAttribute("aria-expanded"), toggle.getAttribute("aria-controls"), list.hidden]).toEqual(["false", list.id, true]);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(list.hidden).toBe(false);
+    const table = within(list).getByRole("table", { name: "Each interval, in order" });
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Status", "When", "Duration"]);
+    expect(within(list).getAllByTestId("interval-row").map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent))).toEqual([
+      ["queued", `${time(0)} to ${time(2)}`, "2 s"],
+      ["planning", `${time(2)} to ${time(5)}`, "3 s"],
+      ["running", `${time(5)} to ${time(10)}`, "5 s"],
+      ["paused", `${time(10)} to ${time(70)}`, "1 min"],
+      ["running", `${time(70)} to ${time(80)}`, "10 s"],
+      ["awaiting approval", `${time(80)} to now`, "58 min so far"],
+    ]);
+    // The swatch beside each status is the same class as its bar segment.
+    expect(within(list).getAllByTestId("interval-row").map((r) => r.querySelector(".status-swatch")?.classList.contains(`status--${r.querySelector("td")?.textContent?.replace(" ", "_")}`))).toEqual([true, true, true, true, true, true]);
+    fireEvent.click(toggle);
+    expect(list.hidden).toBe(true);
   });
 
   it("marks the open interval 'so far' and grows it from the client clock without a request", () => {

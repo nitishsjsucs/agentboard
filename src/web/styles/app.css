@@ -301,8 +301,10 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
   padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text);
   box-shadow: var(--shadow); font-size: var(--text-xs); white-space: normal; pointer-events: none;
 }
-/* Empty and boxless when hidden, but never display: none, so it stays a live region. */
+/* Empty and boxless when hidden. */
 .status-time__tip:not(.status-time__tip--shown) { padding: 0; border: 0; box-shadow: none; }
+/* The arrow-key hint shows only while the bar has focus; screen readers get the interval list instead. */
+.status-time__keys { display: block; color: var(--text-muted); }
 .status-time__table td, .status-time__table th { padding: 4px var(--space-3); }
 .status-time__name { display: inline-flex; align-items: baseline; gap: 6px; }
 .status-swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--status-colour); }
