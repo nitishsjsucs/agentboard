@@ -8,9 +8,9 @@ AgentBoard is an operations console for launching, monitoring and controlling ag
 
 **Live demo.** [`docs/DEMO.md`](docs/DEMO.md) is the interview walkthrough of the production deployment: an operator's request, an approval and a rejection in a second window, talking points tied to the results files, and a local fallback.
 
-**User workflows.** [`docs/USER-WORKFLOWS.md`](docs/USER-WORKFLOWS.md) walks through each persona's workflows in the console and lists what the 2026-10-15 workflow round changed and why, what a review of that round fixed, and the 2026-10-16 status views with screenshots: a plan map that shows which step blocks a run and what waits behind it, time in each status, a dashboard of the work that waits for a person, who acts next in the run lists, and what approving an approval unlocks.
+**User workflows.** [`docs/USER-WORKFLOWS.md`](docs/USER-WORKFLOWS.md) walks through each persona's workflows in the console and lists what the 2026-10-15 workflow round changed and why, what a review of that round fixed, and the [2026-10-16 status views](docs/USER-WORKFLOWS.md#changed-on-2026-10-16): a plan map that shows which step blocks a run and what waits behind it, time in each status, a dashboard of the work that waits for a person, who acts next in the run lists, what approving an approval unlocks, and the approval queue in order of expiry, with screenshots of each view at 1280 and 375 px in the light and dark themes.
 
-![Run detail for an offboarding waiting for its approval: the plan map rings s2, arcs its gating edges to s4 and s5, and says who acts; Time in each status follows (local build, synthetic data)](docs/screenshots/run-timeline-1280.png)
+![Run detail for an offboarding waiting for its approval: the plan map rings s2, arcs its gating edges to s4 and s5, and says who acts; Time in each status follows (local build, synthetic data)](docs/screenshots/run-timeline-1280-light.png)
 
 The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the main decisions in [`docs/adr/`](docs/adr) (coordinator leases and queues, the integration ledger and call-bound tokens, policy-owned approvals with gating edges, derived run status with recovery cascades, measured results with a staleness check), and the milestone demo scripts in [`demos/`](demos).
 
