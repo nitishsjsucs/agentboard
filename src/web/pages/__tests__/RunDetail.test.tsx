@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunDetailResponse } from "../../../shared/api-types.ts";
-import { apiError, reply, stubApi } from "../../components/__tests__/api.ts";
+import { apiError, pending, reply, stubApi } from "../../components/__tests__/api.ts";
 import { auditEvent, runDetail, snapshot } from "../../components/__tests__/fixtures.ts";
 import { renderAt } from "../../components/__tests__/session.tsx";
 import { useRunLive } from "../../api/useRunLive.ts";
@@ -252,5 +252,50 @@ describe("RunDetail time in each status and key events", { tags: ["ui"] }, () =>
     expect(await screen.findByText("No key events yet.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "All events (1)" }));
     expect(await screen.findByText("dispatched (attempt 1)")).toBeTruthy();
+  });
+
+  it("shows the loading line under the 'Time in each status' heading and in the Events card while the timeline is in flight", async () => {
+    stubApi(({ path }) => {
+      if (path === `/api/runs/${RUN}`) return reply(runDetail());
+      if (path === `/api/runs/${RUN}/timeline`) return pending();
+      return undefined;
+    });
+    page();
+    const loading = await screen.findByText("Loading the status history...");
+    expect(loading.getAttribute("role")).toBe("status");
+    const card = loading.closest(".card") as HTMLElement;
+    expect(within(card).getByRole("heading", { name: "Time in each status" })).toBeTruthy();
+    // No bar, no table and no "0%" stand in for a history that has not loaded.
+    expect(screen.queryByRole("figure", { name: "Time in each status" })).toBeNull();
+    expect(screen.queryByTestId("status-bar")).toBeNull();
+    const events = screen.getByRole("heading", { name: "Events" }).closest(".card") as HTMLElement;
+    expect(within(events).getByText("Loading events...").getAttribute("role")).toBe("status");
+    expect(within(events).getByRole("button", { name: "Key events" })).toBeTruthy();
+  });
+
+  it("shows an error card titled 'Time in each status' and an error in the Events card when the timeline fails, and Try again fetches it again", async () => {
+    let fail = true;
+    const api = stubApi(({ path }) => {
+      if (path === `/api/runs/${RUN}`) return reply(runDetail());
+      if (path === `/api/runs/${RUN}/timeline`) return fail ? apiError(500, "internal", "boom") : reply(ENTRIES);
+      return undefined;
+    });
+    page();
+    const heading = await screen.findByRole("heading", { name: "Time in each status" });
+    const card = heading.closest(".card") as HTMLElement;
+    expect((await within(card).findByRole("alert")).textContent).toContain("AgentBoard could not finish this request.");
+    expect(document.body.textContent).not.toContain("boom");
+    const events = screen.getByRole("heading", { name: "Events" }).closest(".card") as HTMLElement;
+    expect((await within(events).findByRole("alert")).textContent).toContain("AgentBoard could not finish this request.");
+    expect(within(events).queryByText("No events yet.")).toBeNull();
+
+    const timelineCalls = () => api.paths().filter((p) => p === `/api/runs/${RUN}/timeline`).length;
+    const before = timelineCalls();
+    fail = false;
+    fireEvent.click(within(card).getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(timelineCalls()).toBe(before + 1));
+    expect(await screen.findByRole("figure", { name: "Time in each status" })).toBeTruthy();
+    expect(within(events).queryByRole("alert")).toBeNull();
+    expect(await within(events).findByRole("button", { name: "Key events (6)" })).toBeTruthy();
   });
 });
