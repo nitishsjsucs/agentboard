@@ -1,6 +1,6 @@
 # User workflows
 
-How each kind of user moves through the AgentBoard console, as the code in this repository works now. Labels in quotes are the console's own text from `src/web`. The production deployment was built from commit `c9130b5` and does not have the changes listed under "Changed on 2026-10-15" and "Fixed after review (2026-10-15)" until it is redeployed.
+How each kind of user moves through the AgentBoard console, as the code in this repository works now. Labels in quotes are the console's own text from `src/web`. The production deployment was built from commit `c9130b5` and does not have the changes listed under "Changed on 2026-10-15", "Fixed after review (2026-10-15)" and "Changed on 2026-10-16" until it is redeployed.
 
 Everything People-related is simulated: the employees, the HRIS, ITSM, access-management and notification systems are seeded tables, not real systems.
 
@@ -40,8 +40,8 @@ A principal without a role binding sees one page: "You are signed in as <email>,
 
 Follow a run:
 
-1. Dashboard shows the counts, "Needs attention", "Recent runs" and "Agent roles"; the "Dead-letter queue" panel is for operators and admins.
-2. Open a run from "Recent runs" or Runs. The header shows the status badge and, when the run waits or needs attention, a notice that says why and who can act (for example "Waiting for an approver or an admin other than ops.lead@agentboard.test; the approval expires ...").
+1. Dashboard opens with "Needs a person": "Pending approvals" ("Approvers and admins decide these"), "Needs attention" (for example "oldest unchanged for 2 h" and "3 need an operator, 1 an admin"), "Held by a disabled role" and "Paused", each a link to where that work is. Under "Moving" one tile counts "Active (queued, planning, running)" with "longest without a change: ..." and a line reads "87 succeeded, 6 rejected, 4 cancelled (all time)." Then come the "Needs attention" and "Recent runs" lists and "Agent roles". A viewer gets no "Open dead letters" tile; that tile and the "Dead-letter queue" panel are for operators and admins.
+2. In the run lists, "Waiting on" says who acts next and why, in words ("Admin" and "out of budget", "Approver" and "waiting for an approval", "Admin" and "held: a role is disabled"). Open a run from "Recent runs" or Runs. The header shows the status badge and, when the run waits or needs attention, a notice that says why and who can act (for example "Waiting for an approver or an admin other than ops.lead@agentboard.test; the approval expires ..."). The Timeline tab starts with the "Plan map": one node per step in columns by dependency, the step that blocks the run ringed, and a sentence such as "Blocked at s2 hris.set_employment_status: waiting for an approver. s3, s4 and s5 run after it." Each node is a button; Enter moves focus to that step's row in the task list. Under it, "Time in each status" shows the run's life on one bar with a table (Status, Total time, Share, Intervals), and the Events card shows "Key events" unless "All events (N)" is pressed.
 3. The request line reads "Request text is hidden for your role (it needs personal-data access)."
 4. Use the tabs (Timeline, Tool calls, Approvals, Audit) with the mouse or with the arrow keys; the open tab is in the URL (`?tab=calls`), so a reload or a shared link keeps it.
 5. In Tool calls, open a call with its tool-name button or by clicking the row. A viewer sees "Personal data is redacted for your role: addresses show only city, region and country, and personal email addresses are masked." above the arguments and result.
@@ -72,7 +72,7 @@ If an agent role is disabled, the Launch page says so with the reason and who di
 
 Recover a run that needs attention:
 
-1. Open the run. The notice under the header names the cause and the next step for an operator (for example, with the stub planner: "The planner failed on every attempt." and "Cancel this run and launch a sample."; for a write the verifier found missing: "Retry s2 execute (hris.update_address) in Recovery to run the write again; retrying s2 verify only reads the record again.").
+1. Open the run. The plan map's sentence names the blocked step and who acts (for example "Blocked at s2 hris.update_address: verification failed: ... An operator or an admin can retry s2 execute to run the write again."), and its node is ringed. The notice under the header names the cause and the next step for an operator (for example, with the stub planner: "The planner failed on every attempt." and "Cancel this run and launch a sample."; for a write the verifier found missing: "Retry s2 execute (hris.update_address) in Recovery to run the write again; retrying s2 verify only reads the record again.").
 2. On a phone-width screen the Recovery card comes before the tabs when the run needs attention or is paused.
 3. Click a recovery button ("Pause run", "Cancel run", "Retry", "Release lease"). Task rows list a step's execute task before its verify task, and each task button's name for screen readers includes its task ("Retry s2 execute (hris.update_address)"). The dialog asks for "Reason (recorded in the audit log)"; Escape closes it, Tab stays inside it, and after Escape or Cancel focus returns to the button.
 4. Click "Confirm". The Recovery card says what happened ("Paused the run.", "Retry of the plan task requested.") or why the coordinator refused, in plain words, and focus moves to that line, because the command often replaces or removes its own button (Pause becomes Resume).
@@ -84,8 +84,8 @@ On their own runs an operator sees "You requested this run, so you cannot decide
 
 Decide approvals:
 
-1. Click "Approvals" ("Approval queue"). The status tabs (pending, approved, rejected, expired, all) are in the URL (`?status=rejected`) and work with the arrow keys.
-2. Each card shows the risk, the tool, the summary and a link named after the run's title.
+1. Click "Approvals" ("Approval queue"). The status tabs (pending, approved, rejected, expired, all) are in the URL (`?status=rejected`) and work with the arrow keys. The pending tab lists the approval that expires soonest first and opens with a line such as "3 waiting: 2 you can decide, 1 high risk. Next expires in 2 d 23 h." (other roles read "Approvers and admins decide them."). When more than 50 wait it says "50+ waiting; showing the 50 that expire soonest."
+2. Each card shows the risk, the tool, the summary, a link named after the run's title and, while pending, a time-left meter ("expires in 2 d 23 h (Oct 19, 12:58 AM)"; it turns to the warning colour under 24 hours and the danger colour under 6). "What approving unlocks" opens the plan: "Already ran", "Needs this approval", "Runs after approval" (for a termination: s3 access.revoke_all_roles, s4 itsm.create_ticket and s5 notify.send) and "If you reject, the run ends as rejected and no step that has not run yet will run." On the queue the first opening loads the run once; it stays open through the list's refresh.
 3. Type a note in "Decision note (required)" (the hint says "At least 3 characters"), then click "Approve" or "Reject".
 4. A status line confirms the decision ("Approved: <summary>. <run title> continues." or "Rejected: <summary>. The run ends as rejected; no writes ran.") with a link to the run, and focus moves to the next card's note.
 5. If someone else decided first, or the approval expired, the list refreshes, the status line says "This approval was already decided or has expired. The list now shows its current state.", and focus moves to the next card's note as after a decision.
@@ -96,7 +96,7 @@ Decide approvals:
 
 Control agents and the dead-letter queue:
 
-1. On the Dashboard, "Agent roles" offers "Disable" and "Enable" with an audited reason. While a role is disabled, runs that reach it show "Tasks are held because the executor role is disabled. An admin can enable it on the Dashboard."
+1. On the Dashboard, the "Held by a disabled role" tile counts runs that would be moving but wait on a disabled role ("executor role disabled; an admin can enable it") and links to "Agent roles", which offers "Disable" and "Enable" with an audited reason. While a role is disabled, runs that reach it show "Tasks are held because the executor role is disabled. An admin can enable it on the Dashboard."
 2. "Dead-letter queue" offers "Replay" for open dead letters. After a replay the panel says "Replayed <id>." or why it was refused, in plain words, and focus moves to that line (the replayed row loses its button).
 3. If a panel cannot load, it shows its own error card with "Try again" instead of disappearing.
 
@@ -115,7 +115,7 @@ Admins also hold every operator and approver workflow above, except deciding app
 - Each page has its own browser title ("Runs | AgentBoard", "Run: <title> | AgentBoard"), and after moving to another page focus is on its heading.
 - Loading data shows a "Loading ..." line, a failed load shows a plain message with "Try again", and data from an earlier load stays visible with "Showing data from <time>; the last refresh failed." when a refresh fails. Empty states appear only for empty answers.
 - Errors never show server internals (permission names, refusal codes, validation output). Server failures show a request id to quote.
-- Layouts work at 375 px wide: the nav wraps to a second, scrolling row of links, forms stack to one column and wide tables scroll inside their card. A dialog is never taller than the window and scrolls inside, so its buttons stay reachable on a phone in landscape. Nav links show their whole keyboard focus ring.
+- Layouts work at 375 px wide: the nav wraps to a second, scrolling row of links, forms stack to one column, run lists become cards (status and "Waiting on" first), the plan map becomes a vertical stepper with "after s2" in words, and other wide tables scroll inside their card. A dialog is never taller than the window and scrolls inside, so its buttons stay reachable on a phone in landscape. Nav links show their whole keyboard focus ring.
 
 ## Changed on 2026-10-15
 
@@ -149,3 +149,27 @@ A review of the round above drove each persona through the console with Playwrig
 7. **Approval queue.** After a conflict focus fell to the page body; it now moves to the next card's note. The status line stayed after switching tabs; it is now cleared.
 8. **Runs search box.** "Clear filters" left the old query in the box with no Clear button; the box now follows the query in the URL.
 9. **Short screens and focus rings.** A dialog taller than the window could not be scrolled, so the budget dialog's buttons were off screen at 812x375; dialogs now scroll inside. Nav link focus rings were clipped by the scrolling link row; they are drawn inside the link.
+
+## Changed on 2026-10-16
+
+A round of visuals that answer a question a persona actually has, each built from data the API already returned or from a small read-only addition with the same permission check. Each item is a commit in this repository with its tests. Screenshots were taken locally (`npm run serve:built` with synthetic runs launched through the API, Chromium through Playwright), not in production.
+
+1. **Plan map (every role: where is this run, which step blocks it, what waits behind that step).** The task list showed one card per task, so the gating edges that make every write wait for the approval were invisible, and the step that blocked a run had to be found by reading every row. The Timeline tab now starts with a map of the plan: one node per step in columns by dependency (a gating edge that skips steps arcs above the row), the blocking step ringed, and one sentence that names it and who acts, in the run notice's words. Every node shows its state as a word and an icon, so nothing depends on colour, and is a button named like "s3 access.revoke_all_roles, write, not started, runs after s2"; activating it moves focus to that step's execute row. It draws from the tasks the page already holds, so the run page makes the same requests as before. Below 721 px it is a vertical stepper whose sentence comes first. The task list became one dense row per task, so the map does not push the Events card down.
+2. **Time in each status (operator and approver: how long has this run been in its state, and where did its time go).** The answer was spread over about 30 to 50 audit rows. A bar on a real time axis now shows the run's intervals (waiting for an approval and paused in the warning colour, needing attention in the danger colour), with a table of each status's total time, share and number of intervals as its text alternative. The open interval grows from the client clock. The Events card shows key events by default (status changes, plan, approvals, final failures, retries, holds, budget and dead-letter events) and every event on request. The timeline API adds `statusFrom` and `statusTo` to status changes, as enum values only.
+3. **"Needs a person" on the Dashboard (operator and admin: where is work stuck, for how long, who must act; approver: how many approvals can I decide, and when does the next expire).** Eight equal tiles gave "succeeded 87" the same weight as "needs attention 6", and the approver's work was a small button in the header. The first row now holds only work that waits for a person, with ages and the actor in words, each tile a link to where the work is done. Finished runs are one line. Viewers and approvers no longer get a dead-letter count for a panel they cannot open (the API sends them null).
+4. **Who acts next in the run lists (operator: which runs need me and why; admin: which need an admin; approver: which wait on an approval).** The lists printed raw codes such as `budget_exhausted` and `task_failed:injected_permanent`, a run whose tasks were held by a disabled role read only "running", and at 375 px the table was 910 px wide in a 341 px box, so no row showed its status. A "Waiting on" column now names the actor and the reason in words, a held run reads "held: a role is disabled" with the Admin chip, and phones get one card per run with its status and "Waiting on" first.
+5. **What approving unlocks (approver, at the moment of decision: if I approve this, which writes run next on this person's record?).** The card showed only the gated step. Approving a termination also releases `access.revoke_all_roles`, which has no approval of its own. The card now lists what already ran, the step that needs this approval and the writes that run after it, and says what a rejection does.
+6. **Approval queue by urgency (approver: which approval should I decide first so none expires?).** The pending tab listed the newest first, 50 at a time with no paging, so once more than 50 waited the ones closest to expiring were not shown at all. It now lists the soonest expiry first and opens with a summary line, and each pending card has a time-left meter that turns to the warning colour under 24 hours and the danger colour under 6, with the time left always in words.
+
+![Dashboard at 1280 px as an operator: the "Needs a person" tiles, the Moving tile and the Needs attention list with its Waiting on column](screenshots/dashboard-1280.png)
+
+![Run detail at 1280 px for an offboarding waiting for its approval: the plan map with s2 ringed, the gating arcs to s4 and s5, the blocking sentence, and Time in each status](screenshots/run-timeline-1280.png)
+
+![The approval queue at 1280 px in the dark theme: the summary line, time-left meters, and What approving unlocks open on a termination](screenshots/approvals-1280-dark.png)
+
+At 375 px: the Dashboard in the dark theme (left), the Timeline tab's stepper and status table for a viewer in the dark theme (middle), and the run list as cards (right).
+
+<img src="screenshots/dashboard-375-dark.png" alt="Dashboard at 375 px in the dark theme: two compact tiles per row" width="250"> <img src="screenshots/run-timeline-375-dark.png" alt="Timeline tab at 375 px in the dark theme: the blocking sentence first, the vertical stepper, then Time in each status" width="250"> <img src="screenshots/runs-375.png" alt="Runs at 375 px: one card per run with its status and Waiting on chip first" width="250">
+
+Server changes in this round are read paths only, each behind `runs:read` like before: four fields added to `/api/metrics/summary` (and `dlqOpen` null without `dlq:read`), `heldTasks` on run summaries, the pending approvals' order and cursor, and two enum fields on timeline status changes. Authorization, approvals, idempotency, budgets and redaction are unchanged.
+
