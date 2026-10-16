@@ -5,6 +5,7 @@ import { App } from "../App.tsx";
 import type { Health } from "../api/hooks.ts";
 import { MESSAGES } from "../api/describeError.ts";
 import { apiError, opaqueRedirect, reply, stubApi } from "../components/__tests__/api.ts";
+import { metricsSummary } from "../components/__tests__/fixtures.ts";
 import { DEV_HEALTH, me } from "../components/__tests__/session.tsx";
 
 afterEach(() => {
@@ -111,7 +112,7 @@ describe("App session states", { tags: ["ui"] }, () => {
       if (path === "/api/me") return reply({ ...me("viewer", "viewer@example.test"), authMode: "access", environment: "production" });
       const override = answer();
       if (override) return override;
-      if (path === "/api/metrics/summary") return reply({ byStatus: {}, byType: {}, pendingApprovals: 0, needsAttention: 0, dlqOpen: 0 });
+      if (path === "/api/metrics/summary") return reply(metricsSummary());
       if (path.startsWith("/api/runs")) return reply({ items: [], nextCursor: null });
       if (path === "/api/agents") return reply({ roles: [] });
       return undefined;
@@ -154,7 +155,7 @@ describe("App navigation for keyboard and screen-reader users", { tags: ["ui"] }
     return stubApi(({ path }) => {
       if (path === "/api/health") return reply(DEV_HEALTH);
       if (path === "/api/me") return reply(me("operator", "ops.lead@agentboard.test"));
-      if (path === "/api/metrics/summary") return reply({ byStatus: {}, byType: {}, pendingApprovals: 0, needsAttention: 0, dlqOpen: 0 });
+      if (path === "/api/metrics/summary") return reply(metricsSummary());
       if (path.startsWith("/api/runs") || path.startsWith("/api/approvals") || path === "/api/dlq") return reply({ items: [], nextCursor: null });
       if (path === "/api/agents") return reply({ roles: [] });
       if (path === "/api/people/directory") return reply({ employees: EMPLOYEES });

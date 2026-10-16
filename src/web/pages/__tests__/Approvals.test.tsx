@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiError, pending, reply, stubApi } from "../../components/__tests__/api.ts";
 import { approvalItem } from "../../components/__tests__/fixtures.ts";
+import { managerChange } from "../../components/__tests__/planFixtures.ts";
 import { renderAt } from "../../components/__tests__/session.tsx";
 import { Approvals } from "../Approvals.tsx";
 
@@ -200,5 +201,100 @@ describe("Approvals status in the URL", { tags: ["ui"] }, () => {
     stubApi(() => reply({ items: [], nextCursor: null }));
     page("/approvals?status=bogus");
     expect(await screen.findByText("No pending approvals.")).toBeTruthy();
+  });
+});
+
+describe("Approvals: what approving unlocks", { tags: ["ui"] }, () => {
+  const first = approvalItem({ taskId: "m_x2" });
+  const second = approvalItem({ id: "apr_01J00000000000000000000002", runId: "run_01J00000000000000000000002", taskId: "m_x2", summary: "Change the manager of E-1048 to E-1003" });
+
+  it("loads each opened card's run once, keeps it open across list polls, and still moves focus to the next note after a decision", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let decided = false;
+    const api = stubApi(({ method, path }) => {
+      if (method === "POST") {
+        decided = true;
+        return reply({ ...first, status: "approved", canDecide: false });
+      }
+      if (path.startsWith("/api/runs/")) return reply({ run: {}, tasks: managerChange(), approvals: [] });
+      if (path.startsWith("/api/approvals")) return reply({ items: decided ? [second] : [first, second], nextCursor: null });
+      return undefined;
+    });
+    page();
+    const [toggle] = await screen.findAllByRole("button", { name: "What approving unlocks" });
+    fireEvent.click(toggle as HTMLElement);
+    expect(await screen.findByTestId("unlocks-after")).toBeTruthy();
+    const runFetches = () => api.paths().filter((p) => p.startsWith("/api/runs/"));
+    expect(runFetches()).toEqual([`/api/runs/${first.runId}`]);
+    // Two list polls later the card is still open and its run was not fetched again.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(api.paths().filter((p) => p.startsWith("/api/approvals?")).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByRole("button", { name: "What approving unlocks" })[0]?.getAttribute("aria-expanded")).toBe("true");
+    expect(runFetches()).toEqual([`/api/runs/${first.runId}`]);
+    // Deciding the open card still moves focus to the next card's note.
+    const [note] = screen.getAllByLabelText("Decision note");
+    fireEvent.change(note as HTMLElement, { target: { value: "Checked against the reorg plan." } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Approve" })[0] as HTMLElement);
+    await waitFor(() => expect(document.activeElement?.closest("[data-approval-id]")?.getAttribute("data-approval-id")).toBe(second.id));
+    expect(document.activeElement).toBe(screen.getByLabelText("Decision note"));
+    // The remaining card was never opened, so it made no request.
+    expect(screen.getByRole("button", { name: "What approving unlocks" }).getAttribute("aria-expanded")).toBe("false");
+    expect(runFetches()).toEqual([`/api/runs/${first.runId}`]);
+  });
+});
+
+describe("Approvals pending summary", { tags: ["ui"] }, () => {
+  const soon = new Date(Date.now() + (2 * 24 + 23) * 3_600_000 + 30_000).toISOString();
+  const later = new Date(Date.now() + 71 * 3_600_000).toISOString();
+  const items = [
+    approvalItem({ id: "apr_a", expiresAt: soon, risk: "high", canDecide: true }),
+    approvalItem({ id: "apr_b", expiresAt: later, canDecide: true }),
+    approvalItem({ id: "apr_c", expiresAt: later, canDecide: false, requester: "approver.lee@agentboard.test" }),
+  ];
+
+  it("tells an approver how many wait, how many they can decide and how many are high risk, and when the next expires", async () => {
+    stubApi(() => reply({ items, nextCursor: null }));
+    page();
+    expect((await screen.findByTestId("queue-summary")).textContent).toBe("3 waiting: 2 you can decide, 1 high risk. Next expires in 2 d 23 h.");
+    // Each pending card has its own time-left meter instead of the expiry date in the text line.
+    expect(screen.getAllByRole("meter", { name: "Time left to decide" })).toHaveLength(3);
+  });
+
+  it("tells a viewer who decides, and says when more wait than are shown", async () => {
+    stubApi(() => reply({ items, nextCursor: "next" }));
+    render(renderAt("viewer", <Approvals />, { url: "/approvals", path: "/approvals" }));
+    expect((await screen.findByTestId("queue-summary")).textContent).toBe("3+ waiting; showing the 3 that expire soonest. Approvers and admins decide them. Next expires in 2 d 23 h.");
+  });
+
+  it("shows no summary on an empty or a decided tab", async () => {
+    stubApi(({ path }) => reply({ items: path.includes("status=approved") ? [approvalItem({ status: "approved", canDecide: false })] : [], nextCursor: null }));
+    page();
+    expect(await screen.findByText("No pending approvals.")).toBeTruthy();
+    expect(screen.queryByTestId("queue-summary")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "approved" }));
+    await screen.findByText("Change the manager of E-1017 to E-1004");
+    expect(screen.queryByTestId("queue-summary")).toBeNull();
+    expect(screen.queryByRole("meter")).toBeNull();
+  });
+
+  it("keeps the server's soonest-first order, so focus after a decision lands on the next most urgent card", async () => {
+    let decided = false;
+    stubApi(({ method }) => {
+      if (method === "POST") {
+        decided = true;
+        return reply({ ...items[0], status: "approved", canDecide: false });
+      }
+      return reply({ items: decided ? items.slice(1) : items, nextCursor: null });
+    });
+    page();
+    await screen.findByTestId("queue-summary");
+    expect(screen.getAllByTestId("approval-card").map((c) => c.getAttribute("data-approval-id"))).toEqual(["apr_a", "apr_b", "apr_c"]);
+    const [note] = screen.getAllByLabelText("Decision note");
+    fireEvent.change(note as HTMLElement, { target: { value: "Checked." } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Approve" })[0] as HTMLElement);
+    await waitFor(() => expect(document.activeElement?.closest("[data-approval-id]")?.getAttribute("data-approval-id")).toBe("apr_b"));
+    await waitFor(() => expect(screen.getByTestId("queue-summary").textContent).toMatch(/^2 waiting: 1 you can decide, 0 high risk\./));
   });
 });

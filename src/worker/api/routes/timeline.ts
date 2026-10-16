@@ -1,5 +1,7 @@
 // One-line, PII-free summaries of run audit events for the timeline.
 
+import { RUN_STATUSES, type RunStatus } from "../../../shared/domain.ts";
+
 const str = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
 const DECISION_PAST: Record<string, string> = { approve: "approved", reject: "rejected" };
@@ -85,4 +87,18 @@ export function timelineSummary(action: string, d: Record<string, unknown>): str
     default:
       return action;
   }
+}
+
+const isRunStatus = (value: unknown): value is RunStatus => typeof value === "string" && (RUN_STATUSES as readonly string[]).includes(value);
+
+/**
+ * Structured fields a timeline entry carries besides its summary. Only run.status_changed has any: its
+ * from and to statuses, each only when it is a run status, so nothing free-form reaches the console.
+ */
+export function timelineFields(action: string, d: Record<string, unknown>): { statusFrom?: RunStatus; statusTo?: RunStatus } {
+  if (action !== "run.status_changed") return {};
+  const fields: { statusFrom?: RunStatus; statusTo?: RunStatus } = {};
+  if (isRunStatus(d["from"])) fields.statusFrom = d["from"];
+  if (isRunStatus(d["to"])) fields.statusTo = d["to"];
+  return fields;
 }

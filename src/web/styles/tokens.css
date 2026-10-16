@@ -23,6 +23,13 @@
   --info-soft: #e9eff8;
   --neutral-soft: #eceff3;
   --mark: #ffe58a;
+  /* Time in each status: the statuses of one family that can sit side by side on the bar get their own step
+     (planning next to running, paused next to awaiting approval), and needs attention moves off the warning's
+     lightness. Every pair that can touch keeps OKLab distance 15 or more for normal vision and 8 or more
+     under protanopia and deuteranopia, and 3:1 against the card. */
+  --status-planning: #082b5f;
+  --status-paused: #482700;
+  --status-attention: #e36655;
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --text-xs: 12px;
@@ -74,6 +81,9 @@
     --info-soft: #14283d;
     --neutral-soft: #262d36;
     --mark: #6b5a12;
+    --status-planning: #116bb5;
+    --status-paused: #836312;
+    --status-attention: #f75d56;
     --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
     --shadow-lg: 0 12px 32px rgb(0 0 0 / 55%);
     --backdrop: rgb(0 0 0 / 55%);

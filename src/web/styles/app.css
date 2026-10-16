@@ -150,3 +150,180 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-align: left; }
 .link-button:hover { text-decoration: underline; }
 .link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Tone colours for icons and marks; the word next to them always carries the meaning too. */
+.tone--success { color: var(--success); }
+.tone--info { color: var(--info); }
+.tone--warning { color: var(--warning); }
+.tone--danger { color: var(--danger); }
+.tone--faint { color: var(--text-faint); }
+
+/* Task list on the Timeline tab: one dense row per task inside one card. */
+.task-list { list-style: none; margin: 0; padding: 0; }
+.task-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.task-row:last-child { border-bottom: 0; }
+/* Rows take focus only from the plan map (tabIndex -1), so a plain :focus ring shows where it went. */
+.task-row:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.task-row__time { white-space: nowrap; }
+
+/* Plan map: nodes in columns by depth (144 px boxes at a 158 px pitch) and rows (76 px pitch), connectors behind them. */
+.plan-map { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.plan-map__figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.plan-map__caption { display: flex; align-items: baseline; gap: var(--space-1) var(--space-3); flex-wrap: wrap; }
+.plan-map__line { margin: 0; }
+.plan-map__note { margin: 0; font-size: var(--text-sm); color: var(--text); }
+/* A graph wider than the column scrolls inside the card; the padding leaves room for focus and blocker rings. */
+.plan-map__scroll { overflow-x: auto; padding: 6px; margin: -6px; }
+.plan-map__nodes { list-style: none; margin: 0; padding: 0; }
+.plan-map__edges { display: none; }
+/* Connectors carry the dependencies on wide screens, so they keep 3:1 against the card (--text-faint), and each ends in an arrowhead at the step that waits. */
+.plan-map__edges path { fill: none; stroke: var(--text-faint); stroke-width: 1; }
+.plan-map__edges .plan-map__arrow path { fill: var(--text-faint); stroke: none; }
+.plan-node {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-content: center; text-align: left;
+  width: 100%; padding: 3px 8px; border: 1px solid var(--border-strong); border-left-width: 3px; border-left-color: var(--node-tone); border-radius: var(--radius);
+  background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-xs); line-height: 14px; cursor: pointer;
+}
+.plan-node:hover { background: var(--surface-muted); }
+/* Keyboard focus is the accent outline; the blocking step is marked by a ring in its own state tone and the word "blocking", so the two never look alike. */
+.plan-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.plan-node--success { --node-tone: var(--success); --node-tone-soft: var(--success-soft); }
+.plan-node--info { --node-tone: var(--info); --node-tone-soft: var(--info-soft); }
+.plan-node--warning { --node-tone: var(--warning); --node-tone-soft: var(--warning-soft); }
+.plan-node--danger { --node-tone: var(--danger); --node-tone-soft: var(--danger-soft); }
+.plan-node--faint { --node-tone: var(--text-faint); --node-tone-soft: var(--neutral-soft); }
+.plan-node--blocker { box-shadow: 0 0 0 2px var(--node-tone); }
+.plan-node--blocker:focus-visible { outline-offset: 3px; }
+.plan-node__head { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.plan-node__id { font-weight: 650; }
+.plan-node__kind { color: var(--text-muted); }
+.plan-node__lock { color: var(--text-muted); flex: none; }
+.plan-node__flag { flex: none; margin-left: auto; padding: 0 4px; border-radius: 999px; background: var(--node-tone-soft); color: var(--node-tone); font-size: 11px; font-weight: 650; line-height: 14px; }
+.plan-node__tool { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* The state word is never cut: it may take a second line (for example "held: executor role disabled"). */
+.plan-node__state { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.plan-node__icon { flex: none; margin-top: 1px; }
+.plan-node__after { color: var(--text-muted); }
+@media (min-width: 721px) {
+  /* The plan line shares the caption's row when it fits, so the map adds as little height as it can above the task list. */
+  .plan-map__figure { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3); }
+  .plan-map__line { margin-left: auto; }
+  .plan-map__scroll { flex: 0 0 calc(100% + 12px); }
+  .plan-map__canvas { position: relative; width: calc((var(--cols) - 1) * 158px + 144px); height: calc((var(--rows) - 1) * 76px + 64px); margin-top: var(--arc-pad, 0px); }
+  .plan-map__edges { display: block; position: absolute; left: 0; top: 0; overflow: visible; }
+  .plan-map__item { position: absolute; left: calc(var(--col) * 158px); top: calc(var(--row) * 76px); width: 144px; height: 64px; }
+  .plan-node { height: 100%; }
+  .plan-node__after { display: none; }
+}
+@media (max-width: 720px) {
+  /* A vertical stepper: the same list in flow, a rail on the left, and "after s2" in words instead of connectors. */
+  .plan-map__note { order: -1; }
+  .plan-map__nodes { display: flex; flex-direction: column; gap: var(--space-2); margin-left: 3px; padding-left: var(--space-3); border-left: 2px solid var(--border); }
+  .plan-node { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-3); }
+  .plan-node__head { grid-column: 1; }
+  .plan-node__tool { grid-column: 2; }
+  .plan-node__state { grid-column: 1; }
+  .plan-node__after { grid-column: 2; }
+}
+/* Without colours (Windows high contrast): borders and words stay; the blocker keeps a heavier ring and its word. */
+@media (forced-colors: active) {
+  /* Box shadows are dropped there, so the blocker's ring becomes a double outline (it does not change the box size); focus stays a solid one. */
+  .plan-node--blocker { outline: 3px double CanvasText; outline-offset: 2px; }
+  .plan-node__flag { border: 1px solid CanvasText; }
+}
+
+/* Dashboard: "Needs a person" link tiles, the "Moving" row tile and the all-time line. */
+.dash-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.stat--link { display: block; color: var(--text); }
+.stat--link:hover { text-decoration: none; border-color: var(--accent); }
+.stat--link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stat__line { color: var(--text-muted); font-size: var(--text-xs); margin-top: 2px; }
+.stat--row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3); row-gap: 2px; padding: var(--space-3) var(--space-4); }
+.stat--row .stat__value { font-size: var(--text-xl); }
+.stat--row .stat__line { margin-top: 0; }
+.dash-finished { margin: 0; }
+.anchor-target:focus { outline: none; }
+@media (max-width: 720px) {
+  /* Two compact tiles per row: the value beside its label, the sub-lines across the tile. */
+  .stat, .stat--row { padding: 10px var(--space-3); }
+  .stat__value { font-size: 22px; }
+  .dash-section { gap: var(--space-2); }
+  .grid--stats { gap: var(--space-2); }
+  .grid--stats > .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); align-items: baseline; align-content: start; }
+  .grid--stats > .stat .stat__label { grid-column: 2; grid-row: 1; line-height: 1.25; }
+  .grid--stats > .stat .stat__value { grid-column: 1; grid-row: 1; line-height: 1.1; }
+  .grid--stats > .stat .stat__line { grid-column: 1 / -1; }
+}
+
+/* Run lists on phones: one card per run, status and who acts first. */
+.run-cards { list-style: none; margin: 0; padding: 0; }
+.run-card { display: flex; flex-direction: column; gap: 4px; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+.run-card:last-child { border-bottom: 0; }
+.run-card__title { font-weight: 560; }
+.nowrap { white-space: nowrap; }
+
+/* "What approving unlocks" on a pending approval card. */
+.unlocks { display: flex; flex-direction: column; gap: var(--space-2); }
+.unlocks__groups { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); background: var(--surface-muted); border-radius: var(--radius); }
+.unlocks__groups p { margin: 0; }
+.unlocks__group h4 { margin: 0 0 2px; font-size: var(--text-sm); font-weight: 620; }
+.unlocks__group ul { margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); }
+.unlocks__toggle { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; }
+.unlocks__chevron { transition: none; }
+.unlocks__toggle[aria-expanded="true"] .unlocks__chevron { transform: rotate(90deg); }
+
+/* Time left on a pending approval: the text, then a meter (fuller is closer to expiry). */
+.expiry { display: flex; flex-direction: column; gap: 4px; max-width: 360px; }
+.queue-summary { margin: 0; }
+
+/* Time in each status: one bar (12 px, 2 px surface gaps, 4 px rounded ends), an axis, and the table. */
+/* One colour per status, shared by its bar segments and its swatch in the table; no two statuses that can touch share one. */
+.status--queued { --status-colour: var(--text-faint); }
+.status--planning { --status-colour: var(--status-planning); }
+.status--running { --status-colour: var(--info); }
+.status--awaiting_approval { --status-colour: var(--warning); }
+.status--paused { --status-colour: var(--status-paused); }
+.status--needs_attention { --status-colour: var(--status-attention); }
+.status--succeeded { --status-colour: var(--success); }
+.status--rejected { --status-colour: var(--danger); }
+.status--cancelled { --status-colour: var(--text-faint); }
+.status-seg { fill: var(--status-colour); }
+.status-time { margin: 0; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.status-time__caption { display: flex; align-items: baseline; gap: var(--space-1) var(--space-3); flex-wrap: wrap; }
+.status-time__plot { position: relative; padding-top: var(--space-1); }
+.status-time__bar { display: block; padding: 6px 0; cursor: default; }
+.status-time__bar svg { display: block; overflow: visible; }
+.status-time__bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.status-seg--active { stroke: var(--text); stroke-width: 1.5; }
+.status-time__axis { display: flex; justify-content: space-between; gap: var(--space-2); }
+.status-time__tip {
+  position: absolute; bottom: calc(100% - 2px); z-index: 2; width: max-content; max-width: min(320px, 100%);
+  padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text);
+  box-shadow: var(--shadow); font-size: var(--text-xs); white-space: normal; pointer-events: none;
+}
+/* Empty and boxless when hidden. */
+.status-time__tip:not(.status-time__tip--shown) { padding: 0; border: 0; box-shadow: none; }
+/* The arrow-key hint shows only while the bar has focus; screen readers get the interval list instead. */
+.status-time__keys { display: block; color: var(--text-muted); }
+.status-time__table td, .status-time__table th { padding: 4px var(--space-3); }
+.status-time__name { display: inline-flex; align-items: baseline; gap: 6px; }
+.status-swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--status-colour); }
+.num { font-variant-numeric: tabular-nums; }
+@media (forced-colors: active) {
+  .status-swatch { border: 1px solid CanvasText; }
+}
+@media (max-width: 720px) {
+  /* Events on a phone: sequence, time and actor on one line, the event text full width below. */
+  .events-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .events-table tr { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  .events-table tr:last-child { border-bottom: 0; }
+  .events-table td { padding: 0; border: 0; }
+  .events-table__actor { overflow-wrap: anywhere; }
+  .events-table__event { grid-column: 1 / -1; overflow-wrap: anywhere; }
+}
+
+/* A pressed toggle (aria-pressed): the accent border and fill, and a heavier label, not colour alone. */
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 650; }
+@media (max-width: 720px) {
+  .status-time__table td, .status-time__table th { padding: 4px 6px; }
+}

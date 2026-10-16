@@ -1,17 +1,17 @@
 {
   "meta": {
-    "gitSha": "230719851539591c9346dfdb675b8f80b7699b31",
-    "commitDate": "2026-10-16T05:39:38.000Z",
-    "commitSubject": "docs: USER-WORKFLOWS and CHANGELOG for the fixes after the workflow review",
-    "measuredTree": "sha256:3848ce2f33e518f2b8602bd16fd5e0e5faa1449f3bbefcae682e405fc085955a",
+    "gitSha": "0439612617550e840869745b8476028e84a87403",
+    "commitDate": "2026-10-16T19:27:41.000Z",
+    "commitSubject": "docs: the status view fixes in USER-WORKFLOWS, DEMO, the CHANGELOG and the README, with new run detail screenshots",
+    "measuredTree": "sha256:5d4d456fddda06baaab37a3d760267a99c877fec75603bdb4a13884013d20de4",
     "dirty": false,
-    "generatedAt": "2026-10-16T05:44:34.673Z",
+    "generatedAt": "2026-10-16T19:53:40.051Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
     "provider": "stub",
     "model": "stub-gold-plans",
-    "bundleSha256": "b4004cc9f3629de81e7d62e5194b0965573f3b5b8156b1f32aea6f5b18f2033a",
+    "bundleSha256": "eb652032baf6ef0fa79b6af88dcb9279ef2c9ca6a7ec9f308e8116289a392c3e",
     "environment": "local wrangler dev (workerd, local D1, local queues)",
     "concurrency": 8
   },
@@ -104,11 +104,11 @@
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 7237,
-    "run_duration_ms_p95": 10922.79999999999,
-    "search_latency_ms_p50": 2.4619375000038417,
-    "search_latency_ms_p95": 3.265087849996053,
-    "driver_wall_clock_ms": 103921
+    "run_duration_ms_p50": 7221,
+    "run_duration_ms_p95": 10773.599999999991,
+    "search_latency_ms_p50": 1.9680000000007567,
+    "search_latency_ms_p95": 3.334664249997877,
+    "driver_wall_clock_ms": 103511
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"

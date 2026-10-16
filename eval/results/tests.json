@@ -1,20 +1,20 @@
 {
   "orchestration": 67,
-  "authz": 42,
-  "total": 109,
-  "passing": 109,
+  "authz": 43,
+  "total": 110,
+  "passing": 110,
   "passingByTag": {
     "orchestration": 67,
-    "authz": 42
+    "authz": 43
   },
   "vitestExitCode": 0,
   "meta": {
-    "gitSha": "230719851539591c9346dfdb675b8f80b7699b31",
-    "commitDate": "2026-10-16T05:39:38.000Z",
-    "commitSubject": "docs: USER-WORKFLOWS and CHANGELOG for the fixes after the workflow review",
-    "measuredTree": "sha256:3848ce2f33e518f2b8602bd16fd5e0e5faa1449f3bbefcae682e405fc085955a",
+    "gitSha": "0439612617550e840869745b8476028e84a87403",
+    "commitDate": "2026-10-16T19:27:41.000Z",
+    "commitSubject": "docs: the status view fixes in USER-WORKFLOWS, DEMO, the CHANGELOG and the README, with new run detail screenshots",
+    "measuredTree": "sha256:5d4d456fddda06baaab37a3d760267a99c877fec75603bdb4a13884013d20de4",
     "dirty": false,
-    "generatedAt": "2026-10-16T05:42:36.532Z",
+    "generatedAt": "2026-10-16T19:51:41.766Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,

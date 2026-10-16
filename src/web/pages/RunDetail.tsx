@@ -12,10 +12,13 @@ import { EmptyState } from "../components/EmptyState.tsx";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { NextStep } from "../components/NextStep.tsx";
+import { PlanMap } from "../components/PlanMap.tsx";
 import { LoadingLine, PolledView } from "../components/PolledView.tsx";
 import { RecoveryControls } from "../components/RecoveryControls.tsx";
+import { RunEvents } from "../components/RunEvents.tsx";
 import { formatTime } from "../components/RunTable.tsx";
 import { StatusBadge } from "../components/StatusBadge.tsx";
+import { StatusTimeBar } from "../components/StatusTimeBar.tsx";
 import { TabList, TabPanel } from "../components/Tabs.tsx";
 import { TaskTimeline } from "../components/TaskTimeline.tsx";
 import { ToolCallTrace } from "../components/ToolCallTrace.tsx";
@@ -163,44 +166,12 @@ export function RunDetail() {
           />
           <TabPanel id="run-tabs" tabKey="timeline" selected={tab === "timeline"}>
             <div className="stack">
+              <PlanMap tasks={snapshot.tasks} status={snapshot.status} />
+              <PolledView polled={timeline} loading="Loading the status history..." action="read the run's events" card="Time in each status">
+                {(entries) => <StatusTimeBar entries={entries} run={{ createdAt: run.createdAt, status: snapshot.status, finishedAt: run.finishedAt }} />}
+              </PolledView>
               <TaskTimeline tasks={snapshot.tasks} />
-              <div className="card">
-                <div className="card__header">
-                  <h3>Events</h3>
-                </div>
-                <PolledView polled={timeline} loading="Loading events..." action="read the run's events" padded>
-                  {(entries) =>
-                    entries.length === 0 ? (
-                      <EmptyState title="No events yet." />
-                    ) : (
-                      <div className="table-wrap">
-                        <table className="table">
-                          <thead>
-                            <tr>
-                              <th>Seq</th>
-                              <th>Time</th>
-                              <th>Actor</th>
-                              <th>Event</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {entries.map((entry) => (
-                              <tr key={entry.seq}>
-                                <td className="small faint">{entry.seq}</td>
-                                <td className="small mono">{new Date(entry.ts).toLocaleTimeString()}</td>
-                                <td className="small">{entry.actorId}</td>
-                                <td className="small">
-                                  <span className="mono">{entry.action}</span> {entry.summary}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )
-                  }
-                </PolledView>
-              </div>
+              <RunEvents timeline={timeline} />
             </div>
           </TabPanel>
           <TabPanel id="run-tabs" tabKey="calls" selected={tab === "calls"}>
@@ -214,7 +185,7 @@ export function RunDetail() {
             ) : (
               <div className="stack">
                 {data.approvals.map((approval) => (
-                  <ApprovalCard key={approval.id} approval={approval} onDecided={refresh} />
+                  <ApprovalCard key={approval.id} approval={approval} onDecided={refresh} tasks={snapshot.tasks} />
                 ))}
               </div>
             )}

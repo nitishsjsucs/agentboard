@@ -8,7 +8,9 @@ AgentBoard is an operations console for launching, monitoring and controlling ag
 
 **Live demo.** [`docs/DEMO.md`](docs/DEMO.md) is the interview walkthrough of the production deployment: an operator's request, an approval and a rejection in a second window, talking points tied to the results files, and a local fallback.
 
-**User workflows.** [`docs/USER-WORKFLOWS.md`](docs/USER-WORKFLOWS.md) walks through each persona's workflows in the console and lists what the 2026-10-15 workflow round changed and why, and what a review of that round fixed.
+**User workflows.** [`docs/USER-WORKFLOWS.md`](docs/USER-WORKFLOWS.md) walks through each persona's workflows in the console and lists what the 2026-10-15 workflow round changed and why, what a review of that round fixed, and the [2026-10-16 status views](docs/USER-WORKFLOWS.md#changed-on-2026-10-16): a plan map that shows which step blocks a run and what waits behind it, time in each status, a dashboard of the work that waits for a person, who acts next in the run lists, what approving an approval unlocks, and the approval queue in order of expiry, with screenshots of each view at 1280 and 375 px in the light and dark themes, and [what a review of those views fixed](docs/USER-WORKFLOWS.md#fixed-after-review-2026-10-16).
+
+![Run detail for an offboarding waiting for its approval: the plan map rings s2 and marks it blocking, arcs its gating edges from s2's top edge to s4 and s5, and says who acts; Time in each status follows (local build, synthetic data)](docs/screenshots/run-timeline-1280-light.png)
 
 The design is in [`SPEC.md`](SPEC.md), the domain terms in [`CONTEXT.md`](CONTEXT.md), the main decisions in [`docs/adr/`](docs/adr) (coordinator leases and queues, the integration ledger and call-bound tokens, policy-owned approvals with gating edges, derived run status with recovery cascades, measured results with a staleness check), and the milestone demo scripts in [`demos/`](demos).
 
@@ -247,7 +249,7 @@ What changed for the Free plan: one outbox flush makes at most 16 binding calls 
 
 - `npm test` runs five projects: `worker` (workerd), `worker-ws` (WebSockets, isolation off as the Cloudflare known-issues page requires), `worker-access` (production Access verification against an intercepted JWKS), `web` (React components, pages, the API client and the session flows in happy-dom) and `node` (script math and launchers).
 - `npm run test:sim` drives all 100 synthetic requests through the real API, queue, coordinator, agents and MCP tools in workerd, with the same driver as `eval:sim`.
-- 109 tests are tagged `orchestration` or `authz`: the 100 planned in SPEC section 13.1, plus 4 added with the fixes of an independent review (`plan-guard.test.ts` #2, `planner.test.ts` #5 and #6, `websocket-auth.test.ts` #5), 2 added with later fixes (`planner.test.ts` #7, planner tasks sharing a catalog read in flight; `websocket-auth.test.ts` #6, WebSocket reauthorization), 2 added with the fixes of a second review (`state-machine.test.ts` "verify and plan recovery ..."; `executor.test.ts` "journal fast path ...") and 1 added for the Free plan (`outbox-audit.test.ts` "one flush makes at most OUTBOX_ROUNDS_PER_FLUSH D1 calls ..."). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 131 React tests of components, pages, the API client and the session flows, eval math and results provenance, the deploy tooling, launchers and the toolchain gate) carry their own tags and are not part of that count.
+- 110 tests are tagged `orchestration` or `authz`: the 100 planned in SPEC section 13.1, plus 4 added with the fixes of an independent review (`plan-guard.test.ts` #2, `planner.test.ts` #5 and #6, `websocket-auth.test.ts` #5), 2 added with later fixes (`planner.test.ts` #7, planner tasks sharing a catalog read in flight; `websocket-auth.test.ts` #6, WebSocket reauthorization), 2 added with the fixes of a second review (`state-machine.test.ts` "verify and plan recovery ..."; `executor.test.ts` "journal fast path ..."), 1 added for the Free plan (`outbox-audit.test.ts` "one flush makes at most OUTBOX_ROUNDS_PER_FLUSH D1 calls ...") and 1 added with the dashboard's status counts (`metrics-summary.test.ts` "decidableByYou counts only approvals the principal could decide ..."). `npm run count:tests` counts them with `vitest list --tags-filter` and runs them for pass counts; CI checks the README against the count. The other tests (search, MCP tools and the dev-only `/mcp` route, LLM providers, the data generator, 317 web tests of React components and pages, the API client, the session flows, the plan, status and time helpers, the stylesheet and the status colours, eval math and results provenance, the deploy tooling, launchers and the toolchain gate) carry their own tags and are not part of that count.
 - `.github/workflows/ci.yml` runs on every branch push and pull request: `types:check`, `typecheck`, `synth:check`, `npm test`, `test:sim`, `count:tests -- --check`, `results:check` and `build`, then prints the worker bundle size. Its record on GitHub is under "History, pull requests and authorship" below. `preview.yml` and `release.yml` are described under "Preview deployments from pull requests" and Releases.
 
 ## Releases
@@ -291,7 +293,7 @@ Every number below is written by a script into `eval/results/*.json` and rendere
 
 ### Simulation (100 synthetic runs, local)
 
-Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-16 at commit `2307198`.
+Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, local D1, local queues; stub planner). Measured 2026-10-16 at commit `0439612`.
 
 | Metric | Value |
 |---|---|
@@ -313,14 +315,14 @@ Command: `npm run eval:sim` (wrangler dev on the built worker: local workerd, lo
 | Recovery actions | approval.decided 42, budget.raised 3, run.cancelled 4, run.paused 3, run.resumed 3, task.retried 8, task.skipped 4 |
 | Audit events; runs with a valid hash chain | 3228; 100/100 |
 | Search known-item smoke check (20 queries) at 1; at 5 | 20/20; 20/20 |
-| Run duration p50; p95 (local wall clock) | 7237 ms; 10923 ms |
+| Run duration p50; p95 (local wall clock) | 7221 ms; 10774 ms |
 | Search latency p50; p95 (local) | 2 ms; 3 ms |
 
 This distribution is fixed by the dataset design; outcome match is the measured agreement. It is not a success rate. Every failure above is injected by the dataset's fault directives, and every approval decision and recovery command is issued by the simulation driver acting as an operator, so the table measures how the system responds to those injected faults. The known-item search check is a smoke test of indexing and ranking (each query is unique by construction), not a retrieval-quality benchmark.
 
 ### Planner (local model)
 
-Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-16 at commit `2307198`.
+Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving `Qwen3-1.7B-Q4_0-rtn.gguf` (Q4_0), launched with `-np 1 -c 8192 -ngl 99 --reasoning off --jinja` (model file, 8192-token context and single slot read back from the server), temperature 0, seed 7, one request at a time. Measured 2026-10-16 at commit `0439612`.
 
 | Metric | Value |
 |---|---|
@@ -333,18 +335,18 @@ Command: `npm run eval:planner` against llama-server (b11146-7fe450e19) serving 
 | Tool-set F1 (macro) | 0.932 |
 | Argument accuracy (gold fields of matched steps) | 0.982 |
 | Unknown-tool rate (0 by construction: the output schema enumerates the allowed tools) | 0.000 |
-| Latency p50; p95 | 2288 ms; 6042 ms |
+| Latency p50; p95 | 3394 ms; 9610 ms |
 | Prompt tokens p50; max | 905; 1357 |
 
 ### Tests
 
-Command: `npm run count:tests`. Measured 2026-10-16 at commit `2307198`.
+Command: `npm run count:tests`. Measured 2026-10-16 at commit `0439612`.
 
-Tagged tests: 67 orchestration + 42 authorization = 109; passing: 109.
+Tagged tests: 67 orchestration + 43 authorization = 110; passing: 110.
 
 ### Production (Workers Free plan)
 
-Command: `npm run cf:verify -- --env production` against https://agentboard-production.nitish-ratakonda.workers.dev through Cloudflare Access with two service tokens; every run planned by Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`). Measured 2026-10-15 at commit `c9130b5`, deployed version `9b2bf0aa-0025-41e7-867d-9874f7e3a98c`. These numbers describe the code of that commit as deployed; `results:check` does not require later code to match them, because measuring again needs a deploy.
+Command: `npm run cf:verify -- --env production` against https://agentboard-production.nitish-ratakonda.workers.dev through Cloudflare Access with two service tokens; every run planned by Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`). Measured 2026-10-16 at commit `507b6e0`, deployed version `79e04dd3-893f-48f7-b400-d2b728e8ce2d`. These numbers describe the code of that commit as deployed; `results:check` does not require later code to match them, because measuring again needs a deploy.
 
 | Metric | Value |
 |---|---|
@@ -354,15 +356,15 @@ Command: `npm run cf:verify -- --env production` against https://agentboard-prod
 | Runs the verifier cancelled (needs attention or timed out) | 0 |
 | Runs with a valid audit hash chain | 4/4 |
 | Duplicate side effects per idempotency key; per run and step | 0; 0 (6 ledger rows) |
-| Tool calls | 14 |
-| Planner tokens; Workers AI neurons (bounds) | 3577; 17 to 109 |
+| Tool calls | 15 |
+| Planner tokens; Workers AI neurons (bounds) | 3609; 17 to 110 |
 | Unauthenticated request | 302 to the Access login: Access protects the hostname |
 | HTTP 5xx responses | 0 |
 | Invocations that exceeded a CPU or memory limit (wrangler tail) | not observed (wrangler tail delivered no events) |
 | Worker fetch invocations (Free plan limit: 10 ms CPU) | not observed |
 | Worker queue invocations | not observed |
-| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | 92 requests (success 92); p50 4.8 ms, p99 40.6 ms |
-| Run duration p50; p95 (production wall clock) | 46939 ms; 88291 ms |
+| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | 50 requests (success 50); p50 3.1 ms, p99 35.0 ms |
+| Run duration p50; p95 (production wall clock) | 14868 ms; 20381 ms |
 
 <!-- RESULTS:END -->
 

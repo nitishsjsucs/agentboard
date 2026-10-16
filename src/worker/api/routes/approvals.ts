@@ -56,28 +56,41 @@ export function canDecide(approval: ApprovalView, identity: Identity, now: numbe
   );
 }
 
+/** A decoded keyset cursor with exactly the sort key `key` and the id, both strings. */
+function isCursor(value: Record<string, string> | null, key: "at" | "exp"): value is Record<string, string> {
+  return value !== null && typeof value === "object" && Object.keys(value).length === 2 && typeof value[key] === "string" && typeof value["id"] === "string";
+}
+
 const REFUSAL_STATUS = { not_found: 404, already_decided: 409, expired: 409, self_approval: 403 } as const;
 
 export const approvalRoutes = new Hono<AppEnv>()
   .get("/api/approvals", requirePermission("runs:read"), validate("query", ApprovalListQuerySchema), async (c) => {
     const query = c.req.valid("query");
     const limit = query.limit ?? 50;
-    const after = decodeCursor<{ at: string; id: string }>(query.cursor);
+    // Pending approvals list soonest expiry first (the order an approver should decide them in, and the
+    // ones closest to expiring are never cut off by the page size); every other list is newest first.
+    const byExpiry = query.status === "pending";
     const clauses: string[] = [];
     const params: (string | number)[] = [];
     if (query.status) {
       clauses.push("a.status = ?");
       params.push(query.status);
     }
-    if (after) {
-      clauses.push("(a.requested_at < ? OR (a.requested_at = ? AND a.id < ?))");
-      params.push(after.at, after.at, after.id);
+    if (query.cursor) {
+      const after = decodeCursor<Record<string, string>>(query.cursor);
+      const key = byExpiry ? "exp" : "at";
+      if (!isCursor(after, key)) return apiError(c, 400, "invalid_request", "the cursor does not belong to this list and order", "invalid_cursor");
+      if (byExpiry) clauses.push("(a.expires_at > ? OR (a.expires_at = ? AND a.id > ?))");
+      else clauses.push("(a.requested_at < ? OR (a.requested_at = ? AND a.id < ?))");
+      const sortKey = String(after[key]);
+      params.push(sortKey, sortKey, String(after["id"]));
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+    const order = byExpiry ? "a.expires_at ASC, a.id ASC" : "a.requested_at DESC, a.id DESC";
     // The run's title and type come from the runs mirror, which runs:read already exposes through /api/runs.
     const { results } = await c.env.DB.prepare(
       `SELECT a.*, r.title AS run_title, r.request_type AS run_request_type FROM approvals a LEFT JOIN runs r ON r.id = a.run_id
-       ${where} ORDER BY a.requested_at DESC, a.id DESC LIMIT ?`,
+       ${where} ORDER BY ${order} LIMIT ?`,
     )
       .bind(...params, limit + 1)
       .all<ApprovalRow & { run_title: string | null; run_request_type: RequestType | null }>();
@@ -87,7 +100,8 @@ export const approvalRoutes = new Hono<AppEnv>()
       return { ...view, canDecide: canDecide(view, identity), runTitle: row.run_title, requestType: row.run_request_type };
     });
     const last = results.length > limit ? results[limit - 1] : undefined;
-    const page: Page<ApprovalListItem> = { items, nextCursor: last ? encodeCursor({ at: last.requested_at, id: last.id }) : null };
+    const nextCursor = last ? encodeCursor(byExpiry ? { exp: last.expires_at, id: last.id } : { at: last.requested_at, id: last.id }) : null;
+    const page: Page<ApprovalListItem> = { items, nextCursor };
     return c.json(page);
   })
   .post("/api/approvals/:id/decision", requirePermission("approvals:decide"), validate("json", DecisionRequestSchema), async (c) => {

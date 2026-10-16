@@ -17,7 +17,7 @@ How to read the evidence in this doc:
 |---|---|
 | URL | https://agentboard-production.nitish-ratakonda.workers.dev |
 | Login | Cloudflare Access, team `old-truth-a7dc`. One-time PIN is the only login method: type an allowed email, and a code arrives by email. All codes go to the `nitishsancs@gmail.com` inbox. |
-| Deployed code | version `9b2bf0aa-0025-41e7-867d-9874f7e3a98c`, built from commit `c9130b5` (`production.json`). Nothing under `src` has changed since. |
+| Deployed code | version `9b2bf0aa-0025-41e7-867d-9874f7e3a98c`, built from commit `c9130b5` (`production.json`). The console has changed since (`docs/USER-WORKFLOWS.md`: the 2026-10-15 and 2026-10-16 rounds), and production shows those changes only after a redeploy (`npm run cf:setup -- --env production`). Steps 2, 5 and 6 below describe the repository's console; until the redeploy, production shows the older stat cards, task cards and approval cards. |
 | Planner model | Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway, with Qwen3's thinking turned off by `/no_think` |
 
 The production personas, as `npm run cf:setup` binds them (`scripts/cloudflare/env.ts`):
@@ -62,7 +62,7 @@ Launch both requests at the start, because planning takes a while. In production
 |---|---|---|---|
 | 0:00 | 1 (operator) | Show the dashboard. Point at the nav bar: the `production` badge, your email and the `operator` badge. | What it is. The People org is simulated; the Cloudflare stack is real. |
 | 0:30 | 1 | Launch the manager change (step 3 below), then the privileged grant (step 4). | The planner is the only model. The request text is treated as untrusted data, and policy lives in code. |
-| 1:15 | 1 | Open the manager change run. On the Timeline, `Plan` comes first, then one row per step. One step carries the `approval` badge and shows `awaiting approval`. | One coordinator per run, leases, gating edges: before an approval, only reads run. |
+| 1:15 | 1 | Open the manager change run. On the Timeline, the "Plan map" comes first: the `hris.update_manager` step carries the lock, reads `waiting for approval` and is marked `blocking`, a connector with an arrowhead runs from it to the notification step, and the sentence under the map names the blocked step and who acts. One row per task follows. | One coordinator per run, leases, gating edges: before an approval, only reads run. |
 | 2:00 | 1 | Open its approval. It says "You requested this run, so you cannot decide its approval." | Separation of duties. The notice is the console's own-run check. The operator role lacks `approvals:decide`, so the API would refuse any decision with 403 `missing_permission` before the coordinator. The coordinator's `self_approval` rule covers admins, the only role that can both launch and approve (`approvals-sod.test.ts`). |
 | 2:30 | 2 (approver) | `Approvals`: approve the manager change, reject the privileged grant. Each needs a note. | Risk levels come from policy: `medium risk` for a manager change, `high risk` for a privileged grant. |
 | 3:15 | 1 | The manager change reaches `succeeded`. In `Tool calls`, expand the `hris.update_manager` row to show its idempotency key. In `Audit`, show "Hash chain verified". | Call-bound tokens, the integration ledger, the verifier, the hash chain. |
@@ -87,9 +87,10 @@ If asked how identity works: Access adds a JWT in the `Cf-Access-Jwt-Assertion` 
 ### 2. Dashboard (window 1)
 
 - The heading is `Dashboard`, with the line "Agent runs serving a simulated People-operations team."
-- Stat cards: "active (queued, planning, running)", "awaiting approval", "needs attention", "paused", "succeeded", "rejected", "cancelled" and "open dead letters".
+- "Needs a person" tiles: "Pending approvals" (for the operator, "Approvers and admins decide these"), "Needs attention", "Held by a disabled role", "Paused" and "Open dead letters". Under "Moving", the tile "Active (queued, planning, running)" and the line "N succeeded, N rejected, N cancelled (all time)."
+- The run lists' "Waiting on" column says who acts next, in words (for example "Approver" and "waiting for an approval").
 - "Recent runs" can already list runs from 2026-10-15. Those whose requester starts with `svc:` were launched by `cf:verify` through a service token. `cf:verify` also cancels any run that needs attention or times out.
-- Expect `cancelled` `svc:` runs, and a matching count on the "cancelled" stat card. They are most likely the first production verification, the one before `/no_think`: 2 of its 4 planner tasks failed as `agent_exception` on every attempt (`PROGRESS.md`), and `cf:verify` cancels a run that needs attention. That is talking point 7. Confirm the count during the rehearsal.
+- Expect `cancelled` `svc:` runs, and a matching "cancelled" count in the all-time line. They are most likely the first production verification, the one before `/no_think`: 2 of its 4 planner tasks failed as `agent_exception` on every attempt (`PROGRESS.md`), and `cf:verify` cancels a run that needs attention. That is talking point 7. Confirm the count during the rehearsal.
 - "Agent roles" carries the note "planner calls a model; executor and verifier are deterministic".
 - The "Dead-letter queue" panel is shown to operators and admins only.
 
@@ -134,8 +135,10 @@ Open the manager change from `Runs` or the dashboard.
 - The header shows the breadcrumb "Runs / run_..." and a live indicator. It reads `live` while the WebSocket is connected and `offline` otherwise. The page also polls every 5 s (`usePolling` and `LiveIndicator` in `src/web`), so the demo works either way.
 - The title is "Manager change for Soren Galloway (E-1029)". The status badge moves from `queued` to `planning`, then `running`, then `awaiting approval`.
 - The meters are `Tool calls`, `LLM tokens` and `Active time (s)`. The default token budget is 6000 per run (`DEFAULT_BUDGET` in `src/shared/domain.ts`).
-- On the `Timeline` tab, `Plan` comes first, then one row per step (`s1 execute`, `s2 execute`, and so on), with a `verify` task after each write. The `hris.update_manager` step carries the `approval` badge and stays `awaiting approval`. While a task runs, its row reads "leased by executor-0, epoch 1, until ...". The owner and epoch vary. The model numbers the steps, so they can differ from run to run.
-- The Events table under the timeline lists audit actions such as `plan.accepted`, `task.leased`, `tool.called` and `approval.requested`.
+- On the `Timeline` tab, the "Plan map" comes first: one node per step, in columns by dependency. The `hris.update_manager` node carries the lock, reads `waiting for approval` and is marked `blocking` inside an amber ring. On a wide screen a connector with an arrowhead runs from it to the notification step; on a phone the notification step reads `after s2`. At any width its name for screen readers ends "runs after s2". The sentence under the map reads like "Blocked at s2 hris.update_manager: waiting for an approver. s3 runs after it." The step ids are the ones the plan uses (s1 to s3 in the dataset's plan for this request). On an offboarding, s3 to s5 wait behind the termination step, and the edges that skip steps arc above the row from its top edge to theirs. Activating a node moves focus to its task row.
+- "Time in each status" follows: one bar from the run's creation to now and a table (Status, Total time, Share, Intervals); "Each interval (N)" opens a list of every interval with when it ran and how long. While the approval waits, "awaiting approval" grows with "so far".
+- Then one row per task: `Plan` first, then `s1 execute`, `s2 execute`, and so on, with a `verify` task after each write. The `hris.update_manager` row carries the `approval` badge and stays `awaiting approval`. While a task runs, its row reads "leased by executor-0, epoch 1, until ...". The owner and epoch vary. The model numbers the steps, so they can differ from run to run.
+- The Events card shows "Key events" by default (`run.created`, the status changes, `plan.accepted`, `approval.requested`); "All events (N)" adds `task.leased`, `task.dispatched` and `tool.called`.
 - Open `Approvals (1)`. The card shows `pending`, `medium risk`, `hris.update_manager` and "Change the manager of E-1029 to E-1004", plus the notice "You requested this run, so you cannot decide its approval." The note field and both buttons are disabled.
 
 Say: gating edges make every other write depend on the verification of the gated step, so before the approval only reads have run.
@@ -144,7 +147,8 @@ Say, about the notice: it is the console's own-run check. This operator could no
 
 ### 6. Decide in window 2 (approver)
 
-- Click `Approvals`. The page is "Approval queue", and the `pending` tab shows both cards: "Change the manager of E-1029 to E-1004" (`medium risk`) and "Grant okta:super-admin to E-1024" (`high risk`).
+- Click `Approvals`. The page is "Approval queue", and the `pending` tab shows both cards, the one that expires soonest first, under a line such as "2 waiting: 2 you can decide, 1 high risk. Next expires in 2 d 23 h.": "Change the manager of E-1029 to E-1004" (`medium risk`) and "Grant okta:super-admin to E-1024" (`high risk`). Each has a time-left meter.
+- Open "What approving unlocks" on the manager change: "Already ran" lists the read, "Needs this approval" the `hris.update_manager` step, and "Runs after approval" the notification. Say: on a termination the same list shows `access.revoke_all_roles`, the laptop ticket and the notification after the status change, which is how an approver sees that approving it also releases the revoke, which has no approval of its own.
 - On the manager change, type a note in "Decision note (required)", for example `Checked against the reorg plan.`, and click `Approve`. The buttons stay disabled until the note has at least 3 characters.
 - On the privileged grant, type `Rejected: no business justification.` and click `Reject`.
 
@@ -324,7 +328,7 @@ It was built with Claude Code, an AI coding agent, from `SPEC.md`, in rounds rec
 2. Open `http://127.0.0.1:8784/dev/login` and click "Ops Lead" (operator). These local principals come from `seed/console.sql` and do not exist in production.
 3. On `Launch`, pick `syn-0022: manager change for E-1017` from "Sample request (dev only)", then click `Launch run`. Do the same with `syn-0002: privileged access for E-1024`.
 4. Click "switch user" in the nav, then "Lee Approver". On `Approvals`, write a note, then `Approve` the manager change and `Reject` the grant.
-5. The run page, tabs and labels are the same as in production. Say up front what differs: a banner reads "Simulation mode: fault injection is on. The People systems and every employee are simulated.", and the planner is the deterministic stub, as a notice on the Launch page says. This shows orchestration, not Workers AI.
+5. The run page, tabs and labels are the repository's, which production shows only after a redeploy (see "At a glance"). Say up front what differs: a banner reads "Simulation mode: fault injection is on. The People systems and every employee are simulated.", and the planner is the deterministic stub, as a notice on the Launch page says. This shows orchestration, not Workers AI.
 6. For failure recovery, run `npm run test:sim`. It drives all 100 synthetic requests, with their injected faults, through the real API, queue, coordinator, agents and MCP tools in workerd. It asserts every outcome, valid chains and zero duplicate side effects, and it is short enough to run while you talk. Do not run `npm run eval:sim` in an interview, because it rewrites `eval/results/simulation.json`.
 7. Stop the server with Ctrl+C.
 
@@ -362,9 +366,9 @@ On 2026-10-15 the same requests were sent to the built worker (`npm run serve:bu
 ## Sources
 
 - `eval/results/production.json`: production verification, 2026-10-15, commit `c9130b5`
-- `eval/results/simulation.json`: 100-run local simulation, commit `0dbe380`
+- `eval/results/simulation.json`: 100-run local simulation, commit `471041c` (the counts quoted above are the same at every measurement since `0dbe380`)
 - `eval/results/planner-qwen3-1.7b-q4_0.json`: local planner eval
-- `eval/results/tests.json`: tagged test count, 109 (67 orchestration, 42 authorization), all passing
+- `eval/results/tests.json`: tagged test count, 110 (67 orchestration, 43 authorization), all passing
 - `scripts/cloudflare/env.ts`: production personas and roles
 - `src/web/`: every label quoted above
 - `docs/adr/`: design decisions; `README.md`: architecture, Free plan limits, limitations; `PROGRESS.md`: what is done and what is left
