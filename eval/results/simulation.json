@@ -1,11 +1,11 @@
 {
   "meta": {
-    "gitSha": "471041cf41f94297637f1bff4c9ae290e166b9e9",
-    "commitDate": "2026-10-16T18:25:22.000Z",
-    "commitSubject": "docs: screenshots of every status view at 1280 and 375 px in both themes",
-    "measuredTree": "sha256:a76b3f9c5c4673beedfbf5f164330c3fff5be06d91aa2d5038941f7a69a1a137",
+    "gitSha": "0439612617550e840869745b8476028e84a87403",
+    "commitDate": "2026-10-16T19:27:41.000Z",
+    "commitSubject": "docs: the status view fixes in USER-WORKFLOWS, DEMO, the CHANGELOG and the README, with new run detail screenshots",
+    "measuredTree": "sha256:5d4d456fddda06baaab37a3d760267a99c877fec75603bdb4a13884013d20de4",
     "dirty": false,
-    "generatedAt": "2026-10-16T18:28:49.294Z",
+    "generatedAt": "2026-10-16T19:53:40.051Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
@@ -104,11 +104,11 @@
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 7242,
-    "run_duration_ms_p95": 10819.799999999992,
-    "search_latency_ms_p50": 1.8923960000029183,
-    "search_latency_ms_p95": 2.7280312500006403,
-    "driver_wall_clock_ms": 103981
+    "run_duration_ms_p50": 7221,
+    "run_duration_ms_p95": 10773.599999999991,
+    "search_latency_ms_p50": 1.9680000000007567,
+    "search_latency_ms_p95": 3.334664249997877,
+    "driver_wall_clock_ms": 103511
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"
