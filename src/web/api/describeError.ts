@@ -23,6 +23,7 @@ export interface ErrorContext {
 export const MESSAGES = {
   network: "Could not reach AgentBoard. Check the connection and try again.",
   unavailable: "AgentBoard sent an unexpected response. If your session ended, reload the page to sign in again.",
+  redirected: "Your session may have ended: the request was sent to a sign-in page. Reload the page to sign in again.",
   sessionEnded: "Your session ended. Sign in again.",
   selfApproval: "You requested this run, so you cannot decide its approval.",
   notFound: "Not found. It may have been mistyped, or it belongs to another environment.",
@@ -46,10 +47,12 @@ export function describeError(error: unknown, context: ErrorContext = {}): Error
     if (error instanceof Error && error.message) return { message: error.message };
     return { message: MESSAGES.server };
   }
-  if (error.code === "network") return { message: MESSAGES.network };
-  if (error.code === "unavailable") return { message: MESSAGES.unavailable };
   const status = error.status;
   if (status === 401) return { message: MESSAGES.sessionEnded };
+  if (error.code === "network") return { message: MESSAGES.network };
+  if (error.code === "redirected") return { message: MESSAGES.redirected };
+  // An HTML page instead of JSON: a 5xx one is a gateway or Worker failure, anything else may be a sign-in page.
+  if (error.code === "unavailable") return { message: status >= 500 ? MESSAGES.server : MESSAGES.unavailable };
   if (status === 403) {
     if (error.reason === "no_role_binding") {
       const who = me?.principal.email ?? me?.principal.id ?? "this account";

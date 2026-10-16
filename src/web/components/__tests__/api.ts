@@ -36,6 +36,17 @@ export function stubApi(handler: Handler) {
   return { fetch, seen, paths: () => seen.map((s) => s.path) };
 }
 
+/**
+ * What a browser's fetch with redirect: "manual" returns for any 3xx, such as Cloudflare Access sending
+ * an expired session to its login page: an opaque redirect (type "opaqueredirect", status 0, no body).
+ * A Response cannot be constructed with that type, so the fields are set on an instance.
+ */
+export function opaqueRedirect(): Response {
+  const response = new Response(null, { status: 200 });
+  Object.defineProperties(response, { type: { value: "opaqueredirect" }, status: { value: 0 }, ok: { value: false } });
+  return response;
+}
+
 /** A promise that never settles: a request still in flight. */
 export function pending(): Promise<Response> {
   return new Promise<Response>(() => undefined);

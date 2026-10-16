@@ -38,7 +38,10 @@ function newClientRequestId(): string {
   return `web-${crypto.randomUUID()}`;
 }
 
-/** A failure after which the request may or may not have reached the server. */
+/**
+ * A failure after which the request may or may not have reached the server. A redirect is not one: the
+ * API never redirects, so the request stopped in front of the Worker (behind Access, at its login page).
+ */
 function mayHaveLanded(error: unknown): boolean {
   return error instanceof ApiRequestError && (error.code === "network" || error.code === "unavailable");
 }

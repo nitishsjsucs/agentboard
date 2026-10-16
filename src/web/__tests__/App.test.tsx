@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MeResponse } from "../../shared/api-types.ts";
 import { App } from "../App.tsx";
 import type { Health } from "../api/hooks.ts";
-import { apiError, reply, stubApi } from "../components/__tests__/api.ts";
+import { MESSAGES } from "../api/describeError.ts";
+import { apiError, opaqueRedirect, reply, stubApi } from "../components/__tests__/api.ts";
 import { DEV_HEALTH, me } from "../components/__tests__/session.tsx";
 
 afterEach(() => {
@@ -93,17 +94,25 @@ describe("App session states", { tags: ["ui"] }, () => {
     expect(api.paths()).toContain("/api/dev/login");
   });
 
-  it("behind Access, answers a login page instead of JSON with a Reload banner and stays on the page", async () => {
-    let expired = false;
-    stubApi(({ path }) => {
+  /** A viewer behind Access on /runs; once `answer` returns a Response, every other /api request gets it. */
+  function accessViewer(answer: () => Response | undefined) {
+    return stubApi(({ path }) => {
       if (path === "/api/health") return reply(ACCESS_HEALTH);
       if (path === "/api/me") return reply({ ...me("viewer", "viewer@example.test"), authMode: "access", environment: "production" });
-      if (expired) return new Response("<!doctype html><title>Sign in</title>", { status: 200, headers: { "Content-Type": "text/html" } });
+      const override = answer();
+      if (override) return override;
       if (path === "/api/metrics/summary") return reply({ byStatus: {}, byType: {}, pendingApprovals: 0, needsAttention: 0, dlqOpen: 0 });
       if (path.startsWith("/api/runs")) return reply({ items: [], nextCursor: null });
       if (path === "/api/agents") return reply({ roles: [] });
       return undefined;
     });
+  }
+
+  it("behind Access, shows a Reload banner and stays on the page when an expired session is redirected to the login page", async () => {
+    // Production answers an expired session with 302 to the team's cross-origin login page; the client
+    // does not follow it, so the browser hands back an opaque redirect.
+    let expired = false;
+    accessViewer(() => (expired ? opaqueRedirect() : undefined));
     window.history.replaceState(null, "", "/runs?status=paused");
     render(<App />);
     await screen.findByText("No runs match.");
@@ -114,6 +123,19 @@ describe("App session states", { tags: ["ui"] }, () => {
     expect(window.location.pathname).toBe("/");
     expect(screen.queryByRole("link", { name: "switch user" })).toBeNull();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Dashboard" })).toBeTruthy());
+  });
+
+  it("behind Access, treats a 5xx HTML error page as a server failure, not an ended session", async () => {
+    let failing = false;
+    accessViewer(() => (failing ? new Response("<!doctype html><title>Error 1102</title>", { status: 503, headers: { "Content-Type": "text/html" } }) : undefined));
+    window.history.replaceState(null, "", "/runs?status=paused");
+    render(<App />);
+    await screen.findByText("No runs match.");
+    failing = true;
+    fireEvent.click(screen.getByRole("link", { name: "Dashboard" }));
+    expect((await screen.findAllByText(MESSAGES.server, { exact: false })).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Your Cloudflare Access session may have ended. Reload to sign in again.")).toBeNull();
+    expect(document.querySelector(".session-banner")).toBeNull();
   });
 });
 

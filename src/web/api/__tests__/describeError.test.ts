@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiError } from "../../components/__tests__/api.ts";
+import { apiError, opaqueRedirect } from "../../components/__tests__/api.ts";
 import { me } from "../../components/__tests__/session.tsx";
 import { api, ApiRequestError } from "../client.ts";
 import { describeError, MESSAGES } from "../describeError.ts";
@@ -83,6 +83,13 @@ describe("describeError", { tags: ["ui"] }, () => {
     const error = await failure(new Response("<!doctype html><title>Sign in</title>", { status: 200, headers: { "Content-Type": "text/html" } }));
     expect(describeError(error)).toEqual({ message: MESSAGES.unavailable });
     expect(describeError(new SyntaxError("Unexpected token '<'"))).toEqual({ message: MESSAGES.unavailable });
+  });
+
+  it("says a redirect probably means a sign-in page, and calls a 5xx HTML page a server failure, not a session end", async () => {
+    expect(describeError(await failure(opaqueRedirect()))).toEqual({ message: MESSAGES.redirected });
+    expect(describeError(await failure(new Response("<html>Error 1102</html>", { status: 503, headers: { "Content-Type": "text/html" } })))).toEqual({ message: MESSAGES.server });
+    // A 401 sign-in page reads as an ended session even though its body is HTML.
+    expect(describeError(await failure(new Response("<html>Sign in</html>", { status: 401 })))).toEqual({ message: MESSAGES.sessionEnded });
   });
 
   it("keeps the request id for a 500 and leaves it out for 4xx", async () => {

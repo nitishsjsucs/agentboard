@@ -4,10 +4,12 @@
 import type { ApiError } from "../../shared/api-types.ts";
 
 /**
- * The server's error codes, plus two the client adds: `network` (the request never got an answer)
- * and `unavailable` (the answer was not AgentBoard JSON, for example an Access login or error page).
+ * The server's error codes, plus three the client adds: `network` (the request never got an answer),
+ * `redirected` (the answer was a redirect, which AgentBoard's API never sends: Cloudflare Access sends
+ * an expired session to its login page this way) and `unavailable` (the answer was not AgentBoard
+ * JSON, for example an HTML login or error page).
  */
-export type ClientErrorCode = ApiError["error"]["code"] | "network" | "unavailable";
+export type ClientErrorCode = ApiError["error"]["code"] | "network" | "redirected" | "unavailable";
 
 export class ApiRequestError extends Error {
   /** HTTP status; 0 when the request got no answer. */
@@ -27,7 +29,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-/** What a request saw that may mean the session ended: a 401, or a non-JSON page (an Access login page). */
+/** What a request saw that may mean the session ended: a 401, a redirect, or a non-JSON page below 500. */
 export interface SessionProblem {
   status: number;
   code: ClientErrorCode;
@@ -35,8 +37,9 @@ export interface SessionProblem {
 }
 
 /**
- * Every 401 and every non-JSON answer is announced here as a "problem" event, so the session can show a
- * banner without the page navigating away (and losing what the user typed).
+ * Every 401, every redirect and every non-JSON answer below 500 is announced here as a "problem" event,
+ * so the session can show a banner without the page navigating away (and losing what the user typed).
+ * A non-JSON 5xx page is a gateway or Worker failure, not a sign-in page, so it is not announced.
  */
 export const sessionEvents = new EventTarget();
 
@@ -56,6 +59,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     response = await fetch(path, {
       method,
       credentials: "same-origin",
+      // Behind Access an expired session answers 302 to the cross-origin login page. Followed, that is a
+      // CORS failure indistinguishable from being offline; not followed, it is an opaque redirect.
+      redirect: "manual",
       headers: {
         "X-AgentBoard-Client": "web",
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -63,8 +69,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   } catch {
-    // fetch rejects only when no answer arrived (offline, DNS, a blocked cross-origin redirect).
+    // fetch rejects only when no answer arrived (offline, DNS, a blocked request).
     throw new ApiRequestError(0, null, { code: "network", message: "the request got no answer" });
+  }
+  if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+    // The API never redirects, so something in front of the Worker answered: behind Access, its login page.
+    announce({ status: response.status, code: "redirected", path });
+    throw new ApiRequestError(response.status, null, { code: "redirected", message: "the request was redirected, probably to a sign-in page" });
   }
   const text = await response.text();
   let parsed: unknown = null;
@@ -72,8 +83,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     try {
       parsed = JSON.parse(text) as unknown;
     } catch {
-      // Not AgentBoard's JSON: an HTML login or error page from something in front of the Worker.
-      announce({ status: response.status, code: "unavailable", path });
+      // Not AgentBoard's JSON: an HTML page from something in front of the Worker. Below 500 it may be a
+      // sign-in page; a 5xx page is a gateway or Worker failure and says nothing about the session.
+      if (response.status < 500) announce({ status: response.status, code: "unavailable", path });
       throw new ApiRequestError(response.status, null, { code: "unavailable", message: "the response was not AgentBoard JSON" });
     }
   }

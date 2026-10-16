@@ -43,15 +43,15 @@ function SessionProvider({ children }: { children: React.ReactNode }) {
     void reload();
   }, [reload]);
 
-  // A 401 (or, behind Access, a login page) after the session loaded: show a banner and stay on the page,
-  // so whatever the user typed is still there.
+  // A 401 (or, behind Access, a redirect to its login page or an HTML page below 500) after the session
+  // loaded: show a banner and stay on the page, so whatever the user typed is still there.
   useEffect(() => {
     const onProblem = (event: Event) => {
       const problem = (event as CustomEvent<SessionProblem>).detail;
       const { me: signedIn, health: known } = current.current;
       if (!signedIn) return;
       const authMode = known?.authMode ?? signedIn.authMode;
-      if (problem.status === 401 || (problem.code === "unavailable" && authMode === "access")) setSessionEnded(true);
+      if (problem.status === 401 || ((problem.code === "redirected" || problem.code === "unavailable") && authMode === "access")) setSessionEnded(true);
     };
     sessionEvents.addEventListener("problem", onProblem);
     return () => sessionEvents.removeEventListener("problem", onProblem);
