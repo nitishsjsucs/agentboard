@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Role } from "../../../shared/domain.ts";
 import { App } from "../../App.tsx";
 import type { Health } from "../../api/hooks.ts";
+import { metricsSummary } from "../../components/__tests__/fixtures.ts";
 import { me } from "../../components/__tests__/session.tsx";
 import { safeNext } from "../../api/navigation.ts";
 
@@ -53,7 +54,7 @@ function fakeApi(initial: string) {
       if (!me(role, principal).permissions.includes("dlq:read")) return record(reply({ error: { code: "forbidden", message: "forbidden", requestId: "r" } }, 403));
       return record(reply({ items: [], nextCursor: null }));
     }
-    if (path === "/api/metrics/summary") return record(reply({ byStatus: {}, byType: {}, pendingApprovals: 0, needsAttention: 0, dlqOpen: 0 }));
+    if (path === "/api/metrics/summary") return record(reply(metricsSummary()));
     if (path.startsWith("/api/runs")) return record(reply({ items: [], nextCursor: null }));
     if (path === "/api/agents") return record(reply({ roles: [] }));
     return record(reply({ error: { code: "not_found", message: "not found", requestId: "r" } }, 404));

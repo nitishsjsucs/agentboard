@@ -6,6 +6,7 @@ import {
   PRIORITIES,
   REQUEST_TYPES,
   RUN_STATUSES,
+  type AgentRole,
   type Budget,
   type Permission,
   type Priority,
@@ -293,10 +294,27 @@ export interface DlqMessageView {
   open: boolean;
 }
 
+/** Run statuses that are not finished. */
+export type OpenRunStatus = "queued" | "planning" | "running" | "awaiting_approval" | "paused" | "needs_attention";
+
 export interface MetricsSummary {
   byStatus: Record<string, number>;
   byType: Record<string, number>;
   pendingApprovals: number;
   needsAttention: number;
-  dlqOpen: number;
+  /** Open dead letters; null for a role that cannot read the dead-letter queue (dlq:read). */
+  dlqOpen: number | null;
+  /** Each open status with its run count and the oldest updated_at among those runs (the longest without a change). */
+  open: { status: OpenRunStatus; count: number; oldestUpdatedAt: string }[];
+  /** Runs that need attention, grouped by their status reason. */
+  needsAttentionByReason: { reason: string | null; count: number }[];
+  approvals: {
+    pending: number;
+    /** Pending approvals this principal could decide now (canDecide); null without approvals:decide. */
+    decidableByYou: number | null;
+    /** The earliest expiry among pending approvals not yet past it. */
+    soonestExpiry: string | null;
+  };
+  /** Queued, planning or running runs with a task held because its agent role is disabled. */
+  heldRuns: { total: number; byRole: { role: AgentRole; runs: number }[] };
 }

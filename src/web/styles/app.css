@@ -223,3 +223,26 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 @media (forced-colors: active) {
   .plan-node--blocker { border-width: 3px; border-style: double; }
 }
+
+/* Dashboard: "Needs a person" link tiles, the "Moving" row tile and the all-time line. */
+.dash-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.stat--link { display: block; color: var(--text); }
+.stat--link:hover { text-decoration: none; border-color: var(--accent); }
+.stat--link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stat__line { color: var(--text-muted); font-size: var(--text-xs); margin-top: 2px; }
+.stat--row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3); row-gap: 2px; padding: var(--space-3) var(--space-4); }
+.stat--row .stat__value { font-size: var(--text-xl); }
+.stat--row .stat__line { margin-top: 0; }
+.dash-finished { margin: 0; }
+.anchor-target:focus { outline: none; }
+@media (max-width: 720px) {
+  /* Two compact tiles per row: the value beside its label, the sub-lines across the tile. */
+  .stat, .stat--row { padding: 10px var(--space-3); }
+  .stat__value { font-size: 22px; }
+  .dash-section { gap: var(--space-2); }
+  .grid--stats { gap: var(--space-2); }
+  .grid--stats > .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); align-items: baseline; }
+  .grid--stats > .stat .stat__label { grid-column: 2; grid-row: 1; line-height: 1.25; }
+  .grid--stats > .stat .stat__value { grid-column: 1; grid-row: 1; line-height: 1.1; }
+  .grid--stats > .stat .stat__line { grid-column: 1 / -1; }
+}

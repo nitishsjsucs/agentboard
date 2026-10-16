@@ -252,7 +252,11 @@ describe("retry handling", { tags: ["orchestration"] }, () => {
     const otherBatch = createMessageBatch(config.dlqQueueName, [otherMessage]);
     await worker.queue(otherBatch, env);
     await getQueueResult(otherBatch, createExecutionContext());
-    const openCount = async () => (await json<MetricsSummary>(await apiGet(P.operator, "/api/metrics/summary"))).dlqOpen;
+    const openCount = async () => {
+      const open = (await json<MetricsSummary>(await apiGet(P.operator, "/api/metrics/summary"))).dlqOpen;
+      if (open === null) throw new Error("an operator holds dlq:read, so the summary must count open dead letters");
+      return open;
+    };
     const listedRow = async () => (await json<Page<DlqMessageView>>(await apiGet(P.operator, "/api/dlq"))).items.find((m) => m.id === otherMessage.id);
     const openBefore = await openCount();
     expect(await listedRow()).toMatchObject({ outcome: "dead_lettered", taskStatus: "dead_lettered", open: true });

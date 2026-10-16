@@ -1,4 +1,4 @@
-import type { ApprovalListItem, AuditEventView, RunDetailResponse, RunSnapshot, TaskView } from "../../../shared/api-types.ts";
+import type { ApprovalListItem, AuditEventView, MetricsSummary, RunDetailResponse, RunSnapshot, TaskView } from "../../../shared/api-types.ts";
 
 export function task(overrides: Partial<TaskView> & Pick<TaskView, "id" | "kind">): TaskView {
   return {
@@ -111,6 +111,22 @@ export function auditEvent(overrides: Partial<AuditEventView> = {}): AuditEventV
     detail: {},
     prevHash: "0".repeat(64),
     hash: "a".repeat(64),
+    ...overrides,
+  };
+}
+
+/** An empty metrics summary (every count 0), with overrides. */
+export function metricsSummary(overrides: Partial<MetricsSummary> = {}): MetricsSummary {
+  return {
+    byStatus: {},
+    byType: {},
+    pendingApprovals: 0,
+    needsAttention: 0,
+    dlqOpen: 0,
+    open: [],
+    needsAttentionByReason: [],
+    approvals: { pending: 0, decidableByYou: null, soonestExpiry: null },
+    heldRuns: { total: 0, byRole: [] },
     ...overrides,
   };
 }
