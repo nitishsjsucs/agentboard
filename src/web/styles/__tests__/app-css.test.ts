@@ -30,6 +30,19 @@ describe("app.css layout rules", { tags: ["ui"] }, () => {
     expect(declarations(".plan-map__scroll")).toMatch(/flex:\s*0 0 calc\(100% \+ 12px\)/);
   });
 
+  it("never marks the blocking plan step like keyboard focus: a ring in the step's state tone against a solid accent outline", () => {
+    const focus = declarations(".plan-node:focus-visible");
+    expect(focus).toMatch(/outline:\s*2px solid var\(--accent\)/);
+    const blocker = declarations(".plan-node--blocker");
+    expect(blocker).toMatch(/box-shadow:\s*0 0 0 2px var\(--node-tone\)/);
+    expect(blocker).not.toContain("--accent");
+    // The ring's tone is the node's own state colour; no state tone is the accent.
+    for (const tone of ["success", "info", "warning", "danger", "faint"]) expect(declarations(`.plan-node--${tone}`)).toMatch(/--node-tone:\s*var\(--(success|info|warning|danger|text-faint)\)/);
+    // Without colours, the blocker's ring is a double outline and focus stays solid.
+    expect(blocker).toMatch(/outline:\s*3px double CanvasText/);
+    expect(focus).not.toContain("double");
+  });
+
   it("strokes plan map connectors and arrowheads with --text-faint, which keeps 3:1 against the card in both themes", () => {
     expect(declarations(".plan-map__edges path")).toMatch(/stroke:\s*var\(--text-faint\)/);
     expect(declarations(".plan-map__edges .plan-map__arrow path")).toMatch(/fill:\s*var\(--text-faint\)/);

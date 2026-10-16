@@ -181,24 +181,24 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .plan-map__edges .plan-map__arrow path { fill: var(--text-faint); stroke: none; }
 .plan-node {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-content: center; text-align: left;
-  width: 100%; padding: 3px 8px; border: 1px solid var(--border-strong); border-left-width: 3px; border-radius: var(--radius);
+  width: 100%; padding: 3px 8px; border: 1px solid var(--border-strong); border-left-width: 3px; border-left-color: var(--node-tone); border-radius: var(--radius);
   background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-xs); line-height: 14px; cursor: pointer;
 }
 .plan-node:hover { background: var(--surface-muted); }
+/* Keyboard focus is the accent outline; the blocking step is marked by a ring in its own state tone and the word "blocking", so the two never look alike. */
 .plan-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.plan-node--success { border-left-color: var(--success); }
-.plan-node--info { border-left-color: var(--info); }
-.plan-node--warning { border-left-color: var(--warning); }
-.plan-node--danger { border-left-color: var(--danger); }
-.plan-node--faint { border-left-color: var(--text-faint); }
-.plan-node--blocker { box-shadow: 0 0 0 2px var(--accent); }
+.plan-node--success { --node-tone: var(--success); --node-tone-soft: var(--success-soft); }
+.plan-node--info { --node-tone: var(--info); --node-tone-soft: var(--info-soft); }
+.plan-node--warning { --node-tone: var(--warning); --node-tone-soft: var(--warning-soft); }
+.plan-node--danger { --node-tone: var(--danger); --node-tone-soft: var(--danger-soft); }
+.plan-node--faint { --node-tone: var(--text-faint); --node-tone-soft: var(--neutral-soft); }
+.plan-node--blocker { box-shadow: 0 0 0 2px var(--node-tone); }
 .plan-node--blocker:focus-visible { outline-offset: 3px; }
-.plan-node__head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.plan-node__head { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .plan-node__id { font-weight: 650; }
 .plan-node__kind { color: var(--text-muted); }
 .plan-node__lock { color: var(--text-muted); flex: none; }
-.plan-node__pips { display: inline-flex; gap: 3px; margin-left: auto; }
-.plan-pip { flex: none; }
+.plan-node__flag { flex: none; margin-left: auto; padding: 0 4px; border-radius: 999px; background: var(--node-tone-soft); color: var(--node-tone); font-size: 11px; font-weight: 650; line-height: 14px; }
 .plan-node__tool { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* The state word is never cut: it may take a second line (for example "held: executor role disabled"). */
 .plan-node__state { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
@@ -225,10 +225,11 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
   .plan-node__state { grid-column: 1; }
   .plan-node__after { grid-column: 2; }
 }
-/* Without colours (Windows high contrast): borders and words stay; the blocker keeps a heavier border. */
+/* Without colours (Windows high contrast): borders and words stay; the blocker keeps a heavier ring and its word. */
 @media (forced-colors: active) {
-  /* Box shadows are dropped there, so the blocker's ring becomes an outline (it does not change the box size). */
+  /* Box shadows are dropped there, so the blocker's ring becomes a double outline (it does not change the box size); focus stays a solid one. */
   .plan-node--blocker { outline: 3px double CanvasText; outline-offset: 2px; }
+  .plan-node__flag { border: 1px solid CanvasText; }
 }
 
 /* Dashboard: "Needs a person" link tiles, the "Moving" row tile and the all-time line. */

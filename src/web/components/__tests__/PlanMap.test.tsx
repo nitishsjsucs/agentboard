@@ -97,7 +97,7 @@ describe("PlanMap", { tags: ["ui"] }, () => {
     show(offboardingGated());
     expect(names()).toEqual([
       "s1 hris.get_employee, read, done",
-      "s2 hris.set_employment_status, write, needs approval, waiting for approval, runs after s1",
+      "s2 hris.set_employment_status, write, needs approval, waiting for approval, blocking the run, runs after s1",
       "s3 access.revoke_all_roles, write, not started, runs after s2",
       "s4 itsm.create_ticket, write, not started, runs after s2",
       "s5 notify.send, write, not started, runs after s2",
@@ -184,12 +184,24 @@ describe("PlanMap", { tags: ["ui"] }, () => {
     for (const path of edges.querySelectorAll("path[data-edge]")) expect(path.getAttribute("marker-end")).toBe(`url(#${marker?.id})`);
   });
 
-  it("rings the step waiting for approval and says who acts and what waits behind it", () => {
+  it("marks the step waiting for approval with the word 'blocking', and says who acts and what waits behind it", () => {
     show(offboardingGated());
     const blockers = document.querySelectorAll(".plan-node--blocker");
     expect(blockers).toHaveLength(1);
-    expect(blockers[0]?.getAttribute("aria-label")).toMatch(/^s2 /);
+    expect(blockers[0]?.getAttribute("aria-label")).toBe("s2 hris.set_employment_status, write, needs approval, waiting for approval, blocking the run, runs after s1");
+    // The word is visible text inside the blocking node only, so the mark does not rest on the ring's colour.
+    expect(screen.getAllByTestId("plan-blocking").map((flag) => [flag.textContent, flag.closest("[data-step]")?.getAttribute("data-step")])).toEqual([["blocking", "s2"]]);
+    expect(blockers[0]?.classList.contains("plan-node--warning")).toBe(true);
     expect(sentence()).toBe("Blocked at s2 hris.set_employment_status: waiting for an approver. s3, s4 and s5 run after it.");
+  });
+
+  it("draws no unexplained marks: a node shows its id, read or write, the approval lock, its tool and its state in words", () => {
+    show(offboardingGated({ tsk_x2: "succeeded", tsk_v2: "budget_blocked" }), "needs_attention");
+    const s2 = screen.getAllByTestId("plan-node")[1] as HTMLElement;
+    expect(s2.querySelector(".plan-node__head")?.textContent).toBe("s2writeblocking");
+    expect(s2.querySelector(".plan-node__state")?.textContent).toBe("out of budget");
+    // The write and verify pips are gone; the task list below has each task's status in words.
+    expect(document.querySelectorAll(".plan-pip, .plan-node__pips")).toHaveLength(0);
   });
 
   it.each([
@@ -251,6 +263,7 @@ describe("PlanMap", { tags: ["ui"] }, () => {
     const paused = show(offboardingGated({ tsk_x2: "failed" }), "paused");
     expect(sentence()).toBe("Paused: no step starts until the run is resumed.");
     expect(document.querySelector(".plan-node--blocker")).toBeNull();
+    expect(screen.queryByTestId("plan-blocking")).toBeNull();
     paused.unmount();
     const done = show(addressChange({ a_x3: "succeeded", a_v3: "succeeded" }), "succeeded");
     expect(sentence()).toBe("All steps done.");

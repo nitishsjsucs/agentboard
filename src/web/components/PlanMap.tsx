@@ -104,11 +104,12 @@ export function planMapSentence(graph: PlanGraph, status: RunStatus): string | n
   return `Blocked at ${nodeLabel(blocker)}: ${blockedClause(blocker, dependentsOf(graph, blocker.stepId))}${more}`;
 }
 
-/** "s3 access.revoke_all_roles, write, needs approval, not started, runs after s2". */
-export function nodeName(node: StepNode): string {
+/** "s3 access.revoke_all_roles, write, needs approval, not started, runs after s2"; the blocking step adds "blocking the run". */
+export function nodeName(node: StepNode, blocking = false): string {
   const parts = [nodeLabel(node), node.write ? "write" : "read"];
   if (node.gated) parts.push("needs approval");
   parts.push(node.stateWord);
+  if (blocking) parts.push("blocking the run");
   if (node.after.length > 0) parts.push(`runs after ${listSteps(node.after)}`);
   return parts.join(", ");
 }
@@ -148,24 +149,6 @@ function StateIcon({ tone }: { tone: StepTone }) {
         </svg>
       );
   }
-}
-
-/** Write and verify progress: filled when done, a ring when not yet, a cross when it failed. */
-function Pip({ task }: { task: TaskView | null }) {
-  const status = task?.status;
-  const done = status === "succeeded" || status === "skipped";
-  const failed = status === "failed" || status === "rejected" || status === "dead_lettered";
-  return (
-    <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" className={`plan-pip${done ? " tone--success" : failed ? " tone--danger" : " tone--faint"}`}>
-      {failed ? (
-        <path d="M1.2 1.2l5.6 5.6M6.8 1.2L1.2 6.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      ) : done ? (
-        <circle cx="4" cy="4" r="3.5" fill="currentColor" />
-      ) : (
-        <circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      )}
-    </svg>
-  );
 }
 
 function Lock() {
@@ -329,7 +312,7 @@ export function PlanMap({ tasks, status }: { tasks: RunSnapshot["tasks"]; status
                       <button
                         type="button"
                         className={`plan-node plan-node--${tone}${blocker ? " plan-node--blocker" : ""}`}
-                        aria-label={nodeName(node)}
+                        aria-label={nodeName(node, blocker)}
                         data-testid="plan-node"
                         onClick={() => focusTaskRow(node.execute.id)}
                       >
@@ -337,10 +320,9 @@ export function PlanMap({ tasks, status }: { tasks: RunSnapshot["tasks"]; status
                           <span className="plan-node__id">{node.stepId}</span>
                           <span className="plan-node__kind">{node.write ? "write" : "read"}</span>
                           {node.gated ? <Lock /> : null}
-                          {node.write ? (
-                            <span className="plan-node__pips">
-                              <Pip task={node.execute} />
-                              <Pip task={node.verify} />
+                          {blocker ? (
+                            <span className="plan-node__flag" data-testid="plan-blocking">
+                              blocking
                             </span>
                           ) : null}
                         </span>
