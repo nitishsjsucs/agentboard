@@ -59,6 +59,19 @@ Deploy path for the Workers Free plan (production and preview deployed 2026-10-1
 - The README's production table renders the Analytics API's CPU quantiles, and shows limit outcomes as not observed when `wrangler tail` delivered no events (it showed 0).
 - Simulation, planner and test results measured again after the provider fix: every count, outcome and per-request planner result unchanged.
 
+Console workflows (2026-10-15; `docs/USER-WORKFLOWS.md` describes each persona's workflows as they now work):
+
+- Layouts work at 375 px wide (the nav wraps to a scrolling row of links, run detail stacks with Recovery first when it is the next step, forms go to one column) and the 1280 px layout is unchanged.
+- Every polled view tells loading, empty, failed and stale data apart; the dashboard no longer shows 0 for counts it does not have, and panels show an error card instead of disappearing.
+- API and network failures read as plain sentences with a next step instead of server internals; server failures show the request id.
+- Pages wait for the session; a principal without a role gets one explanation page; an expired session shows a banner that keeps typed text; the dev login returns to the page in `next` (same origin only); Access mode has a Sign out link.
+- The launch form says why it cannot submit yet, resets with the sample placeholder, warns about requests the stub planner cannot plan, resends a launch whose answer was lost with the same key, explains an idempotency conflict, and shows roles without `runs:launch` a sentence instead of the form.
+- Run detail explains why a run waits or needs attention and the next step for the viewer's role; the Events table reads "approval rejected" (it read "approval rejectd") and lists a rejected plan's issue codes.
+- Approval cards show the run title (`GET /api/approvals` now includes `runTitle` and `requestType`), decisions are confirmed in a status line with focus moving to the next card, and a decision someone else made first refreshes the list.
+- The confirm dialog handles Escape, keeps focus inside and returns it; recovery outcomes and refusals are announced in plain words; the budget dialog uses named fields, minutes and the current limits.
+- A skip link, per-page titles, focus on the heading after navigation, real tabs with arrow keys kept in `?tab=` and `?status=`, a keyboard button for tool-call details, meters with values and announced status changes.
+- Viewers see when the request text is hidden and what redaction changed in tool calls.
+
 History note: commit `7ff7a92` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `b7a3199` were written by a parallel session working in the same tree, not by this build's commit sequence; read them as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags). In the working repository the build commits to, every commit except that README commit carries a `Co-Authored-By: Claude` trailer. The GitHub history is copied from that repository by a separate publish step that removes those trailers, so no commit on GitHub carries one.
 
 ## v0.4.0: Evaluation and release
