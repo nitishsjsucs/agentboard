@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunSnapshot } from "../../../shared/api-types.ts";
 import type { Role } from "../../../shared/domain.ts";
@@ -171,6 +172,56 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     const patch = api.seen.find((r: SeenRequest) => r.method === "PATCH");
     expect(patch?.path).toBe("/api/runs/run_x/budget");
     expect(patch?.body).toEqual({ maxActiveMs: 1_200_000, reason: "longer window" });
+  });
+
+  /** Recovery controls whose snapshot becomes `next` once a command is done, as the live run view does. */
+  function Live({ role, initial, next }: { role: Role; initial: RunSnapshot; next: RunSnapshot }) {
+    const [snap, setSnap] = useState(initial);
+    return withSession(role, <RecoveryControls runId="run_x" snapshot={snap} onDone={() => setSnap(next)} />);
+  }
+
+  it("moves focus to the outcome after a confirmed command that replaces or removes its own button", async () => {
+    serve();
+    const paused = snapshot({ status: "paused", statusReason: "paused" });
+    const byName = (name: string) => () => screen.getByRole("button", { name });
+    // The fixture lists s2's execute task before its verify task.
+    const verifyRetry = () => screen.getAllByRole("button", { name: /^Retry/ })[1] as HTMLElement;
+    const cases: [Role, RunSnapshot, RunSnapshot, () => HTMLElement, string][] = [
+      ["operator", snapshot(), paused, byName("Pause run"), "Paused the run."],
+      ["operator", paused, snapshot(), byName("Resume run"), "Resumed the run."],
+      // Cancelling ends the run: the controls give way to "No recovery actions available".
+      ["operator", snapshot(), snapshot({ status: "cancelled", statusReason: "cancelled" }), byName("Cancel run"), "Cancelled the run."],
+      // The retried row disappears once the task is pending again.
+      ["admin", snapshot(), snapshot({ tasks: snapshot().tasks.map((t) => (t.status === "failed" ? { ...t, status: "pending" as const } : t)) }), verifyRetry, "Retry of s2 verify (hris.update_address) requested."],
+    ];
+    for (const [role, initial, next, pick, text] of cases) {
+      const view = render(<Live role={role} initial={initial} next={next} />);
+      const opener = pick();
+      opener.focus();
+      fireEvent.click(opener);
+      await confirmWith();
+      await waitFor(() => expect(outcome().textContent).toBe(text));
+      expect(opener.isConnected).toBe(false);
+      expect(document.activeElement).toBe(outcome());
+      expect(outcome().getAttribute("tabindex")).toBe("-1");
+      view.unmount();
+    }
+  });
+
+  it("keeps focus on the outcome when the opener is still there, and falls back to it when a live update removed the opener before a cancel", async () => {
+    serve();
+    const view = render(withSession("operator", <RecoveryControls runId="run_x" snapshot={snapshot()} onDone={() => undefined} />));
+    fireEvent.click(screen.getByRole("button", { name: "Pause run" }));
+    await confirmWith();
+    expect(document.activeElement).toBe(outcome());
+
+    // Someone else paused the run while this dialog was open: Escape cannot return focus to Pause run.
+    fireEvent.click(screen.getByRole("button", { name: "Pause run" }));
+    view.rerender(withSession("operator", <RecoveryControls runId="run_x" snapshot={snapshot({ status: "paused", statusReason: "paused" })} onDone={() => undefined} />));
+    expect(screen.queryByRole("button", { name: "Pause run" })).toBeNull();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(outcome());
   });
 
   it("says that retrying a rejected approval-gated task asks for a new approval", () => {

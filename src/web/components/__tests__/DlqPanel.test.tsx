@@ -59,9 +59,23 @@ describe("DlqPanel", { tags: ["ui"] }, () => {
     fireEvent.click(screen.getByRole("button", { name: "Replay" }));
     fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "try again" } });
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Replay" }));
-    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Refused: invalid_state."));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("The run is no longer in a state that allows this; the page now shows its current state."));
     expect(fetchMock).toHaveBeenCalledWith("/api/dlq/msg-open-000001/replay", expect.objectContaining({ method: "POST" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves focus to the outcome after a replay, since the refreshed row no longer has a Replay button", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ accepted: true }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    const replayed = messages.map((m) => (m.open ? { ...m, open: false, replayedAt: "2026-10-08T12:10:00.000Z", replayedBy: "admin@agentboard.test" } : m));
+    const view = render(withSession("admin", <DlqPanel messages={messages} onChange={() => view.rerender(withSession("admin", <DlqPanel messages={replayed} onChange={() => undefined} />))} />));
+    const replay = screen.getByRole("button", { name: "Replay" });
+    replay.focus();
+    fireEvent.click(replay);
+    fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "fixed upstream" } });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Replay" }));
+    await waitFor(() => expect(screen.getByTestId("dlq-outcome").textContent).toBe("Replayed msg-open-000."));
+    expect(screen.queryByRole("button", { name: "Replay" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByTestId("dlq-outcome"));
   });
 });

@@ -16,11 +16,16 @@ export interface ConfirmDialogProps {
   confirmHint?: string | undefined;
   /** What the command does, completing "Your role cannot ..." in a refusal message (for example "pause runs"). */
   action?: string;
+  /**
+   * Where focus goes on close when the button that opened the dialog is gone (a live update replaced it),
+   * for example the region that announces outcomes. Without it, focus would fall to the page body.
+   */
+  fallbackFocus?: () => HTMLElement | null;
 }
 
 const FOCUSABLE = 'button:not(:disabled), textarea:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
 
-export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false, confirmHint, action }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false, confirmHint, action, fallbackFocus }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -28,6 +33,8 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   // The element that opened the dialog, captured before the dialog takes focus; focus returns to it on close.
   const opener = useRef<Element | null>(typeof document === "undefined" ? null : document.activeElement);
+  const fallback = useRef(fallbackFocus);
+  fallback.current = fallbackFocus;
   const ids = useId();
   const describedBy = `${ids}-context`;
   const hintId = `${ids}-hint`;
@@ -39,6 +46,7 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
     const returnTo = opener.current;
     return () => {
       if (returnTo instanceof HTMLElement && returnTo.isConnected) returnTo.focus();
+      else fallback.current?.()?.focus();
     };
   }, []);
 

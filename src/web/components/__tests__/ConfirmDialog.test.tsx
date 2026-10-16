@@ -113,4 +113,36 @@ describe("ConfirmDialog", { tags: ["ui"] }, () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(opener));
   });
+
+  it("focuses fallbackFocus on close when the opener is gone, instead of dropping focus to the body", () => {
+    function Replaced() {
+      const [open, setOpen] = useState(false);
+      const [replaced, setReplaced] = useState(false);
+      return (
+        <>
+          {replaced ? null : (
+            <button type="button" onClick={() => setOpen(true)}>
+              Replay
+            </button>
+          )}
+          <div role="status" tabIndex={-1} data-testid="outcome" />
+          <button type="button" onClick={() => setReplaced(true)}>
+            replace opener
+          </button>
+          {open ? (
+            <ConfirmDialog title="Replay" confirmLabel="Replay" onCancel={() => setOpen(false)} onConfirm={() => setOpen(false)} fallbackFocus={() => screen.getByTestId("outcome")}>
+              <p>context</p>
+            </ConfirmDialog>
+          ) : null}
+        </>
+      );
+    }
+    render(<Replaced />);
+    const opener = screen.getByRole("button", { name: "Replay" });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole("button", { name: "replace opener" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(document.activeElement).toBe(screen.getByTestId("outcome"));
+  });
 });

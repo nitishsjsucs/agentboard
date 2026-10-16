@@ -3,7 +3,7 @@
 // every command asks for an audited reason, and the retry and skip dialogs name
 // the verify task they cascade to. The coordinator re-checks everything.
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { Budget } from "../../shared/domain.ts";
 import type { RunSnapshot, TaskView } from "../../shared/api-types.ts";
 import { api } from "../api/client.ts";
@@ -101,6 +101,14 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
   const canBudget = useCan("budgets:edit");
   const [action, setAction] = useState<Action | null>(null);
   const [outcome, setOutcome] = useState<{ text: string; accepted: boolean } | null>(null);
+  // The outcome region is the one element that survives every command (a confirmed Pause replaces its own
+  // button with Resume, a retry or cancel removes its row), so focus moves there after each confirm.
+  const outcomeRef = useRef<HTMLDivElement>(null);
+  const [confirmedCount, setConfirmedCount] = useState(0);
+  // Runs after the dialog's own cleanup in the same commit, so it wins over returning focus to the opener.
+  useLayoutEffect(() => {
+    if (confirmedCount > 0) outcomeRef.current?.focus();
+  }, [confirmedCount]);
   // The budget form's values as typed, in the units shown (active time in minutes).
   const [form, setForm] = useState<Record<BudgetField, string>>({ maxToolCalls: "", maxLlmTokens: "", maxAttemptsPerTask: "", maxActiveMs: "" });
 
@@ -153,6 +161,7 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
     }
     setOutcome(response.accepted ? { text: successSentence(action), accepted: true } : { text: refusalSentence(response.reason), accepted: false });
     setAction(null);
+    setConfirmedCount((n) => n + 1);
     onDone();
   };
 
@@ -166,22 +175,7 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
     return null;
   };
 
-  const outcomeRegion = (
-    <div role="status" data-testid="recovery-outcome" className={`small${outcome && !outcome.accepted ? " error-text" : " muted"}`}>
-      {outcome?.text ?? ""}
-    </div>
-  );
-
-  if (!runButtons.some((b) => b.show) && taskButtons.length === 0 && !showBudget) {
-    return (
-      <div className="stack" style={{ gap: "var(--space-2)" }}>
-        <div className="small muted" data-testid="no-controls">
-          No recovery actions available{terminal ? " (the run is finished)" : ""}.
-        </div>
-        {outcomeRegion}
-      </div>
-    );
-  }
+  const hasControls = runButtons.some((b) => b.show) || taskButtons.length > 0 || showBudget;
 
   const budgetLabel = (field: BudgetField): string => {
     const { usage, budget } = snapshot;
@@ -197,36 +191,54 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
     }
   };
 
+  // One tree for every state: the controls (or the line saying there are none) first, then the outcome
+  // region in the same position, so it is never remounted and keeps focus while the snapshot changes.
   return (
-    <div className="stack" style={{ gap: "var(--space-3)" }}>
-      <div className="row">
-        {runButtons
-          .filter((b) => b.show)
-          .map((b) => (
-            <button key={b.command} type="button" className={`btn${b.command === "cancel" ? " btn--danger" : ""}`} onClick={() => open({ kind: "run", command: b.command })}>
-              {b.command[0]?.toUpperCase()}
-              {b.command.slice(1)} run
-            </button>
-          ))}
-        {showBudget ? (
-          <button type="button" className="btn" onClick={() => open({ kind: "budget" })}>
-            Raise budget
-          </button>
-        ) : null}
-      </div>
-      {taskButtons.length > 0 ? (
-        <div className="stack" style={{ gap: "var(--space-2)" }}>
-          {taskButtons.map((b) => (
-            <div key={`${b.command}-${b.task.id}`} className="row small">
-              <button type="button" className={`btn btn--small${b.command === "skip" ? " btn--danger" : ""}`} onClick={() => open({ kind: "task", command: b.command, task: b.task })}>
-                {b.command === "release-lease" ? "Release lease" : b.command === "retry" ? "Retry" : "Skip"}
+    <div className="stack" style={{ gap: hasControls ? "var(--space-3)" : "var(--space-2)" }}>
+      {hasControls ? (
+        <div className="stack" style={{ gap: "var(--space-3)" }}>
+          <div className="row">
+            {runButtons
+              .filter((b) => b.show)
+              .map((b) => (
+                <button key={b.command} type="button" className={`btn${b.command === "cancel" ? " btn--danger" : ""}`} onClick={() => open({ kind: "run", command: b.command })}>
+                  {b.command[0]?.toUpperCase()}
+                  {b.command.slice(1)} run
+                </button>
+              ))}
+            {showBudget ? (
+              <button type="button" className="btn" onClick={() => open({ kind: "budget" })}>
+                Raise budget
               </button>
-              <span>{label(b.task)}</span>
+            ) : null}
+          </div>
+          {taskButtons.length > 0 ? (
+            <div className="stack" style={{ gap: "var(--space-2)" }}>
+              {taskButtons.map((b) => (
+                <div key={`${b.command}-${b.task.id}`} className="row small">
+                  <button type="button" className={`btn btn--small${b.command === "skip" ? " btn--danger" : ""}`} onClick={() => open({ kind: "task", command: b.command, task: b.task })}>
+                    {b.command === "release-lease" ? "Release lease" : b.command === "retry" ? "Retry" : "Skip"}
+                  </button>
+                  <span>{label(b.task)}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : null}
         </div>
-      ) : null}
-      {outcomeRegion}
+      ) : (
+        <div className="small muted" data-testid="no-controls">
+          No recovery actions available{terminal ? " (the run is finished)" : ""}.
+        </div>
+      )}
+      <div
+        ref={outcomeRef}
+        role="status"
+        tabIndex={-1}
+        data-testid="recovery-outcome"
+        className={`small${outcome && !outcome.accepted ? " error-text" : " muted"}`}
+      >
+        {outcome?.text ?? ""}
+      </div>
       {action ? (
         <ConfirmDialog
           title={
@@ -243,6 +255,7 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
           confirmHint={action.kind === "budget" && !isRaise ? "Raise at least one value above its current limit, and lower none." : undefined}
           onCancel={() => setAction(null)}
           onConfirm={run}
+          fallbackFocus={() => outcomeRef.current}
         >
           {action.kind === "task" && cascadeNote(action) ? <p className="notice">{cascadeNote(action)}</p> : null}
           {action.kind === "budget" ? (
