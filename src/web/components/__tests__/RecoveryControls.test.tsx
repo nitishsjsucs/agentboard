@@ -1,10 +1,37 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { RunSnapshot } from "../../../shared/api-types.ts";
+import type { Role } from "../../../shared/domain.ts";
 import { RecoveryControls } from "../RecoveryControls.tsx";
-import { snapshot } from "./fixtures.ts";
+import { reply, stubApi, type SeenRequest } from "./api.ts";
+import { snapshot, task } from "./fixtures.ts";
 import { withSession } from "./session.tsx";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+/** Answers every command with accepted, or refused with `refusal`. */
+function serve(refusal?: string) {
+  return stubApi(({ method }) => {
+    if (method === "GET") return undefined;
+    return refusal ? reply({ accepted: false, reason: refusal, snapshot: snapshot() }, 409) : reply({ accepted: true, snapshot: snapshot() });
+  });
+}
+
+async function confirmWith(reason = "checked with the team") {
+  const dialog = screen.getByRole("dialog");
+  fireEvent.change(within(dialog).getByLabelText("Reason (recorded in the audit log)"), { target: { value: reason } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+}
+
+const outcome = () => screen.getByTestId("recovery-outcome");
+
+function controls(role: Role, snap: RunSnapshot = snapshot()) {
+  return render(withSession(role, <RecoveryControls runId="run_x" snapshot={snap} onDone={() => undefined} />));
+}
 
 const buttons = () => screen.queryAllByRole("button").map((b) => b.textContent?.trim());
 
@@ -46,7 +73,7 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "more calls" } });
     const raise = screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement;
     expect(raise.disabled).toBe(true);
-    const toolCalls = screen.getByLabelText(/^maxToolCalls/) as HTMLInputElement;
+    const toolCalls = screen.getByLabelText(/^Tool calls/) as HTMLInputElement;
     fireEvent.change(toolCalls, { target: { value: toolCalls.min } });
     expect(raise.disabled).toBe(true);
     fireEvent.change(toolCalls, { target: { value: String(Number(toolCalls.min) + 10) } });
@@ -60,5 +87,99 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     expect(grid).not.toBeNull();
     expect(grid.style.gridTemplateColumns).toBe("");
     expect(grid.querySelectorAll("input")).toHaveLength(4);
+  });
+
+  it("announces what each accepted command did in a status region", async () => {
+    serve();
+    const cases: [Role, RunSnapshot, string, string][] = [
+      ["operator", snapshot(), "Pause run", "Paused the run."],
+      ["operator", snapshot({ status: "paused", statusReason: "paused" }), "Resume run", "Resumed the run."],
+      ["operator", snapshot(), "Cancel run", "Cancelled the run."],
+      ["admin", snapshot(), "Raise budget", "Raised the budget."],
+    ];
+    for (const [role, snap, button, text] of cases) {
+      const view = controls(role, snap);
+      fireEvent.click(screen.getByRole("button", { name: button }));
+      if (button === "Raise budget") fireEvent.change(screen.getByLabelText(/^Tool calls/), { target: { value: "30" } });
+      await confirmWith();
+      expect(outcome().getAttribute("role")).toBe("status");
+      expect(outcome().textContent).toBe(text);
+      view.unmount();
+    }
+    const tasks = controls("admin");
+    fireEvent.click(screen.getAllByRole("button", { name: "Retry" })[0] as HTMLElement);
+    await confirmWith();
+    expect(outcome().textContent).toBe("Retry of s2 execute (hris.update_address) requested.");
+    fireEvent.click(screen.getByRole("button", { name: "Release lease" }));
+    await confirmWith();
+    expect(outcome().textContent).toBe("Released the lease of s3 execute (notify.send).");
+    tasks.unmount();
+    controls("admin", snapshot({ tasks: [task({ id: "x", kind: "execute", stepId: "s4", tool: "itsm.create_ticket", status: "failed" })] }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    await confirmWith();
+    expect(outcome().textContent).toBe("Skipped s4 execute (itsm.create_ticket).");
+  });
+
+  it.each([
+    ["invalid_state", "The run is no longer in a state that allows this; the page now shows its current state."],
+    ["not_retryable", "This task cannot be retried in its current state; the page now shows its current state."],
+    ["not_found", "That task is no longer part of this run; the page now shows its current state."],
+    ["not_a_raise", "The budget was not raised: raise at least one value above its current limit, and lower none."],
+    ["something_new", "Refused: something_new."],
+  ])("explains the refusal %s in plain words", async (code, text) => {
+    serve(code);
+    controls("operator");
+    fireEvent.click(screen.getByRole("button", { name: "Pause run" }));
+    await confirmWith();
+    expect(outcome().textContent).toBe(text);
+  });
+
+  it("clears the previous outcome when the next dialog opens", async () => {
+    serve();
+    controls("operator");
+    fireEvent.click(screen.getByRole("button", { name: "Pause run" }));
+    await confirmWith();
+    expect(outcome().textContent).toBe("Paused the run.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel run" }));
+    expect(outcome().textContent).toBe("");
+  });
+
+  it("prefills the budget form with current limits, marks the exhausted one, explains a disabled Confirm, and sends minutes as milliseconds", async () => {
+    const api = serve();
+    const exhausted = snapshot({ usage: { toolCalls: 24, toolCallsReserved: 0, llmTokens: 900, activeMs: 240_000, attempts: 5, replays: 0, skippedSteps: 0 } });
+    controls("admin", exhausted);
+    fireEvent.click(screen.getByRole("button", { name: "Raise budget" }));
+    const value = (label: RegExp) => (screen.getByLabelText(label) as HTMLInputElement).value;
+    expect(value(/^Tool calls \(used 24 of 24\)/)).toBe("24");
+    expect(value(/^LLM tokens \(used 900 of 6000\)/)).toBe("6000");
+    expect(value(/^Attempts per task \(now 3\)/)).toBe("3");
+    expect(value(/^Active time in minutes \(used 4 of 15\)/)).toBe("15");
+    expect(screen.getByText("Tool calls (used 24 of 24)", { exact: false }).closest("label")?.textContent).toContain("exhausted");
+    expect(screen.getByLabelText(/^LLM tokens/).closest(".field")?.textContent).not.toContain("exhausted");
+
+    const confirm = screen.getByRole("button", { name: "Confirm" }) as HTMLButtonElement;
+    fireEvent.change(screen.getByLabelText("Reason (recorded in the audit log)"), { target: { value: "longer window" } });
+    expect(confirm.disabled).toBe(true);
+    const hint = document.getElementById(confirm.getAttribute("aria-describedby") ?? "");
+    expect(hint?.textContent).toBe("Raise at least one value above its current limit, and lower none.");
+
+    fireEvent.change(screen.getByLabelText(/^Active time in minutes/), { target: { value: "20" } });
+    expect(confirm.disabled).toBe(false);
+    expect(confirm.getAttribute("aria-describedby")).toBeNull();
+    fireEvent.click(confirm);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const patch = api.seen.find((r: SeenRequest) => r.method === "PATCH");
+    expect(patch?.path).toBe("/api/runs/run_x/budget");
+    expect(patch?.body).toEqual({ maxActiveMs: 1_200_000, reason: "longer window" });
+  });
+
+  it("says that retrying a rejected approval-gated task asks for a new approval", () => {
+    const gated = snapshot({
+      statusReason: "approval_expired",
+      tasks: [task({ id: "g", kind: "execute", stepId: "s2", tool: "hris.update_manager", status: "rejected", requiresApproval: true, lastError: "approval_expired" })],
+    });
+    controls("operator", gated);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(screen.getByRole("dialog").textContent).toContain("Retrying asks for a new approval.");
   });
 });

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ErrorNotice } from "./ErrorNotice.tsx";
 
 export interface ConfirmDialogProps {
@@ -12,15 +12,35 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
   /** Extra condition from the dialog's own fields (for example a budget raise with no field set). */
   confirmDisabled?: boolean;
+  /** Says why Confirm is disabled by the dialog's own fields; linked to the button. */
+  confirmHint?: string | undefined;
   /** What the command does, completing "Your role cannot ..." in a refusal message (for example "pause runs"). */
   action?: string;
 }
 
-export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false, action }: ConfirmDialogProps) {
+const FOCUSABLE = 'button:not(:disabled), textarea:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
+
+export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false, confirmHint, action }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
+  // The element that opened the dialog, captured before the dialog takes focus; focus returns to it on close.
+  const opener = useRef<Element | null>(typeof document === "undefined" ? null : document.activeElement);
+  const ids = useId();
+  const describedBy = `${ids}-context`;
+  const hintId = `${ids}-hint`;
   const valid = reason.trim().length >= 3 && reason.trim().length <= 500;
+
+  useEffect(() => {
+    reasonRef.current?.focus();
+    const returnTo = opener.current;
+    return () => {
+      if (returnTo instanceof HTMLElement && returnTo.isConnected) returnTo.focus();
+    };
+  }, []);
+
   const submit = async () => {
     setBusy(true);
     setError(null);
@@ -31,21 +51,70 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
       setBusy(false);
     }
   };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      if (!busy) onCancel();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    // Keep Tab and Shift+Tab inside the dialog.
+    const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])];
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={onCancel}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="dialog-backdrop"
+      role="presentation"
+      onClick={() => {
+        // A click outside cancels only while nothing was typed, so a stray click never loses a reason.
+        if (!busy && reason.trim() === "") onCancel();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        aria-describedby={children ? describedBy : undefined}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={onKeyDown}
+      >
         <h2>{title}</h2>
-        {children}
+        {children ? <div id={describedBy}>{children}</div> : null}
         <div className="field">
-          <label htmlFor="confirm-reason">Reason (recorded in the audit log)</label>
-          <textarea id="confirm-reason" className="textarea" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} autoFocus />
+          <label htmlFor={`${ids}-reason`}>Reason (recorded in the audit log)</label>
+          <textarea ref={reasonRef} id={`${ids}-reason`} className="textarea" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
         </div>
         {error ? <ErrorNotice error={error} action={action} /> : null}
+        {confirmHint ? (
+          <div id={hintId} className="small muted">
+            {confirmHint}
+          </div>
+        ) : null}
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <button type="button" className="btn" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button type="button" className={`btn ${danger ? "btn--danger" : "btn--primary"}`} disabled={!valid || busy || confirmDisabled} onClick={() => void submit()}>
+          <button
+            type="button"
+            className={`btn ${danger ? "btn--danger" : "btn--primary"}`}
+            disabled={!valid || busy || confirmDisabled}
+            aria-describedby={confirmHint ? hintId : undefined}
+            onClick={() => void submit()}
+          >
             {confirmLabel}
           </button>
         </div>
