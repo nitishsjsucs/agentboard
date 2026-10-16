@@ -27,6 +27,8 @@ h3 { font-size: var(--text-md); margin: 0; font-weight: 620; }
 .nav__link { padding: 6px 10px; border-radius: var(--radius); color: var(--text-muted); white-space: nowrap; }
 .nav__link:hover { background: var(--surface-muted); text-decoration: none; }
 .nav__link.active { color: var(--text); background: var(--accent-soft); }
+/* Drawn inside the link: .nav__links scrolls sideways, so an outer ring would be clipped at the top and bottom. */
+.nav__link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .nav__who { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); }
 .main { max-width: 1280px; margin: 0 auto; padding: var(--space-6); }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); flex-wrap: wrap; }
@@ -103,6 +105,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm);
 /* Dialog */
 .dialog-backdrop { position: fixed; inset: 0; background: var(--backdrop); display: grid; place-items: center; padding: var(--space-4); z-index: 50; }
 .dialog { width: min(480px, 100%); background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+/* Never taller than the viewport (a phone in landscape): the dialog scrolls inside, so Cancel and Confirm stay reachable. */
+.dialog { max-height: calc(100vh - 2 * var(--space-4)); max-height: calc(100dvh - 2 * var(--space-4)); overflow-y: auto; }
 
 /* Misc */
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
