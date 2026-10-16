@@ -277,16 +277,17 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .queue-summary { margin: 0; }
 
 /* Time in each status: one bar (12 px, 2 px surface gaps, 4 px rounded ends), an axis, and the table. */
-.tone-fill--faint { fill: var(--text-faint); }
-.tone-fill--info { fill: var(--info); }
-.tone-fill--warning { fill: var(--warning); }
-.tone-fill--danger { fill: var(--danger); }
-.tone-fill--success { fill: var(--success); }
-.tone-bg--faint { background: var(--text-faint); }
-.tone-bg--info { background: var(--info); }
-.tone-bg--warning { background: var(--warning); }
-.tone-bg--danger { background: var(--danger); }
-.tone-bg--success { background: var(--success); }
+/* One colour per status, shared by its bar segments and its swatch in the table; no two statuses that can touch share one. */
+.status--queued { --status-colour: var(--text-faint); }
+.status--planning { --status-colour: var(--status-planning); }
+.status--running { --status-colour: var(--info); }
+.status--awaiting_approval { --status-colour: var(--warning); }
+.status--paused { --status-colour: var(--status-paused); }
+.status--needs_attention { --status-colour: var(--status-attention); }
+.status--succeeded { --status-colour: var(--success); }
+.status--rejected { --status-colour: var(--danger); }
+.status--cancelled { --status-colour: var(--text-faint); }
+.status-seg { fill: var(--status-colour); }
 .status-time { margin: 0; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .status-time__caption { display: flex; align-items: baseline; gap: var(--space-1) var(--space-3); flex-wrap: wrap; }
 .status-time__plot { position: relative; padding-top: var(--space-1); }
@@ -304,7 +305,7 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .status-time__tip:not(.status-time__tip--shown) { padding: 0; border: 0; box-shadow: none; }
 .status-time__table td, .status-time__table th { padding: 4px var(--space-3); }
 .status-time__name { display: inline-flex; align-items: baseline; gap: 6px; }
-.status-swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.status-swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--status-colour); }
 .num { font-variant-numeric: tabular-nums; }
 @media (forced-colors: active) {
   .status-swatch { border: 1px solid CanvasText; }

@@ -38,6 +38,30 @@ describe("StatusTimeBar", { tags: ["ui"] }, () => {
     expect(bar.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
+  it("colours each segment and its table swatch by its own status, so a swatch matches one status only", () => {
+    const PAUSED = [created(), change(2, "queued", "planning"), change(5, "planning", "running"), change(10, "running", "paused"), change(70, "paused", "running"), change(80, "running", "awaiting_approval"), change(200, "awaiting_approval", "needs_attention")];
+    render(<StatusTimeBar entries={PAUSED} run={{ createdAt: at(0), status: "needs_attention", finishedAt: null }} />);
+    const segments = [...screen.getByTestId("status-bar").querySelectorAll("rect[data-status]")];
+    expect(segments.map((r) => [r.getAttribute("data-status"), r.getAttribute("class")])).toEqual([
+      ["queued", "status-seg status--queued"],
+      ["planning", "status-seg status--planning"],
+      ["running", "status-seg status--running"],
+      ["paused", "status-seg status--paused"],
+      ["running", "status-seg status--running"],
+      ["awaiting_approval", "status-seg status--awaiting_approval"],
+      ["needs_attention", "status-seg status--needs_attention"],
+    ]);
+    const swatches = screen.getAllByTestId("status-row").map((row) => [row.querySelector("td")?.textContent, row.querySelector(".status-swatch")?.getAttribute("class")]);
+    expect(swatches).toEqual([
+      ["queued", "status-swatch status--queued"],
+      ["planning", "status-swatch status--planning"],
+      ["running", "status-swatch status--running"],
+      ["paused", "status-swatch status--paused"],
+      ["awaiting approval", "status-swatch status--awaiting_approval"],
+      ["needs attention", "status-swatch status--needs_attention"],
+    ]);
+  });
+
   it("moves between intervals with the arrow keys, and the tooltip reads like the interval", () => {
     render(<StatusTimeBar entries={SUCCEEDED} run={{ createdAt: at(0), status: "succeeded", finishedAt: at(1820) }} />);
     const bar = screen.getByTestId("status-bar");

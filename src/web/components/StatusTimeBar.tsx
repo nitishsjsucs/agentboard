@@ -11,18 +11,11 @@ import { shareText, statusIntervals, statusTotals, type StatusInterval } from ".
 const BAR_HEIGHT = 12;
 const DAY = 86_400_000;
 
-/** The colour family of each status on the bar (the table names every status in words). */
-export const STATUS_TONE: Record<RunStatus, "faint" | "info" | "warning" | "danger" | "success"> = {
-  queued: "faint",
-  planning: "info",
-  running: "info",
-  awaiting_approval: "warning",
-  paused: "warning",
-  needs_attention: "danger",
-  succeeded: "success",
-  rejected: "danger",
-  cancelled: "faint",
-};
+/**
+ * The class that colours a status's bar segments and its table swatch (app.css maps each to a token).
+ * Only open statuses take time on the bar; a finished run's bar ends where it finished.
+ */
+export const statusClass = (status: RunStatus) => `status--${status}`;
 
 const label = (status: RunStatus) => status.replaceAll("_", " ");
 
@@ -153,7 +146,7 @@ export function StatusTimeBar({ entries, run }: { entries: readonly TimelineEntr
                 return (
                   <rect
                     key={`${interval.status}-${interval.start}`}
-                    className={`status-seg tone-fill--${STATUS_TONE[interval.status]}${shown === i ? " status-seg--active" : ""}`}
+                    className={`status-seg ${statusClass(interval.status)}${shown === i ? " status-seg--active" : ""}`}
                     data-status={interval.status}
                     x={x0}
                     y={0}
@@ -185,7 +178,7 @@ export function StatusTimeBar({ entries, run }: { entries: readonly TimelineEntr
               <tr key={row.status} data-testid="status-row">
                 <td>
                   <span className="status-time__name">
-                    <span className={`status-swatch tone-bg--${STATUS_TONE[row.status]}`} aria-hidden="true" />
+                    <span className={`status-swatch ${statusClass(row.status)}`} aria-hidden="true" />
                     <span>{label(row.status)}</span>
                   </span>
                 </td>

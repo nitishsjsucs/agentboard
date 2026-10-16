@@ -146,8 +146,8 @@ export default defineConfig({
           name: "web",
           environment: "happy-dom",
           include: ["src/web/**/*.test.{ts,tsx}"],
-          // Vitest blanks CSS by default; the stylesheet test reads app.css as text (no component imports CSS).
-          css: { include: [/src\/web\/styles\/app\.css/] },
+          // Vitest blanks CSS by default; the stylesheet tests read app.css and tokens.css as text (no component imports CSS).
+          css: { include: [/src\/web\/styles\/(app|tokens)\.css/] },
         },
       },
       {
