@@ -21,6 +21,21 @@ export function formatDuration(ms: number): string {
   return `${p.minutes} min`;
 }
 
+/**
+ * A run's own spans, which are often seconds: "under 1 s", "12 s", "4 min 12 s", then as formatDuration
+ * from 10 minutes up ("2 h 14 min").
+ */
+export function formatElapsed(ms: number): string {
+  const safe = Number.isFinite(ms) ? Math.max(0, ms) : 0;
+  if (safe < 1000) return "under 1 s";
+  if (safe < MINUTE) return `${Math.floor(safe / 1000)} s`;
+  if (safe < 10 * MINUTE) {
+    const seconds = Math.floor((safe % MINUTE) / 1000);
+    return seconds > 0 ? `${Math.floor(safe / MINUTE)} min ${seconds} s` : `${Math.floor(safe / MINUTE)} min`;
+  }
+  return formatDuration(safe);
+}
+
 const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
 
 /** The same duration in words for screen readers: "2 days 23 hours", "2 hours 14 minutes", "under 1 minute". */

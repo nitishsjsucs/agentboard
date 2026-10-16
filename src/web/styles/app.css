@@ -221,7 +221,8 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 }
 /* Without colours (Windows high contrast): borders and words stay; the blocker keeps a heavier border. */
 @media (forced-colors: active) {
-  .plan-node--blocker { border-width: 3px; border-style: double; }
+  /* Box shadows are dropped there, so the blocker's ring becomes an outline (it does not change the box size). */
+  .plan-node--blocker { outline: 3px double CanvasText; outline-offset: 2px; }
 }
 
 /* Dashboard: "Needs a person" link tiles, the "Moving" row tile and the all-time line. */
@@ -267,3 +268,52 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 /* Time left on a pending approval: the text, then a meter (fuller is closer to expiry). */
 .expiry { display: flex; flex-direction: column; gap: 4px; max-width: 360px; }
 .queue-summary { margin: 0; }
+
+/* Time in each status: one bar (12 px, 2 px surface gaps, 4 px rounded ends), an axis, and the table. */
+.tone-fill--faint { fill: var(--text-faint); }
+.tone-fill--info { fill: var(--info); }
+.tone-fill--warning { fill: var(--warning); }
+.tone-fill--danger { fill: var(--danger); }
+.tone-fill--success { fill: var(--success); }
+.tone-bg--faint { background: var(--text-faint); }
+.tone-bg--info { background: var(--info); }
+.tone-bg--warning { background: var(--warning); }
+.tone-bg--danger { background: var(--danger); }
+.tone-bg--success { background: var(--success); }
+.status-time { margin: 0; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.status-time__caption { display: flex; align-items: baseline; gap: var(--space-1) var(--space-3); flex-wrap: wrap; }
+.status-time__plot { position: relative; padding-top: var(--space-1); }
+.status-time__bar { display: block; padding: 6px 0; cursor: default; }
+.status-time__bar svg { display: block; overflow: visible; }
+.status-time__bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.status-seg--active { stroke: var(--text); stroke-width: 1.5; }
+.status-time__axis { display: flex; justify-content: space-between; gap: var(--space-2); }
+.status-time__tip {
+  position: absolute; bottom: calc(100% - 2px); z-index: 2; width: max-content; max-width: min(320px, 100%);
+  padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text);
+  box-shadow: var(--shadow); font-size: var(--text-xs); white-space: normal; pointer-events: none;
+}
+/* Empty and boxless when hidden, but never display: none, so it stays a live region. */
+.status-time__tip:not(.status-time__tip--shown) { padding: 0; border: 0; box-shadow: none; }
+.status-time__table td, .status-time__table th { padding: 4px var(--space-3); }
+.status-time__name { display: inline-flex; align-items: baseline; gap: 6px; }
+.status-swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+@media (forced-colors: active) {
+  .status-swatch { border: 1px solid CanvasText; }
+}
+@media (max-width: 720px) {
+  /* Events on a phone: sequence, time and actor on one line, the event text full width below. */
+  .events-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .events-table tr { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  .events-table tr:last-child { border-bottom: 0; }
+  .events-table td { padding: 0; border: 0; }
+  .events-table__actor { overflow-wrap: anywhere; }
+  .events-table__event { grid-column: 1 / -1; overflow-wrap: anywhere; }
+}
+
+/* A pressed toggle (aria-pressed): the accent border and fill, and a heavier label, not colour alone. */
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 650; }
+@media (max-width: 720px) {
+  .status-time__table td, .status-time__table th { padding: 4px 6px; }
+}

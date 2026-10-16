@@ -235,6 +235,9 @@ export interface TimelineEntry {
   actorId: string;
   taskId: string | null;
   summary: string;
+  /** run.status_changed only: the statuses it moved between (enum values, never free text). */
+  statusFrom?: RunStatus;
+  statusTo?: RunStatus;
 }
 
 export interface AuditEventView {

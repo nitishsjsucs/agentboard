@@ -35,7 +35,7 @@ import { requirePermission } from "../middleware/rbac.ts";
 import { validate } from "../middleware/validate.ts";
 import type { AppEnv } from "../types.ts";
 import { approvalFromRow, canDecide } from "./approvals.ts";
-import { timelineSummary } from "./timeline.ts";
+import { timelineFields, timelineSummary } from "./timeline.ts";
 
 const ZERO_USAGE: Usage = { toolCalls: 0, toolCallsReserved: 0, llmTokens: 0, activeMs: 0, attempts: 0, replays: 0, skippedSteps: 0 };
 
@@ -317,15 +317,19 @@ export const runRoutes = new Hono<AppEnv>()
     const { results } = await c.env.DB.prepare("SELECT seq, ts, action, actor_type, actor_id, task_id, detail_json FROM audit_events WHERE stream = ? ORDER BY seq")
       .bind(`run:${run.id}`)
       .all<{ seq: number; ts: string; action: string; actor_type: TimelineEntry["actorType"]; actor_id: string; task_id: string | null; detail_json: string }>();
-    const entries: TimelineEntry[] = results.map((e) => ({
-      seq: e.seq,
-      ts: e.ts,
-      action: e.action,
-      actorType: e.actor_type,
-      actorId: e.actor_id,
-      taskId: e.task_id,
-      summary: timelineSummary(e.action, JSON.parse(e.detail_json) as Record<string, unknown>),
-    }));
+    const entries: TimelineEntry[] = results.map((e) => {
+      const detail = JSON.parse(e.detail_json) as Record<string, unknown>;
+      return {
+        seq: e.seq,
+        ts: e.ts,
+        action: e.action,
+        actorType: e.actor_type,
+        actorId: e.actor_id,
+        taskId: e.task_id,
+        summary: timelineSummary(e.action, detail),
+        ...timelineFields(e.action, detail),
+      };
+    });
     return c.json(entries);
   })
   .get("/api/runs/:id/audit", requirePermission("audit:read"), async (c) => {

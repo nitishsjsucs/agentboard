@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunDetailResponse } from "../../../shared/api-types.ts";
 import { apiError, reply, stubApi } from "../../components/__tests__/api.ts";
@@ -138,7 +138,8 @@ describe("RunDetail keyboard and screen readers", { tags: ["ui"] }, () => {
     });
     page();
     await screen.findByText("run created");
-    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Seq", "Time", "Actor", "Event"]);
+    const events = screen.getByRole("heading", { name: "Events" }).closest(".card") as HTMLElement;
+    expect(within(events).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Seq", "Time", "Actor", "Event"]);
   });
 
   it("announces a status change pushed after the page loaded, but not the first status", async () => {
@@ -190,5 +191,66 @@ describe("RunDetail plan map", { tags: ["ui"] }, () => {
     expect(panel.querySelector("[data-testid=plan-map]")).toBe(panel.querySelector(".stack")?.firstElementChild);
     await screen.findByText("No events yet.");
     expect(new Set(api.paths())).toEqual(new Set([`/api/runs/${RUN}`, `/api/runs/${RUN}/timeline`]));
+  });
+});
+
+describe("RunDetail time in each status and key events", { tags: ["ui"] }, () => {
+  const entry = (seq: number, action: string, summary: string, extra: Record<string, unknown> = {}) => ({
+    seq,
+    ts: new Date(Date.parse("2026-10-08T12:00:00.000Z") + seq * 1000).toISOString(),
+    action,
+    actorType: "system",
+    actorId: "coordinator",
+    taskId: null,
+    summary,
+    ...extra,
+  });
+  const ENTRIES = [
+    entry(1, "run.created", "run created (address_change for E-1048)"),
+    entry(2, "task.dispatched", "dispatched (attempt 1)"),
+    entry(3, "run.status_changed", "status queued to planning", { statusFrom: "queued", statusTo: "planning" }),
+    entry(4, "task.leased", "leased (attempt 1, epoch 1)"),
+    entry(5, "plan.accepted", "plan accepted: s1 hris.get_employee"),
+    entry(6, "run.status_changed", "status planning to running", { statusFrom: "planning", statusTo: "running" }),
+    entry(7, "tool.called", "hris.update_address: retryable_error in 12 ms"),
+    entry(8, "task.failed", "failed: transport_error (will retry)"),
+    entry(9, "task.failed", "failed: permanent_error"),
+    entry(10, "run.status_changed", "status running to needs_attention (task_failed:permanent_error)", { statusFrom: "running", statusTo: "needs_attention" }),
+  ];
+
+  it("puts the time bar after the plan map, and shows key events by default with both counts on pressed buttons", async () => {
+    stubApi(({ path }) => {
+      if (path === `/api/runs/${RUN}`) return reply(runDetail());
+      if (path === `/api/runs/${RUN}/timeline`) return reply(ENTRIES);
+      return undefined;
+    });
+    page();
+    const bar = await screen.findByRole("figure", { name: "Time in each status" });
+    const map = screen.getByRole("figure", { name: "Plan map" });
+    expect(map.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar.compareDocumentPosition(screen.getByRole("list", { name: "Tasks" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const key = await screen.findByRole("button", { name: "Key events (6)" });
+    const all = screen.getByRole("button", { name: "All events (10)" });
+    expect([key.getAttribute("aria-pressed"), all.getAttribute("aria-pressed")]).toEqual(["true", "false"]);
+    const events = screen.getByRole("heading", { name: "Events" }).closest(".card") as HTMLElement;
+    const shownActions = () => [...events.querySelectorAll("tbody tr")].map((r) => r.querySelector(".events-table__event .mono")?.textContent);
+    expect(shownActions()).toEqual(["run.created", "run.status_changed", "plan.accepted", "run.status_changed", "task.failed", "run.status_changed"]);
+    expect(events.textContent).not.toContain("(will retry)");
+    fireEvent.click(all);
+    expect([key.getAttribute("aria-pressed"), all.getAttribute("aria-pressed")]).toEqual(["false", "true"]);
+    expect(shownActions()).toHaveLength(10);
+  });
+
+  it("says 'No key events yet.' when only other events exist", async () => {
+    stubApi(({ path }) => {
+      if (path === `/api/runs/${RUN}`) return reply(runDetail());
+      if (path === `/api/runs/${RUN}/timeline`) return reply([entry(2, "task.dispatched", "dispatched (attempt 1)")]);
+      return undefined;
+    });
+    page();
+    expect(await screen.findByText("No key events yet.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "All events (1)" }));
+    expect(await screen.findByText("dispatched (attempt 1)")).toBeTruthy();
   });
 });
