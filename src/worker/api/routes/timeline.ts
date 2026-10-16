@@ -2,6 +2,24 @@
 
 const str = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
+const DECISION_PAST: Record<string, string> = { approve: "approved", reject: "rejected" };
+
+/**
+ * The stored validation issues as "code (stepId)". Only the enumerated code and the step id are used,
+ * and each must look like one, so no planner message, policy text or request data can reach the summary.
+ */
+function issueList(issues: unknown): string {
+  if (!Array.isArray(issues)) return "";
+  return issues
+    .map((issue) => {
+      const { code, stepId } = (issue ?? {}) as { code?: unknown; stepId?: unknown };
+      if (typeof code !== "string" || !/^[a-z_]{1,40}$/.test(code)) return null;
+      return typeof stepId === "string" && /^s\d{1,2}$/.test(stepId) ? `${code} (${stepId})` : code;
+    })
+    .filter((item): item is string => item !== null)
+    .join(", ");
+}
+
 export function timelineSummary(action: string, d: Record<string, unknown>): string {
   switch (action) {
     case "run.created":
@@ -16,8 +34,10 @@ export function timelineSummary(action: string, d: Record<string, unknown>): str
       const steps = Array.isArray(d["steps"]) ? (d["steps"] as { stepId: string; tool: string }[]) : [];
       return `plan accepted: ${steps.map((s) => `${s.stepId} ${s.tool}`).join(", ")}`;
     }
-    case "plan.rejected":
-      return "plan rejected by validation";
+    case "plan.rejected": {
+      const issues = issueList(d["issues"]);
+      return issues ? `plan rejected by validation: ${issues}` : "plan rejected by validation";
+    }
     case "task.dispatched":
       return `dispatched (attempt ${str(d["attempt"])}${d["delaySeconds"] ? `, delay ${str(d["delaySeconds"])} s` : ""}${d["duplicateDelivery"] ? ", duplicate delivery" : ""})`;
     case "task.leased":
@@ -53,7 +73,7 @@ export function timelineSummary(action: string, d: Record<string, unknown>): str
     case "approval.requested":
       return `approval requested (${str(d["risk"])}): ${str(d["summary"])}`;
     case "approval.decided":
-      return `approval ${str(d["decision"])}d: ${str(d["note"])}`;
+      return `approval ${DECISION_PAST[str(d["decision"])] ?? str(d["decision"])}: ${str(d["note"])}`;
     case "approval.expired":
       return `approval expired (${str(d["reason"])})`;
     case "budget.exhausted":

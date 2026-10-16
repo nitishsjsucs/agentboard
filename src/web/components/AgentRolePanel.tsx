@@ -53,6 +53,7 @@ export function AgentRolePanel({ roles, onChange }: { roles: AgentRolesResponse[
           title={`${pending.disable ? "Disable" : "Enable"} the ${pending.role} role`}
           confirmLabel={pending.disable ? "Disable" : "Enable"}
           danger={pending.disable}
+          action="disable or enable agent roles"
           onCancel={() => setPending(null)}
           onConfirm={async (reason) => {
             await api.post(`/api/agents/${pending.role}/${pending.disable ? "disable" : "enable"}`, { reason });

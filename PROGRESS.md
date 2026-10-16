@@ -317,13 +317,103 @@ After it:
 
 llama-server was stopped with SIGTERM afterwards, and `eval:sim` stopped its own wrangler dev; no process of this repository is left running.
 
+### Console workflows (2026-10-15 local time, builder 11)
+
+A review of how each persona moves through the console (viewer, operator, approver, admin, and a signed-in principal without a role) found ten workflow problems, each verified in the code before it was fixed. `docs/USER-WORKFLOWS.md` describes every persona's workflows as they now work and lists the ten changes and why. Server rules (authorization, approvals, idempotency, budgets, redaction) were not changed; every console shortcut still goes through the same API calls.
+
+| # | Commit | Status |
+|---|---|---|
+| 109 | fix(web): usable layouts at 375 px without changing the 1280 px layout | done (`a873824`) |
+| 110 | fix(web): plain error messages with a next step instead of server internals | done (`3b41bb1`) |
+| 111 | fix(web): tell loading, empty, failed and stale data apart on every polled view | done (`3183c70`) |
+| 112 | fix(web): handle signed-out, no-role and expired sessions, and add Sign out behind Access | done (`d25d699`; also the DEMO.md "Wrong persona" note) |
+| 113 | fix(web): guide the launch form, recover lost or conflicting submits, no form for roles that cannot launch | done (`e32385d`) |
+| 114 | feat(web): explain why a run waits or needs attention and the next step for this role | done (`076e48c`; server: Events summaries) |
+| 115 | feat(approvals): give approvers run context, a clear confirmation and a clean outcome when someone decided first | done (`35c981e`; server: run title and type in approval list items) |
+| 116 | fix(web): accessible confirm dialog, announced recovery outcomes and a budget form in plain units | done (`7f07894`) |
+| 117 | fix(web): keyboard and screen-reader basics: skip link, page titles, real tabs with URL state, announced status | done (`510f505`) |
+| 118 | fix(web): tell viewers which data is hidden from them | done (`7c420e4`) |
+| 119 | style(web): an empty decision status line no longer adds a gap above the approval list | done (`9af43cb`) |
+| 120 | docs: USER-WORKFLOWS.md, each persona's workflows as they now work and what the 2026-10-15 round changed | done (`122bfac`) |
+| 121 | chore(results): re-measure simulation, planner and test results after the console workflow changes | done (`2f524a9`, measured at `122bfac`) |
+| 122 | docs: PROGRESS for the console workflows round | done |
+
+Server code touched (it needs a redeploy before production shows it): `src/worker/api/routes/timeline.ts` (a rejection reads "approval rejected" instead of "approval rejectd", and `plan.rejected` lists the stored issue codes with step ids, filtered to code and step-id shapes so no policy text or request data can appear), `src/worker/api/routes/approvals.ts` and `runs.ts` (approval list items and run detail approvals carry `runTitle` and `requestType`, read from the runs mirror with the same `runs:read` permission), and the shared `ApprovalListItem` type. Nothing else under `src/worker` changed.
+
+Tests: the web project went from 18 to 131 tests (new page tests for the dashboard, runs, approvals, run detail, launch and the app's session flows; component tests for NavBar, NextStep and Tabs; API tests for the client, describeError and usePolling), and the web project now also runs `.test.ts` files. Four worker tests were added, tagged `history`: three in `test/worker/api/timeline-summary.test.ts` and one in `test/worker/approvals/approvals.test.ts` ("list items and run detail approvals carry the run's title and request type ..."). The `orchestration` and `authz` count stays 109. `npm test`: 57 files, 297 tests (was 44 files, 180).
+
+Layout measurements (P1), taken with a scratch Playwright 1.63.0 script (Chromium, not committed) against `npm run serve:built -- --fresh` on 127.0.0.1:8784, signed in through `/api/dev/login` as Ana Viewer, Ops Lead, Lee Approver and `admin@agentboard.test`, with runs seeded through the API (a succeeded address change from `syn-0006`, manager changes awaiting approval, and a typed request the stub planner cannot plan, which needs attention; the after run added a rejected privileged grant from `syn-0002`). Pages: `/`, `/runs`, `/approvals`, `/launch` (operator and admin) and each run's four tabs.
+- Before, at `fddb835`, 375x812 (62 views): the dashboard's `document.documentElement.scrollWidth` was 400 px for three personas and 462 px for the admin; the nav links box was 14 px wide on every page, so the links were reachable only by scrolling a 14 px strip; the run detail main column was 67 px wide; the approval note input was 149 px; both launch rows were two columns and the subject select (145 px) was too narrow for "Choose an employee".
+- After, at `122bfac` (the code of `9af43cb`), 375x812 (94 views): `scrollWidth` 375 on every view, wide tables scrolling inside `.table-wrap`; the nav links on their own full-width row, every link at least 32 px tall; the run detail main column 343 px with no overlap with the Recovery card, which is above the tabs on the needs-attention run and below them on the others; the approval note input 309 px; both launch rows one column, the subject select 307 px.
+- 1280x800, before and after with the same script: run detail `gridTemplateColumns` "810.656px 405.344px" (main column 811 px, Recovery 405 px) on every run; the nav one row, 52 px tall, with its links at the same positions; the dashboard, runs and approvals pages 1280 px wide with the same grid tracks; the launch rows two columns.
+
+Keyboard-only pass (P10), a scratch Playwright script on the same server at `122bfac`, no mouse after page load, 21 of 21 checks passed: the first Tab focuses "Skip to content" and Enter focuses main; 4 Tab presses from main reach Lee Approver's first "Decision note"; typing, Tab to `Approve` and Enter decided it, the status line read "Approved: ...", and focus moved to the next card's note; ArrowRight on the status tabs wrote `?status=approved`; on run detail ArrowRight opened Tool calls and wrote `?tab=calls`, Tab reached a tool-call button, Enter expanded the details and Space collapsed them; on the needs-attention run Tab reached `Pause run`, Enter opened the dialog with focus on the reason, Escape closed it with focus back on `Pause run`, Tab cycled inside the dialog, and Confirm paused the run with "Paused the run." announced. The rejected run's Events table read "approval rejected: Rejected: no business justification." and nowhere "rejectd". None of this was checked in production, which still runs `c9130b5`.
+
+Re-measurement (commit 121), on the clean tree at `122bfac` with the procedure under "What is left", load averages about 3 to 5:
+- `count:tests`: 109 tagged (67 + 42), 109 passing, vitest exit 0.
+- `eval:sim`: exit 0 in 1 min 55 s. Every count equals the `0dbe380` measurement (100/100 outcome match, 573 tool calls, 3228 audit events, 100/100 valid chains, 0 duplicate and logical-duplicate side effects, 0 duplicate and 0 missing domain-table rows). Run duration p50 7322 ms and p95 10925 ms, search latency p50 3.3 ms and p95 9.2 ms; the bundle sha256 changed with `src`.
+- `eval:planner` (llama-server b11146-7fe450e19 on 127.0.0.1:8140, `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`): exit 0 in 7 min 38 s. Every quality metric and all 100 per-request results are identical to `0dbe380`; latency p50 3839 ms and p95 9550 ms.
+- `eval:planner -- --provider stub`: 100/100 on every metric.
+
+Checks at `2f524a9` (Node 25.9.0, AC power, every long run under `caffeinate -i`; other repositories' suites ran at the same time, with load averages between 4 and 40): `types:check`, `typecheck`, `synth:check` (4 files match), `npm test` (57 files, 297 tests passed, 0 failed), `test:sim` (6), `count:tests -- --check` (67 + 42 = 109), `results:check` (block matches 4 result files, with the production note because production was measured at `c9130b5`) and `build` all exit 0. `dist/agentboard/index.js` 2491904 bytes (598919 gzip -9); client bundle 413.32 kB (126.67 kB gzip). No `.skip`, `.todo` or `.only` was added.
+
+Deferred from the plan, with reasons:
+- P7 ("approval rejectd") was not deferred: it shipped inside commit 114 with its own worker test.
+- P11: its useful part (a not-found message with links to `/runs` and `/runs?q=<id>`) shipped in commit 110. Splitting run detail into a loader and a view to stop its WebSocket for a missing run was not done; it affects no user.
+- P12 (stat cards as links, the pending-approvals button style, hiding the dead-letter stat from viewers): not done; conveniences, and the misleading parts (zeros, raw errors) are fixed by commits 110 and 111.
+- P13 (the search box after Back and Forward, the page position in the URL): not done; the one failure in it, the raw zod message for an invalid filter, is fixed by commit 110's "Clear filters".
+- A pending-approvals badge in the nav: not done, because it would add a 5 s poll on every page against the Free plan's daily request allowance.
+
+Processes: each `serve:built` was stopped with SIGTERM (its wrangler process group exited), `eval:sim` stopped its own `wrangler dev`, and the llama-server on port 8140 was stopped with SIGTERM after the planner eval. Ports 8784, 9234 and 8140 have no listener; the scratch Chromium instances closed with their scripts. Other repositories' processes were not touched.
+
+### Fixes after the workflow review (2026-10-15 local time, builder 12)
+
+An independent review drove every persona through the console with Playwright against `npm run serve:built` and reported twelve findings (four important, eight minor) about the round above. Each was verified in the code before it was fixed, and every one was fixed; none was rejected. `docs/USER-WORKFLOWS.md` ("Fixed after review") and the CHANGELOG describe them. No server rule changed and nothing under `src/worker` was touched: every console shortcut still goes through the same API calls and coordinator checks.
+
+| # | Commit | Status |
+|---|---|---|
+| 123 | fix(web): detect an Access session that ended, and stop calling gateway error pages a session end | done (`a1dcddf`) |
+| 124 | fix(web): Edit request after a lost launch keeps the idempotency key | done (`f4affe0`) |
+| 125 | fix(web): keep the launch draft through signing in again | done (`dd9019a`) |
+| 126 | fix(web): keep keyboard focus on the outcome after a confirmed recovery or replay command | done (`a3bbca7`) |
+| 127 | fix(web): name each recovery task button after its task, and point the postcondition notice at the row that runs the write again | done (`2ad1f44`) |
+| 128 | fix(web): the budget dialog treats an untouched field as its current limit | done (`10f4391`) |
+| 129 | fix(approvals): move focus on after a conflict, and clear the status line when the tab changes | done (`c2a7e71`) |
+| 130 | fix(web): Clear filters on Runs also empties the search box | done (`8904513`) |
+| 131 | style(web): keep dialog buttons reachable on short screens, and draw nav focus rings inside the link | done (`286fdee`; `vitest.config.ts` lets the web project read `app.css` as text) |
+| 132 | docs: USER-WORKFLOWS and CHANGELOG for the fixes after the workflow review | done (`2307198`) |
+| 133 | chore(results): re-measure simulation, planner and test results after the workflow review fixes | done (`fefc39b`, measured at `2307198`) |
+| 134 | docs: PROGRESS for the workflow review fixes | done |
+
+What was verified, and how:
+- Access expiry: one read-only `curl` to the production URL confirmed `GET /api/me` without a session answers 302 to `old-truth-a7dc.cloudflareaccess.com`. Locally, with `/api/health` patched to `authMode: "access"` and every `/api` request answered 302 to a cross-origin page, the build shows the Reload banner (before: no banner, only the stale line), a launch reads "Your session may have ended: the request was sent to a sign-in page. ...", and a reload restores the draft. With every data request answered by a 503 HTML page, no banner appears and the panels read "AgentBoard could not finish this request."
+- Lost launch: the first `POST /api/runs` was forwarded with `route.fetch()` and then aborted. After Edit request and an edited resubmit the page showed the idempotency-conflict notice and the requester's runs went up by 1 (before: 2). Start a new request then created the second run.
+- Focus: after Confirm on Pause and on Resume, focus is on the outcome line ("Paused the run.", "Resumed the run.") from the first sample after the dialog closed, and it stays there when the snapshot replaces the button; Escape still returns focus to Pause run. After a conflict on the approval queue focus is on the next card's note; switching to the rejected tab empties the status line.
+- Budget: on a run launched with `maxActiveMs: 50000`, the dialog shows 0.83, raising tool calls from 2 to 12 enables Confirm, and the PATCH body is `{"maxToolCalls":12,"reason":...}`.
+- Layout: at 812x375 the budget dialog is 343 px tall (`max-height` 343 px, scroll height 451 px) and scrolls inside, so Confirm comes into view; at 375x667 it fits (Confirm at y 571) with `scrollWidth` 375. The focused nav link's outline is `solid 2px` with offset `-2px` at 375 and 1280 px, drawn inside the 32 px link.
+- The silent-noop run's notice reads "Retry s2 execute (hris.update_address) in Recovery to run the write again; retrying s2 verify only reads the record again." and its buttons are named "Retry s2 execute (hris.update_address)" and "Retry s2 verify (hris.update_address)", in that order.
+- These checks used a scratch Playwright 1.63.0 script (Chromium, not committed) against `npm run serve:built -- --fresh` on 127.0.0.1:8784, with runs seeded through the API. None of this was checked in production, which still runs `c9130b5`.
+
+Tests: the web project went from 131 to 152 tests (new or changed tests for the client's redirect and 5xx handling, describeError, the App's Access expiry and 503 cases and the restored draft after signing in again, the launch key and draft, NavBar's Sign out, ConfirmDialog's focus fallback, RecoveryControls focus, names, order and budget rounding, the DLQ panel, NextStep, approvals focus and tab switching, the Runs search box, and a stylesheet test). `npm test`: 58 files, 318 tests. The `orchestration` and `authz` count stays 109.
+
+Re-measurement (commit 133), on the clean tree at `2307198` with the procedure under "What is left", load averages about 3 to 14:
+- `count:tests`: 109 tagged (67 + 42), 109 passing, vitest exit 0.
+- `eval:sim`: exit 0 in 1 min 53 s. Every count equals the `122bfac` measurement (100/100 outcome match, 573 tool calls, 3228 audit events, 100/100 valid chains, 0 duplicate side effects, 0 duplicate and 0 missing domain-table rows). Run duration p50 7237 ms and p95 10923 ms, search latency p50 2.5 ms and p95 3.3 ms.
+- `eval:planner` (llama-server on 127.0.0.1:8140, `-np 1 -c 8192 -ngl 99 --reasoning off --jinja`): exit 0 in 5 min 14 s. Every quality metric and all 100 per-request results are identical to `122bfac`; latency p50 2288 ms and p95 6042 ms.
+- `eval:planner -- --provider stub`: 100/100 on every metric.
+
+Checks on the final tree: listed under "Check status" below.
+
+Processes: the `serve:built` used for the Playwright checks was stopped with SIGTERM before `eval:sim` (its wrangler and workerd processes exited), `eval:sim` stopped its own `wrangler dev`, and the llama-server on port 8140 was stopped with SIGTERM after the planner eval. The scratch Chromium instances closed with their scripts.
+
 ## What is left (human steps)
 
 - Every planned commit (1 to 36, plus 33a), every stretch item of section 1.1, every review finding and the three known minor issues are done, and so is the deploy tooling. There is no further planned build work in SPEC.md.
 - The builders never push and make no cloud or GitHub change. The GitHub repository is filled by the publish script (`~/Developer/projects/_publish/sync.sh agentboard --pr`). It copies each new local `main` commit without any `Co-Authored-By: Claude` trailer, rewrites commit ids cited in files to the published ones, and mirrors local tags onto the published commits. It opens one pull request per increment and, as of 2026-10-15, merges it with a merge commit only after `gh pr checks --watch` passes. No pull request has had a human review. On 2026-10-15 no running loop publishes agentboard (`loop.sh` has its STOP file), so publishing is a manual run of `sync.sh`.
 - Claude (the parent session) or Nitish, in this order:
   1. Publish this round (commits 93 to 108 are local; GitHub still ends at PR #11) and let CI pass on the pull request.
-  2. Production: done on 2026-10-15 (deployed by `cf:setup`, verified by `cf:verify`, commits 104 and 105). After the next code change, redeploy with `npm run cf:setup -- --env production` (with `CF_API_TOKEN`), then re-run `cf:verify` and commit its result. Never export `CLOUDFLARE_API_TOKEN` for these.
+     The console workflows round (commits 109 to 122) and the fixes after its review (commits 123 to 134) are local too; publish them the same way.
+  2. Production: done on 2026-10-15 (deployed by `cf:setup`, verified by `cf:verify`, commits 104 and 105). After the next code change, redeploy with `npm run cf:setup -- --env production` (with `CF_API_TOKEN`), then re-run `cf:verify` and commit its result. Never export `CLOUDFLARE_API_TOKEN` for these. Commits 109 to 118 changed the console and two read paths in `src/worker` (Events summaries, approval list items), and commits 123 to 131 changed the console, so production needs that redeploy before it shows them; until then `docs/USER-WORKFLOWS.md` describes the repository, not production.
   3. Preview: `npm run cf:setup -- --env preview` (same token), then on GitHub create the environment `preview` (no required reviewer), add its secret `CLOUDFLARE_API_TOKEN` (account-scoped: Workers Scripts Edit, D1 Edit, Queues Edit, Account Settings Read), and set the repository variable `PREVIEW_DEPLOYS=on`. The next pull request then deploys to `agentboard-preview`.
   4. Releases: run the four `gh workflow run release.yml ... -f tag=v0.N.0` commands under "Gate open issues" (d). Then cut `v0.5.0` as described in (a).
   5. Sign in once as each persona (One-time PIN to `nitishsancs+ops@gmail.com` and so on; plus-addresses reach the same inbox) to check the roles in the console.
@@ -338,9 +428,11 @@ llama-server was stopped with SIGTERM afterwards, and `eval:sim` stopped its own
   5. `npm run results:render`, then commit `eval/results` and the README block together.
   Builder 8 used the same procedure on 2026-10-09 for commit 87, and builder 9 (the final gate) in a fresh clone of `6541d6e` for commit 90.
 
-## Check status (last run 2026-10-15 local time by builder 10)
+## Check status (last run 2026-10-15 local time by builder 12)
 
-The latest run is the re-measurement after the production deploy, under "Production deploy, the Qwen3 finding and re-measurement" above (at `0dbe380` and after commit 107). The list below is builder 10's first pass, up to commit 103.
+The latest run is builder 12's, under "Fixes after the workflow review" above (measurements at `2307198`). Checks on the final tree (`fefc39b` plus the PROGRESS commit; Node 25.9.0, AC power, long runs under `caffeinate -i`, while other repositories were worked on, load averages between 3 and 14): `types:check`, `typecheck`, `synth:check` (4 files match), `npm test` (58 files, 318 tests passed, 0 failed), `test:sim` (6), `count:tests -- --check` (67 + 42 = 109), `results:check` (block matches 4 result files, with the production note because production was measured at `c9130b5`) and `build` all exit 0. No `.skip`, `.todo` or `.only` was added.
+
+Before it, builder 11's run is under "Console workflows" above (checks at `2f524a9`, measurements at `122bfac`). Before it, the re-measurement after the production deploy is under "Production deploy, the Qwen3 finding and re-measurement" (at `0dbe380` and after commit 107). The list below is builder 10's first pass, up to commit 103.
 
 Builder 10, Node 25.9.0, npm 11.12.1, on AC power. Three other repositories' test suites, wrangler dev and workerd processes ran on the Mac at the same time, with load averages between 15 and more than 100. Every long run was under `caffeinate -i`.
 

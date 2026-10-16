@@ -23,4 +23,18 @@ describe("BudgetMeter", { tags: ["ui"] }, () => {
     expect(fill("Active time: 960 s of 900 s").style.width).toBe("100%");
     expect(screen.getByText("960 s / 900 s")).toBeTruthy();
   });
+
+  it("exposes role meter with its values, keeping aria-valuenow within the range and the real value in aria-valuetext", () => {
+    render(
+      <>
+        <BudgetMeter label="Tool calls" used={10} max={24} />
+        <BudgetMeter label="Active time (s)" used={960} max={900} />
+      </>,
+    );
+    const [calls, time] = screen.getAllByRole("meter");
+    expect(calls?.getAttribute("aria-label")).toBe("Tool calls: 10 of 24");
+    expect([calls?.getAttribute("aria-valuemin"), calls?.getAttribute("aria-valuenow"), calls?.getAttribute("aria-valuemax")]).toEqual(["0", "10", "24"]);
+    expect(time?.getAttribute("aria-valuenow")).toBe("900");
+    expect(time?.getAttribute("aria-valuetext")).toBe("960 of 900");
+  });
 });

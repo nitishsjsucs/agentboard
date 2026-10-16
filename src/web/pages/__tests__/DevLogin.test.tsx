@@ -4,6 +4,7 @@ import type { Role } from "../../../shared/domain.ts";
 import { App } from "../../App.tsx";
 import type { Health } from "../../api/hooks.ts";
 import { me } from "../../components/__tests__/session.tsx";
+import { safeNext } from "../../api/navigation.ts";
 
 afterEach(() => {
   cleanup();
@@ -79,5 +80,48 @@ describe("DevLogin", { tags: ["ui"] }, () => {
     expect(afterLogin.filter((s) => s.path === "/api/dlq")).toEqual([]);
     expect(afterLogin.filter((s) => s.status >= 400)).toEqual([]);
     expect(afterLogin.every((s) => s.principal === "approver.lee@agentboard.test")).toBe(true);
+  });
+
+  it("goes back to a same-origin next path after signing in", async () => {
+    const api = fakeApi("admin@agentboard.test");
+    vi.stubGlobal("fetch", api.fetch);
+    window.history.replaceState(null, "", "/dev/login?next=%2Fruns%3Fstatus%3Dpaused");
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /Lee Approver/ }));
+    await screen.findByRole("heading", { name: "Runs" });
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/runs?status=paused");
+  });
+
+  it.each(["https://evil.test", "//evil.test", "/\\evil.test", "launch"])("ignores the unsafe next value %s and goes to the dashboard", async (next) => {
+    const api = fakeApi("admin@agentboard.test");
+    vi.stubGlobal("fetch", api.fetch);
+    window.history.replaceState(null, "", `/dev/login?next=${encodeURIComponent(next)}`);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /Lee Approver/ }));
+    await screen.findByRole("heading", { name: "Dashboard" });
+    expect(window.location.pathname).toBe("/");
+    expect(window.location.origin).toBe("http://localhost:3000");
+  });
+
+  it("marks the principal who is signed in now", async () => {
+    vi.stubGlobal("fetch", fakeApi("admin@agentboard.test").fetch);
+    window.history.replaceState(null, "", "/dev/login");
+    render(<App />);
+    await screen.findByText("admin@agentboard.test", { selector: ".principal" });
+    const admin = await screen.findByRole("button", { name: /^Admin/ });
+    await waitFor(() => expect(admin.textContent).toContain("signed in"));
+    expect(admin.getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("button", { name: /Lee Approver/ }).textContent).not.toContain("signed in");
+  });
+});
+
+describe("safeNext", { tags: ["ui"] }, () => {
+  it("keeps same-origin paths and refuses everything else", () => {
+    const origin = "http://127.0.0.1:8784";
+    expect(safeNext("/launch", origin)).toBe("/launch");
+    expect(safeNext("/runs?status=paused#top", origin)).toBe("/runs?status=paused#top");
+    for (const unsafe of ["https://evil.test", "//evil.test", "/\\evil.test", "/\\/evil.test", "launch", "", null, "/dev/login", "javascript:alert(1)"]) {
+      expect(safeNext(unsafe, origin)).toBe("/");
+    }
   });
 });

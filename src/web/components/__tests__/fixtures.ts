@@ -1,4 +1,4 @@
-import type { RunSnapshot, TaskView } from "../../../shared/api-types.ts";
+import type { ApprovalListItem, AuditEventView, RunDetailResponse, RunSnapshot, TaskView } from "../../../shared/api-types.ts";
 
 export function task(overrides: Partial<TaskView> & Pick<TaskView, "id" | "kind">): TaskView {
   return {
@@ -44,6 +44,73 @@ export function snapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
     recentEvents: [],
     pendingApprovalIds: [],
     version: 9,
+    ...overrides,
+  };
+}
+
+/** A run detail response for the snapshot above (status, budget, usage and tasks taken from it). */
+export function runDetail(overrides: { status?: RunSnapshot["status"]; statusReason?: string | null; requester?: string; requestText?: string | null; approvals?: ApprovalListItem[]; tasks?: TaskView[] } = {}): RunDetailResponse {
+  const snap = snapshot();
+  return {
+    run: {
+      id: snap.runId,
+      title: "Address change for Halia Elsworth (E-1048)",
+      requestType: "address_change",
+      status: overrides.status ?? snap.status,
+      statusReason: overrides.statusReason === undefined ? snap.statusReason : overrides.statusReason,
+      requester: overrides.requester ?? "ops.lead@agentboard.test",
+      subjectEmployeeId: "E-1048",
+      priority: "normal",
+      createdAt: "2026-10-08T12:00:00.000Z",
+      updatedAt: "2026-10-08T12:01:00.000Z",
+      finishedAt: null,
+      budget: snap.budget,
+      usage: snap.usage,
+      pendingApprovals: 0,
+      syntheticRef: null,
+      requestText: overrides.requestText === undefined ? "Please update the home address for E-1048 to 12 Elm Street, Austin." : overrides.requestText,
+    },
+    tasks: overrides.tasks ?? snap.tasks,
+    approvals: overrides.approvals ?? [],
+  };
+}
+
+/** A pending manager-change approval requested by Ops Lead. */
+export function approvalItem(overrides: Partial<ApprovalListItem> = {}): ApprovalListItem {
+  return {
+    id: "apr_01J00000000000000000000001",
+    runId: "run_01J00000000000000000000001",
+    taskId: "tsk_01J00000000000000000000001",
+    tool: "hris.update_manager",
+    summary: "Change the manager of E-1017 to E-1004",
+    risk: "medium",
+    requester: "ops.lead@agentboard.test",
+    status: "pending",
+    requestedAt: "2026-10-15T12:00:00.000Z",
+    expiresAt: "2026-10-18T12:00:00.000Z",
+    decidedBy: null,
+    decidedAt: null,
+    decisionNote: null,
+    canDecide: true,
+    runTitle: "Manager change for Rosalind Galloway (E-1017)",
+    requestType: "manager_change",
+    ...overrides,
+  };
+}
+
+export function auditEvent(overrides: Partial<AuditEventView> = {}): AuditEventView {
+  return {
+    stream: "run:run_01J00000000000000000000000",
+    seq: 1,
+    ts: "2026-10-08T12:00:01.000Z",
+    actorType: "user",
+    actorId: "ops.lead@agentboard.test",
+    action: "run.created",
+    runId: "run_01J00000000000000000000000",
+    taskId: null,
+    detail: {},
+    prevHash: "0".repeat(64),
+    hash: "a".repeat(64),
     ...overrides,
   };
 }

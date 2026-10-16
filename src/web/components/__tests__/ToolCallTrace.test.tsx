@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ToolCallView } from "../../../shared/api-types.ts";
 import { ToolCallTrace } from "../ToolCallTrace.tsx";
+import { withSession } from "./session.tsx";
 
 afterEach(cleanup);
 
@@ -68,5 +69,45 @@ describe("ToolCallTrace", { tags: ["ui"] }, () => {
 
     fireEvent.click(rowOf("notify.send"));
     expect(screen.queryByText("Arguments")).toBeNull();
+  });
+
+  it("shows a loading line, not the empty state, while calls is null, and the empty state for an empty answer", () => {
+    const view = render(<ToolCallTrace calls={null} />);
+    expect(screen.getByRole("status").textContent).toBe("Loading tool calls...");
+    expect(screen.queryByText("No tool calls yet.")).toBeNull();
+    view.unmount();
+    render(<ToolCallTrace calls={[]} />);
+    expect(screen.getByText("No tool calls yet.")).toBeTruthy();
+  });
+
+  it("offers a real button per call that toggles the details row, with aria-expanded and aria-controls", () => {
+    render(<ToolCallTrace calls={[call({ id: "call_k", tool: "hris.update_address", idempotencyKey: "ik_key" })]} />);
+    const toggle = screen.getByRole("button", { name: "hris.update_address" }) as HTMLButtonElement;
+    expect(toggle.type).toBe("button");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const details = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+    expect(details?.textContent).toContain("idempotency key ik_key");
+    // The button's click does not also reach the row, which would close it again.
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("idempotency key ik_key")).toBeNull();
+  });
+
+  it("says what redaction changed in an expanded call, for a session without pii:read only", () => {
+    const calls = [call({ id: "call_r", tool: "hris.update_address", args: { employeeId: "E-1007", address: { city: "Austin", region: "TX", country: "US" } } })];
+    for (const role of ["operator", "approver", "admin"] as const) {
+      const view = render(withSession(role, <ToolCallTrace calls={calls} />));
+      fireEvent.click(rowOf("hris.update_address"));
+      expect(screen.getByText("Arguments")).toBeTruthy();
+      expect(screen.queryByTestId("redaction-notice")).toBeNull();
+      view.unmount();
+    }
+    render(withSession("viewer", <ToolCallTrace calls={calls} />));
+    fireEvent.click(rowOf("hris.update_address"));
+    expect(screen.getByTestId("redaction-notice").textContent).toBe(
+      "Personal data is redacted for your role: addresses show only city, region and country, and personal email addresses are masked.",
+    );
   });
 });

@@ -59,6 +59,29 @@ Deploy path for the Workers Free plan (production and preview deployed 2026-10-1
 - The README's production table renders the Analytics API's CPU quantiles, and shows limit outcomes as not observed when `wrangler tail` delivered no events (it showed 0).
 - Simulation, planner and test results measured again after the provider fix: every count, outcome and per-request planner result unchanged.
 
+Console workflows (2026-10-15; `docs/USER-WORKFLOWS.md` describes each persona's workflows as they now work):
+
+- Layouts work at 375 px wide (the nav wraps to a scrolling row of links, run detail stacks with Recovery first when it is the next step, forms go to one column) and the 1280 px layout is unchanged.
+- Every polled view tells loading, empty, failed and stale data apart; the dashboard no longer shows 0 for counts it does not have, and panels show an error card instead of disappearing.
+- API and network failures read as plain sentences with a next step instead of server internals; server failures show the request id.
+- Pages wait for the session; a principal without a role gets one explanation page; an expired session shows a banner that keeps typed text; the dev login returns to the page in `next` (same origin only); Access mode has a Sign out link.
+- The launch form says why it cannot submit yet, resets with the sample placeholder, warns about requests the stub planner cannot plan, resends a launch whose answer was lost with the same key, explains an idempotency conflict, and shows roles without `runs:launch` a sentence instead of the form.
+- Run detail explains why a run waits or needs attention and the next step for the viewer's role; the Events table reads "approval rejected" (it read "approval rejectd") and lists a rejected plan's issue codes.
+- Approval cards show the run title (`GET /api/approvals` now includes `runTitle` and `requestType`), decisions are confirmed in a status line with focus moving to the next card, and a decision someone else made first refreshes the list.
+- The confirm dialog handles Escape, keeps focus inside and returns it; recovery outcomes and refusals are announced in plain words; the budget dialog uses named fields, minutes and the current limits.
+- A skip link, per-page titles, focus on the heading after navigation, real tabs with arrow keys kept in `?tab=` and `?status=`, a keyboard button for tool-call details, meters with values and announced status changes.
+- Viewers see when the request text is hidden and what redaction changed in tool calls.
+
+Console workflow fixes after a review of that round (2026-10-15; `docs/USER-WORKFLOWS.md`, "Fixed after review"):
+
+- An expired Access session is detected: production answers it with a 302 to the team's cross-origin login page, which the console followed into a CORS failure ("Could not reach AgentBoard", no banner). Requests no longer follow redirects, so a redirect raises the Reload banner; a 5xx HTML page reads as a server failure instead of a possible session end. The session item above did not hold behind Access until this fix.
+- The launch form keeps its unsent request, with its idempotency key, in the tab's sessionStorage for the signed-in principal, so "Sign in again" and "Reload" no longer lose it; a successful launch, Clear form and Sign out remove it. Before this, "keeps typed text" held only while the banner was on screen.
+- Edit request after a lost launch keeps the idempotency key (it minted a new one, so an edit of a launch that had arrived started a second run); the server's conflict answer is explained instead.
+- After a confirmed recovery command or DLQ replay, focus moves to the outcome line instead of falling to the page body when the command replaced or removed its own button; a refused replay reads as a sentence.
+- The postcondition notice names the Recovery row that runs the write again, execute rows come before verify rows, and each task button's accessible name includes its task.
+- The budget dialog counts an untouched field as its current limit, so minute rounding of active time can no longer block a raise or send one nobody made.
+- The approval queue moves focus on after a conflict and clears its status line when the tab changes; Clear filters on Runs also empties the search box; dialogs scroll inside on short screens; nav focus rings are no longer clipped.
+
 History note: commit `7ff7a92` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `b7a3199` were written by a parallel session working in the same tree, not by this build's commit sequence; read them as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags). In the working repository the build commits to, every commit except that README commit carries a `Co-Authored-By: Claude` trailer. The GitHub history is copied from that repository by a separate publish step that removes those trailers, so no commit on GitHub carries one.
 
 ## v0.4.0: Evaluation and release

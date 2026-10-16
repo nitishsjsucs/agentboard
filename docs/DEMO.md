@@ -305,7 +305,7 @@ It was built with Claude Code, an AI coding agent, from `SPEC.md`, in rounds rec
 ### Access
 
 - **The code does not arrive.** Check spam in `nitishsancs@gmail.com`, then request a new code. Check that you typed the exact plus-address: only the four addresses above are allowed.
-- **Wrong persona.** Close every private window and open a new one, or use `/cdn-cgi/access/logout` (see step 1).
+- **Wrong persona.** Close every private window and open a new one, or use `/cdn-cgi/access/logout` (see step 1). A build that includes the session changes of 2026-10-15 (`docs/USER-WORKFLOWS.md`) shows a `Sign out` link in the nav that opens that path. Production, deployed from `c9130b5`, does not have it yet.
 - **The role badge says `no role`.** That email has no role binding. Sign in as one of the four personas.
 - **Access will not let you in at all.** Switch to the local fallback below, and say why: the same code runs locally with a dev login in place of Access.
 

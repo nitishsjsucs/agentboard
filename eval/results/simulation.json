@@ -1,17 +1,17 @@
 {
   "meta": {
-    "gitSha": "0dbe380c580bb401f3167218d914aadfad5caad8",
-    "commitDate": "2026-10-15T21:31:48.000Z",
-    "commitSubject": "fix(eval): a production run with no wrangler tail events renders the limit row as not observed",
-    "measuredTree": "sha256:697d7e8a25323177bdf3fc09117811c79a0c00d3e50e7120f53d503ed393421a",
+    "gitSha": "230719851539591c9346dfdb675b8f80b7699b31",
+    "commitDate": "2026-10-16T05:39:38.000Z",
+    "commitSubject": "docs: USER-WORKFLOWS and CHANGELOG for the fixes after the workflow review",
+    "measuredTree": "sha256:3848ce2f33e518f2b8602bd16fd5e0e5faa1449f3bbefcae682e405fc085955a",
     "dirty": false,
-    "generatedAt": "2026-10-15T21:35:43.356Z",
+    "generatedAt": "2026-10-16T05:44:34.673Z",
     "node": "v25.9.0",
     "wrangler": "4.149.0",
     "seed": 20261008,
     "provider": "stub",
     "model": "stub-gold-plans",
-    "bundleSha256": "66d9e67268304be52297a729894342c4afdf5141b63c604da014ad5698966f31",
+    "bundleSha256": "b4004cc9f3629de81e7d62e5194b0965573f3b5b8156b1f32aea6f5b18f2033a",
     "environment": "local wrangler dev (workerd, local D1, local queues)",
     "concurrency": 8
   },
@@ -104,11 +104,11 @@
     "search_known_item_queries": 20,
     "search_known_item_at_1": 20,
     "search_known_item_at_5": 20,
-    "run_duration_ms_p50": 7261,
-    "run_duration_ms_p95": 10920.799999999992,
-    "search_latency_ms_p50": 1.958708000005572,
-    "search_latency_ms_p95": 2.5407413499931875,
-    "driver_wall_clock_ms": 104680
+    "run_duration_ms_p50": 7237,
+    "run_duration_ms_p95": 10922.79999999999,
+    "search_latency_ms_p50": 2.4619375000038417,
+    "search_latency_ms_p95": 3.265087849996053,
+    "driver_wall_clock_ms": 103921
   },
   "mismatches": [],
   "datasetSha256": "f5a15fe5b5a163ced6c38fb6d55870c8eac67588c00798193bb454a3fa8770e7"

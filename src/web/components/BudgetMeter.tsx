@@ -2,7 +2,15 @@ export function BudgetMeter({ label, used, max, format = (n: number) => String(n
   const ratio = max > 0 ? Math.min(1, used / max) : 0;
   const tone = ratio >= 1 ? " meter__fill--full" : ratio >= 0.8 ? " meter__fill--warn" : "";
   return (
-    <div className="meter" aria-label={`${label}: ${format(used)} of ${format(max)}`}>
+    <div
+      className="meter"
+      role="meter"
+      aria-label={`${label}: ${format(used)} of ${format(max)}`}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={Math.min(used, max)}
+      aria-valuetext={`${format(used)} of ${format(max)}`}
+    >
       <div className="row small" style={{ justifyContent: "space-between" }}>
         <span className="muted">{label}</span>
         <span>

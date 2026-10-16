@@ -2,6 +2,13 @@ import { useState, type FormEvent } from "react";
 
 export function SearchBar({ initial, onSearch }: { initial: string; onSearch: (query: string) => void }) {
   const [value, setValue] = useState(initial);
+  // The applied query lives in the URL; when it changes from outside the box (Clear filters, Back or
+  // Forward), the box shows it, so it never displays a search that is not applied.
+  const [applied, setApplied] = useState(initial);
+  if (initial !== applied) {
+    setApplied(initial);
+    setValue(initial);
+  }
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSearch(value.trim());

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
-import type { ApprovalListItem, Page } from "../../../src/shared/api-types.ts";
+import type { ApprovalListItem, Page, RunDetailResponse } from "../../../src/shared/api-types.ts";
 import { agentFor, distinctRuns, driveAgents, inputFromDataset } from "../../helpers/agents.ts";
 import { apiGet, apiPost, json } from "../../helpers/api.ts";
 import { P } from "../../helpers/auth.ts";
@@ -125,5 +125,23 @@ describe("approvals", { tags: ["orchestration"] }, () => {
     after = await readState(stub);
     expect(after.tasks.get(approval.taskId)?.status).toBe("succeeded");
     expect(after.run.status).toBe("succeeded");
+  });
+});
+
+describe("approval list context", { tags: ["history"] }, () => {
+  it("list items and run detail approvals carry the run's title and request type, and canDecide is unchanged", async () => {
+    const run = distinctRuns("manager_change", 5)[4];
+    if (!run) throw new Error("no fifth manager change");
+    const { runId, approval } = await awaitingApproval(run);
+    const title = (await env.DB.prepare("SELECT title FROM runs WHERE id = ?").bind(runId).first<{ title: string }>())?.title;
+    expect(title).toMatch(/^Manager change for .+ \(E-\d{4}\)$/);
+
+    const listed = await json<Page<ApprovalListItem>>(await apiGet(P.approver, "/api/approvals?status=pending"));
+    expect(listed.items.find((a) => a.id === approval.id)).toMatchObject({ runId, runTitle: title, requestType: "manager_change", canDecide: true });
+    const asRequester = await json<Page<ApprovalListItem>>(await apiGet(P.operator, "/api/approvals"));
+    expect(asRequester.items.find((a) => a.id === approval.id)).toMatchObject({ runTitle: title, canDecide: false });
+
+    const detail = await json<RunDetailResponse>(await apiGet(P.viewer, `/api/runs/${runId}`));
+    expect(detail.approvals.find((a) => a.id === approval.id)).toMatchObject({ runTitle: title, requestType: "manager_change", canDecide: false });
   });
 });

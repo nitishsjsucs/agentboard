@@ -169,6 +169,9 @@ export interface ApprovalView {
 
 export interface ApprovalListItem extends ApprovalView {
   canDecide: boolean;
+  /** The run's title and request type (null only if the run's mirror row is missing). */
+  runTitle: string | null;
+  requestType: RequestType | null;
 }
 
 export interface LaunchRunResponse {

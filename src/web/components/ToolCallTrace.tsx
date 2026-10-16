@@ -1,12 +1,19 @@
 import { Fragment, useState } from "react";
 import type { ToolCallView } from "../../shared/api-types.ts";
+import { useSession } from "../api/hooks.ts";
 import { EmptyState } from "./EmptyState.tsx";
 import { JsonView } from "./JsonView.tsx";
+import { LoadingLine } from "./PolledView.tsx";
 import { formatTime } from "./RunTable.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
-export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] }) {
+/** `calls` is null while the first load is in flight, so "No tool calls yet." only ever means an empty answer. */
+export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null }) {
   const [open, setOpen] = useState<string | null>(null);
+  const { me } = useSession();
+  // Without pii:read the server redacts arguments and results (src/worker/audit/redaction.ts); say what changed.
+  const redacted = me !== null && !me.permissions.includes("pii:read");
+  if (calls === null) return <LoadingLine text="Loading tool calls..." />;
   if (calls.length === 0) return <EmptyState title="No tool calls yet." />;
   return (
     <div className="table-wrap">
@@ -22,11 +29,27 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] }) {
           </tr>
         </thead>
         <tbody>
-          {calls.map((call) => (
+          {calls.map((call) => {
+            const expanded = open === call.id;
+            const toggle = () => setOpen(expanded ? null : call.id);
+            const detailsId = `call-details-${call.id}`;
+            return (
             <Fragment key={call.id}>
-              <tr onClick={() => setOpen(open === call.id ? null : call.id)} style={{ cursor: "pointer" }}>
+              <tr onClick={toggle} style={{ cursor: "pointer" }}>
                 <td>
-                  <span className="mono">{call.tool}</span>
+                  {/* The row stays clickable; this button makes the details reachable from the keyboard. */}
+                  <button
+                    type="button"
+                    className="link-button mono"
+                    aria-expanded={expanded}
+                    aria-controls={detailsId}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggle();
+                    }}
+                  >
+                    {call.tool}
+                  </button>
                   {call.stepId ? <span className="faint small"> {call.stepId}</span> : null}
                 </td>
                 <td>
@@ -42,9 +65,14 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] }) {
                 <td className="small">{call.durationMs} ms</td>
                 <td className="small muted">{formatTime(call.startedAt)}</td>
               </tr>
-              {open === call.id ? (
-                <tr>
+              {expanded ? (
+                <tr id={detailsId}>
                   <td colSpan={6}>
+                    {redacted ? (
+                      <div className="notice" style={{ marginBottom: "var(--space-2)" }} data-testid="redaction-notice">
+                        Personal data is redacted for your role: addresses show only city, region and country, and personal email addresses are masked.
+                      </div>
+                    ) : null}
                     <div className="grid grid--two">
                       <div>
                         <div className="small muted">Arguments</div>
@@ -60,7 +88,8 @@ export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] }) {
                 </tr>
               ) : null}
             </Fragment>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

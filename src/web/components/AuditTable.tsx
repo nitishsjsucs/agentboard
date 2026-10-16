@@ -1,7 +1,10 @@
 import type { AuditEventView } from "../../shared/api-types.ts";
 import { EmptyState } from "./EmptyState.tsx";
+import { LoadingLine } from "./PolledView.tsx";
 
-export function AuditTable({ events, chain }: { events: readonly AuditEventView[]; chain: { valid: boolean; brokenAtSeq: number | null } | null }) {
+/** `events` is null while the first load is in flight, so "No audit events yet." only ever means an empty answer. */
+export function AuditTable({ events, chain }: { events: readonly AuditEventView[] | null; chain: { valid: boolean; brokenAtSeq: number | null } | null }) {
+  if (events === null) return <LoadingLine text="Loading audit events..." />;
   return (
     <div className="stack">
       {chain ? (

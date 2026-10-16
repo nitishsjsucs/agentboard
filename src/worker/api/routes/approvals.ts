@@ -5,6 +5,7 @@
 import { validate } from "../middleware/validate.ts";
 import { Hono } from "hono";
 import { ApprovalListQuerySchema, DecisionRequestSchema, type ApprovalListItem, type ApprovalView, type Page } from "../../../shared/api-types.ts";
+import type { RequestType } from "../../../shared/domain.ts";
 import { coordinatorFor } from "../coordinator.ts";
 import { decodeCursor, encodeCursor } from "../cursor.ts";
 import { apiError } from "../middleware/errors.ts";
@@ -65,21 +66,25 @@ export const approvalRoutes = new Hono<AppEnv>()
     const clauses: string[] = [];
     const params: (string | number)[] = [];
     if (query.status) {
-      clauses.push("status = ?");
+      clauses.push("a.status = ?");
       params.push(query.status);
     }
     if (after) {
-      clauses.push("(requested_at < ? OR (requested_at = ? AND id < ?))");
+      clauses.push("(a.requested_at < ? OR (a.requested_at = ? AND a.id < ?))");
       params.push(after.at, after.at, after.id);
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const { results } = await c.env.DB.prepare(`SELECT * FROM approvals ${where} ORDER BY requested_at DESC, id DESC LIMIT ?`)
+    // The run's title and type come from the runs mirror, which runs:read already exposes through /api/runs.
+    const { results } = await c.env.DB.prepare(
+      `SELECT a.*, r.title AS run_title, r.request_type AS run_request_type FROM approvals a LEFT JOIN runs r ON r.id = a.run_id
+       ${where} ORDER BY a.requested_at DESC, a.id DESC LIMIT ?`,
+    )
       .bind(...params, limit + 1)
-      .all<ApprovalRow>();
+      .all<ApprovalRow & { run_title: string | null; run_request_type: RequestType | null }>();
     const identity = c.get("identity");
     const items: ApprovalListItem[] = results.slice(0, limit).map((row) => {
       const view = approvalFromRow(row);
-      return { ...view, canDecide: canDecide(view, identity) };
+      return { ...view, canDecide: canDecide(view, identity), runTitle: row.run_title, requestType: row.run_request_type };
     });
     const last = results.length > limit ? results[limit - 1] : undefined;
     const page: Page<ApprovalListItem> = { items, nextCursor: last ? encodeCursor({ at: last.requested_at, id: last.id }) : null };
