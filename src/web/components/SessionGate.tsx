@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { ApiRequestError } from "../api/client.ts";
 import { useSession } from "../api/hooks.ts";
+import { clearLaunchDraft } from "../api/launchDraft.ts";
 import { ErrorNotice } from "./ErrorNotice.tsx";
 import { LoadingLine } from "./PolledView.tsx";
 
@@ -47,7 +48,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
         </p>
         <div>
           {authMode === "access" ? (
-            <a className="btn" href={ACCESS_LOGOUT}>
+            <a className="btn" href={ACCESS_LOGOUT} onClick={clearLaunchDraft}>
               Sign out
             </a>
           ) : (

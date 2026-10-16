@@ -8,6 +8,8 @@ import { Launch } from "../Launch.tsx";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  window.sessionStorage.clear();
 });
 
 const EMPLOYEES = [
@@ -235,6 +237,79 @@ describe("Launch submits", { tags: ["ui"] }, () => {
     const keys = posts(api.seen).map((p) => (p.body as { clientRequestId: string }).clientRequestId);
     expect(keys).toHaveLength(2);
     expect(keys[1]).toBe(keys[0]);
+  });
+});
+
+describe("Launch keeps an unsent request", { tags: ["ui"] }, () => {
+  it("restores what this principal typed, with its key, after the page is left and opened again, and Clear form drops it for a new key", async () => {
+    const api = serve();
+    const first = page();
+    await fillValidForm();
+    fireEvent.change(screen.getByLabelText("Priority"), { target: { value: "high" } });
+    expect(screen.queryByTestId("launch-restored")).toBeNull();
+    first.unmount();
+
+    page();
+    expect((await screen.findByTestId("launch-restored")).textContent).toContain("Restored the request you had not launched yet.");
+    await screen.findByRole("option", { name: /Halia Elsworth/ });
+    expect((screen.getByLabelText("Request text") as HTMLTextAreaElement).value).toBe(TEXT);
+    expect((screen.getByLabelText("Subject employee") as HTMLSelectElement).value).toBe("E-1007");
+    expect((screen.getByLabelText("Priority") as HTMLSelectElement).value).toBe("high");
+    fireEvent.click(launchButton());
+    await waitFor(() => expect(posts(api.seen)).toHaveLength(1));
+    const restoredKey = (posts(api.seen)[0]?.body as { clientRequestId: string }).clientRequestId;
+    cleanup();
+
+    // The same key comes back, so a resend of a launch that did arrive is deduplicated, not run twice.
+    window.sessionStorage.setItem(
+      "agentboard.launch-draft",
+      JSON.stringify({ principal: "operator@agentboard.test", clientRequestId: restoredKey, requestType: "address_change", subject: "E-1007", text: TEXT, priority: "normal", maxToolCalls: "", sampleRef: "" }),
+    );
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: "Clear form" }));
+    expect((screen.getByLabelText("Request text") as HTMLTextAreaElement).value).toBe("");
+    expect((screen.getByLabelText("Subject employee") as HTMLSelectElement).value).toBe("");
+    expect(screen.queryByTestId("launch-restored")).toBeNull();
+    expect(window.sessionStorage.getItem("agentboard.launch-draft")).toBeNull();
+    await fillValidForm();
+    fireEvent.click(launchButton());
+    await waitFor(() => expect(posts(api.seen)).toHaveLength(2));
+    expect((posts(api.seen)[1]?.body as { clientRequestId: string }).clientRequestId).not.toBe(restoredKey);
+  });
+
+  it("never shows another principal's draft", async () => {
+    serve();
+    const first = render(renderAt("operator", <Launch />, { url: "/launch", path: "/launch", id: "ops.lead@agentboard.test" }));
+    await fillValidForm();
+    first.unmount();
+    render(renderAt("operator", <Launch />, { url: "/launch", path: "/launch", id: "ops.kim@agentboard.test" }));
+    await screen.findByRole("option", { name: /Halia Elsworth/ });
+    expect(screen.queryByTestId("launch-restored")).toBeNull();
+    expect((screen.getByLabelText("Request text") as HTMLTextAreaElement).value).toBe("");
+  });
+
+  it("removes the draft once the launch succeeds", async () => {
+    serve();
+    page();
+    await fillValidForm();
+    expect(window.sessionStorage.getItem("agentboard.launch-draft")).not.toBeNull();
+    fireEvent.click(launchButton());
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/runs/run_new"));
+    expect(window.sessionStorage.getItem("agentboard.launch-draft")).toBeNull();
+  });
+
+  it("still launches when storage is blocked", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+    serve();
+    page();
+    await fillValidForm();
+    fireEvent.click(launchButton());
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/runs/run_new"));
   });
 });
 

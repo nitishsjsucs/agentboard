@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router";
 import { useSession } from "../api/hooks.ts";
+import { clearLaunchDraft } from "../api/launchDraft.ts";
 import { ACCESS_LOGOUT } from "./SessionGate.tsx";
 
 const LINKS: { to: string; label: string; permission?: "runs:launch" }[] = [
@@ -40,7 +41,7 @@ export function NavBar() {
           </Link>
         ) : null}
         {authMode === "access" && me ? (
-          <a href={ACCESS_LOGOUT} className="small nav__switch">
+          <a href={ACCESS_LOGOUT} className="small nav__switch" onClick={clearLaunchDraft}>
             Sign out
           </a>
         ) : null}

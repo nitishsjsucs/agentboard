@@ -10,6 +10,7 @@ import { DEV_HEALTH, me } from "../components/__tests__/session.tsx";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.sessionStorage.clear();
 });
 
 const ACCESS_HEALTH: Health = { ...DEV_HEALTH, environment: "production", authMode: "access", llmProvider: "workers-ai", faultInjection: false };
@@ -52,7 +53,7 @@ describe("App session states", { tags: ["ui"] }, () => {
     expect(new Set(api.paths())).toEqual(new Set(["/api/health", "/api/me"]));
   });
 
-  it("keeps the typed request when a launch gets a 401, shows a sign-in banner with next, and returns to the form after signing in", async () => {
+  it("keeps the typed request when a launch gets a 401, shows a sign-in banner with next, and returns to the filled form after signing in", async () => {
     let signedIn = true;
     const api = stubApi(({ method, path }) => {
       if (path === "/api/health") return reply(DEV_HEALTH);
@@ -92,6 +93,15 @@ describe("App session states", { tags: ["ui"] }, () => {
     expect(window.location.pathname).toBe("/launch");
     expect(screen.queryByText("Your dev session ended.")).toBeNull();
     expect(api.paths()).toContain("/api/dev/login");
+    // Signing in again left the page; the request comes back with the key it was first sent with.
+    expect(await screen.findByTestId("launch-restored")).toBeTruthy();
+    await screen.findByRole("option", { name: /Halia Elsworth/ });
+    expect((screen.getByLabelText("Request text") as HTMLTextAreaElement).value).toBe(text);
+    expect((screen.getByLabelText("Subject employee") as HTMLSelectElement).value).toBe("E-1007");
+    fireEvent.click(screen.getByRole("button", { name: "Launch run" }));
+    await waitFor(() => expect(api.seen.filter((r) => r.method === "POST" && r.path === "/api/runs")).toHaveLength(2));
+    const [lost, resent] = api.seen.filter((r) => r.method === "POST" && r.path === "/api/runs");
+    expect(resent?.rawBody).toBe(lost?.rawBody);
   });
 
   /** A viewer behind Access on /runs; once `answer` returns a Response, every other /api request gets it. */

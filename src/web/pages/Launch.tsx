@@ -4,6 +4,7 @@ import type { AgentRolesResponse, LaunchRunResponse } from "../../shared/api-typ
 import { PRIORITIES, REQUEST_TYPES, type RequestType } from "../../shared/domain.ts";
 import { api, ApiRequestError } from "../api/client.ts";
 import { useCan, useSession } from "../api/hooks.ts";
+import { clearLaunchDraft, readLaunchDraft, saveLaunchDraft } from "../api/launchDraft.ts";
 import { usePageTitle } from "../api/usePageTitle.ts";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
@@ -75,21 +76,25 @@ export function Launch() {
 
 function LaunchForm() {
   const navigate = useNavigate();
-  const { health } = useSession();
+  const { health, me } = useSession();
+  const principal = me?.principal.id;
   const canEditBudget = useCan("budgets:edit");
+  // What this principal typed before leaving the page (for example to sign in again), with its key.
+  const [restored] = useState(() => readLaunchDraft(principal));
+  const [showRestored, setShowRestored] = useState(restored !== null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [directoryError, setDirectoryError] = useState<unknown>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
-  const [sampleRef, setSampleRef] = useState("");
+  const [sampleRef, setSampleRef] = useState(restored?.sampleRef ?? "");
   const [disabledRoles, setDisabledRoles] = useState<AgentRolesResponse["roles"]>([]);
-  const [requestType, setRequestType] = useState<RequestType>(DEFAULT_TYPE);
-  const [subject, setSubject] = useState("");
-  const [text, setText] = useState("");
-  const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>("normal");
-  const [maxToolCalls, setMaxToolCalls] = useState("");
+  const [requestType, setRequestType] = useState<RequestType>(restored?.requestType ?? DEFAULT_TYPE);
+  const [subject, setSubject] = useState(restored?.subject ?? "");
+  const [text, setText] = useState(restored?.text ?? "");
+  const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>(restored?.priority ?? "normal");
+  const [maxToolCalls, setMaxToolCalls] = useState(restored?.maxToolCalls ?? "");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
-  const [clientRequestId, setClientRequestId] = useState(newClientRequestId);
+  const [clientRequestId, setClientRequestId] = useState(() => restored?.clientRequestId ?? newClientRequestId());
   // The exact body of a launch whose answer was lost; "Try again" resends it unchanged.
   const [unanswered, setUnanswered] = useState<LaunchBody | null>(null);
 
@@ -114,6 +119,10 @@ function LaunchForm() {
       .then((r) => setDisabledRoles(r.roles.filter((role) => role.disabled)))
       .catch(() => setDisabledRoles([]));
   }, []);
+  // Keep the unsent request in this tab, so signing in again (or any trip away from the page) keeps it.
+  useEffect(() => {
+    if (principal) saveLaunchDraft(principal, { clientRequestId, requestType, subject, text, priority, maxToolCalls, sampleRef });
+  }, [principal, clientRequestId, requestType, subject, text, priority, maxToolCalls, sampleRef]);
 
   const locked = unanswered !== null;
   const textLength = text.trim().length;
@@ -126,6 +135,7 @@ function LaunchForm() {
     setError(null);
     try {
       const response = await api.post<LaunchRunResponse>("/api/runs", body);
+      clearLaunchDraft();
       navigate(`/runs/${response.runId}`);
     } catch (e) {
       setError(e);
@@ -164,6 +174,19 @@ function LaunchForm() {
     setError(null);
   };
 
+  /** Empties the form and gives it a new key: the restored request is dropped. */
+  const clearForm = () => {
+    setSampleRef("");
+    setRequestType(DEFAULT_TYPE);
+    setSubject("");
+    setText("");
+    setPriority("normal");
+    setMaxToolCalls("");
+    setShowRestored(false);
+    clearLaunchDraft();
+    startNew();
+  };
+
   const chooseSample = (ref: string) => {
     setSampleRef(ref);
     const sample = samples.find((s) => s.ref === ref);
@@ -198,6 +221,14 @@ function LaunchForm() {
           The {role.role} role is disabled ({role.reason ? `${role.reason}, ` : ""}by {role.updatedBy}). New runs will wait until an admin enables it.
         </div>
       ))}
+      {showRestored ? (
+        <div className="notice row" data-testid="launch-restored">
+          <span>Restored the request you had not launched yet.</span>
+          <button type="button" className="btn btn--small" disabled={busy} onClick={clearForm}>
+            Clear form
+          </button>
+        </div>
+      ) : null}
       <form className="card card__body stack" onSubmit={submit}>
         {samples.length > 0 ? (
           <div className="field">
