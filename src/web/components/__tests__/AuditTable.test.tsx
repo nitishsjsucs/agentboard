@@ -35,4 +35,13 @@ describe("AuditTable", { tags: ["ui"] }, () => {
     expect(broken.className).toBe("notice notice--danger");
     expect(screen.queryByText(/Hash chain verified/)).toBeNull();
   });
+
+  it("shows a loading line, not the empty state, while events is null", () => {
+    const view = render(<AuditTable events={null} chain={null} />);
+    expect(screen.getByRole("status").textContent).toBe("Loading audit events...");
+    expect(screen.queryByText("No audit events yet.")).toBeNull();
+    view.unmount();
+    render(<AuditTable events={[]} chain={{ valid: true, brokenAtSeq: null }} />);
+    expect(screen.getByText("No audit events yet.")).toBeTruthy();
+  });
 });

@@ -2,11 +2,14 @@ import { Fragment, useState } from "react";
 import type { ToolCallView } from "../../shared/api-types.ts";
 import { EmptyState } from "./EmptyState.tsx";
 import { JsonView } from "./JsonView.tsx";
+import { LoadingLine } from "./PolledView.tsx";
 import { formatTime } from "./RunTable.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
-export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] }) {
+/** `calls` is null while the first load is in flight, so "No tool calls yet." only ever means an empty answer. */
+export function ToolCallTrace({ calls }: { calls: readonly ToolCallView[] | null }) {
   const [open, setOpen] = useState<string | null>(null);
+  if (calls === null) return <LoadingLine text="Loading tool calls..." />;
   if (calls.length === 0) return <EmptyState title="No tool calls yet." />;
   return (
     <div className="table-wrap">

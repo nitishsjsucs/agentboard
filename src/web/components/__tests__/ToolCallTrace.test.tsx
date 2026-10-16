@@ -69,4 +69,13 @@ describe("ToolCallTrace", { tags: ["ui"] }, () => {
     fireEvent.click(rowOf("notify.send"));
     expect(screen.queryByText("Arguments")).toBeNull();
   });
+
+  it("shows a loading line, not the empty state, while calls is null, and the empty state for an empty answer", () => {
+    const view = render(<ToolCallTrace calls={null} />);
+    expect(screen.getByRole("status").textContent).toBe("Loading tool calls...");
+    expect(screen.queryByText("No tool calls yet.")).toBeNull();
+    view.unmount();
+    render(<ToolCallTrace calls={[]} />);
+    expect(screen.getByText("No tool calls yet.")).toBeTruthy();
+  });
 });

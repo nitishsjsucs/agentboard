@@ -31,7 +31,7 @@ export function withSession(role: Role, children: ReactNode, id?: string) {
 /** Shows the current path and query, so a test can read what a page wrote to the URL. */
 export function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
+  return <div data-testid="location" hidden>{`${location.pathname}${location.search}`}</div>;
 }
 
 /** A page at `url`, matched by `path`, inside a session for `role` (or `principal`). */

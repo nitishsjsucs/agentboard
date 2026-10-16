@@ -17,7 +17,7 @@ export interface SeenRequest {
   rawBody: string | undefined;
 }
 
-export type Handler = (request: SeenRequest) => Response | Promise<Response> | undefined;
+export type Handler = (request: SeenRequest) => Response | undefined | Promise<Response | undefined>;
 
 /**
  * Stubs global fetch with `handler`; an unhandled request answers 404. Every request is recorded in

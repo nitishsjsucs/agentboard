@@ -31,33 +31,52 @@ export function useCan(permission: Permission): boolean {
 export interface Polled<T> {
   data: T | null;
   error: Error | null;
+  /** True until the first answer (data or error) for the current resetKey. */
   loading: boolean;
+  /** When the last successful load finished; null before the first one. */
+  updatedAt: Date | null;
   refresh: () => void;
 }
 
-/** Loads `load()` now and every `intervalMs` (lists poll every 5 s, SPEC section 15). */
-export function usePolling<T>(load: () => Promise<T>, deps: readonly unknown[], intervalMs = 5000): Polled<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [loading, setLoading] = useState(true);
+export interface PollOptions {
+  /** Poll interval; 0 loads once (and on refresh or a deps change). Lists poll every 5 s (SPEC section 15). */
+  intervalMs?: number;
+  /**
+   * When this value changes, data and error are cleared before the next render, so a new filter or tab
+   * never shows the previous one's rows. A plain deps change (for example a live version bump) keeps them.
+   */
+  resetKey?: unknown;
+  /** False skips loading entirely (for example a tab that is not shown, or a panel the role cannot read). */
+  enabled?: boolean;
+}
+
+interface PollState<T> {
+  data: T | null;
+  error: Error | null;
+  updatedAt: Date | null;
+  key: unknown;
+}
+
+/** Loads `load()` now and every `intervalMs`, keeping the last good data when a later poll fails. */
+export function usePolling<T>(load: () => Promise<T>, deps: readonly unknown[], options: PollOptions = {}): Polled<T> {
+  const { intervalMs = 5000, resetKey, enabled = true } = options;
+  const [state, setState] = useState<PollState<T>>({ data: null, error: null, updatedAt: null, key: resetKey });
+  // A new resetKey clears the previous key's data during this render (React's derived-state pattern).
+  if (!Object.is(state.key, resetKey)) setState({ data: null, error: null, updatedAt: null, key: resetKey });
   const loadRef = useRef(load);
   loadRef.current = load;
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     const run = async () => {
       try {
         const value = await loadRef.current();
-        if (!cancelled) {
-          setData(value);
-          setError(null);
-        }
+        if (!cancelled) setState((s) => ({ ...s, data: value, error: null, updatedAt: new Date() }));
       } catch (err) {
-        if (!cancelled) setError(err as Error);
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setState((s) => ({ ...s, error: err instanceof Error ? err : new Error(String(err)) }));
       }
     };
     void run();
@@ -67,7 +86,8 @@ export function usePolling<T>(load: () => Promise<T>, deps: readonly unknown[], 
       if (timer) clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, tick, intervalMs]);
+  }, [...deps, tick, intervalMs, enabled, resetKey]);
 
-  return { data, error, loading, refresh };
+  const current = Object.is(state.key, resetKey) ? state : { data: null, error: null, updatedAt: null };
+  return { data: current.data, error: current.error, loading: current.data === null && current.error === null, updatedAt: current.updatedAt, refresh };
 }

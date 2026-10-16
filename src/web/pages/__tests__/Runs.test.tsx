@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiError, reply, stubApi } from "../../components/__tests__/api.ts";
+import { apiError, pending, reply, stubApi } from "../../components/__tests__/api.ts";
 import { renderAt } from "../../components/__tests__/session.tsx";
 import { Runs } from "../Runs.tsx";
 
@@ -27,5 +27,14 @@ describe("Runs errors", { tags: ["ui"] }, () => {
     await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/runs"));
     await screen.findByText("No runs match.");
     expect(api.paths().at(-1)).toBe("/api/runs?limit=25");
+  });
+
+  it("shows loading lines, never 'No runs match.' or 'No matches.', while the list and the search are in flight", async () => {
+    stubApi(() => pending());
+    render(renderAt("viewer", <Runs />, { url: "/runs?q=Halia", path: "/runs" }));
+    const statuses = (await screen.findAllByRole("status")).map((s) => s.textContent);
+    expect(statuses).toEqual(expect.arrayContaining(["Loading runs...", "Searching..."]));
+    expect(document.body.textContent).not.toContain("No runs match.");
+    expect(document.body.textContent).not.toContain("No matches.");
   });
 });

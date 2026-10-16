@@ -5,6 +5,7 @@ import { REQUEST_TYPES, RUN_STATUSES } from "../../shared/domain.ts";
 import { api, ApiRequestError, query } from "../api/client.ts";
 import { usePolling } from "../api/hooks.ts";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
+import { PolledView } from "../components/PolledView.tsx";
 import { RunTable } from "../components/RunTable.tsx";
 import { SearchBar } from "../components/SearchBar.tsx";
 import { SearchResults } from "../components/SearchResults.tsx";
@@ -31,8 +32,8 @@ export function Runs() {
     setCursors([]);
   };
   // A rejected filter (for example a hand-edited ?status=) is fixed by clearing the filters.
-  const filterError = (error: Error) => (
-    <ErrorNotice error={error} action="read runs" onRetry={error instanceof ApiRequestError && error.status === 400 ? undefined : runs.refresh}>
+  const filterError = (retry: () => void) => (error: Error) => (
+    <ErrorNotice error={error} action="read runs" onRetry={error instanceof ApiRequestError && error.status === 400 ? undefined : retry}>
       {error instanceof ApiRequestError && error.status === 400 ? (
         <button type="button" className="btn btn--small" onClick={clearFilters}>
           Clear filters
@@ -42,15 +43,11 @@ export function Runs() {
   );
   const isoDay = (day: string, end = false) => (day ? new Date(`${day}T${end ? "23:59:59.999" : "00:00:00.000"}Z`).toISOString() : undefined);
 
-  const runs = usePolling(
-    () => api.get<Page<RunSummary>>(`/api/runs${query({ status, type, from: isoDay(from), to: isoDay(to, true), cursor, limit: 25 })}`),
-    [status, type, from, to, cursor],
-  );
-  const hits = usePolling(
-    () => (q ? api.get<{ items: SearchHit[] }>(`/api/search${query({ q, status, type, from: isoDay(from), to: isoDay(to, true), limit: 20 })}`) : Promise.resolve({ items: [] })),
-    [q, status, type, from, to],
-    0,
-  );
+  // A new filter or page clears the previous rows before its answer arrives.
+  const listPath = `/api/runs${query({ status, type, from: isoDay(from), to: isoDay(to, true), cursor, limit: 25 })}`;
+  const runs = usePolling(() => api.get<Page<RunSummary>>(listPath), [listPath], { resetKey: listPath });
+  const searchPath = `/api/search${query({ q, status, type, from: isoDay(from), to: isoDay(to, true), limit: 20 })}`;
+  const hits = usePolling(() => api.get<{ items: SearchHit[] }>(searchPath), [searchPath], { intervalMs: 0, resetKey: searchPath, enabled: q !== "" });
 
   return (
     <div className="stack">
@@ -89,7 +86,9 @@ export function Runs() {
       {q ? (
         <div className="stack">
           <h2>Search results</h2>
-          {hits.error ? filterError(hits.error) : <SearchResults hits={hits.data?.items ?? []} />}
+          <PolledView polled={hits} loading="Searching..." action="search the history" renderError={filterError(hits.refresh)}>
+            {(result) => <SearchResults hits={result.items} />}
+          </PolledView>
         </div>
       ) : null}
 
@@ -110,7 +109,9 @@ export function Runs() {
             </button>
           </div>
         </div>
-        {runs.error ? <div className="card__body">{filterError(runs.error)}</div> : <RunTable runs={runs.data?.items ?? []} empty="No runs match." />}
+        <PolledView polled={runs} loading="Loading runs..." action="read runs" padded renderError={filterError(runs.refresh)}>
+          {(page) => <RunTable runs={page.items} empty="No runs match." />}
+        </PolledView>
       </div>
     </div>
   );

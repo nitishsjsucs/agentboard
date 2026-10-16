@@ -10,6 +10,7 @@ import { BudgetMeter } from "../components/BudgetMeter.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
+import { LoadingLine, PolledView } from "../components/PolledView.tsx";
 import { RecoveryControls } from "../components/RecoveryControls.tsx";
 import { formatTime } from "../components/RunTable.tsx";
 import { StatusBadge } from "../components/StatusBadge.tsx";
@@ -23,13 +24,14 @@ export function RunDetail() {
   const [tab, setTab] = useState<Tab>("timeline");
   const canAudit = useCan("audit:read");
   const live = useRunLive(id);
-  const detail = usePolling(() => api.get<RunDetailResponse>(`/api/runs/${id}`), [id, live.snapshot?.version]);
-  const timeline = usePolling(() => (tab === "timeline" ? api.get<TimelineEntry[]>(`/api/runs/${id}/timeline`) : Promise.resolve(null)), [id, tab, live.snapshot?.version]);
-  const calls = usePolling(() => (tab === "calls" ? api.get<Page<ToolCallView>>(`/api/runs/${id}/tool-calls`) : Promise.resolve(null)), [id, tab, live.snapshot?.version]);
-  const audit = usePolling(
-    () => (tab === "audit" && canAudit ? api.get<{ events: AuditEventView[]; chain: { valid: boolean; brokenAtSeq: number | null } }>(`/api/runs/${id}/audit`) : Promise.resolve(null)),
-    [id, tab, canAudit],
-  );
+  // Live version bumps refetch without clearing (no loading flash); a new run id or tab starts from loading.
+  const detail = usePolling(() => api.get<RunDetailResponse>(`/api/runs/${id}`), [id, live.snapshot?.version], { resetKey: id });
+  const timeline = usePolling(() => api.get<TimelineEntry[]>(`/api/runs/${id}/timeline`), [id, live.snapshot?.version], { resetKey: `${id}:${tab}`, enabled: tab === "timeline" });
+  const calls = usePolling(() => api.get<Page<ToolCallView>>(`/api/runs/${id}/tool-calls`), [id, live.snapshot?.version], { resetKey: `${id}:${tab}`, enabled: tab === "calls" });
+  const audit = usePolling(() => api.get<{ events: AuditEventView[]; chain: { valid: boolean; brokenAtSeq: number | null } }>(`/api/runs/${id}/audit`), [id], {
+    resetKey: `${id}:${tab}`,
+    enabled: tab === "audit" && canAudit,
+  });
 
   if (detail.error && !detail.data) {
     if (detail.error instanceof ApiRequestError && detail.error.status === 404) {
@@ -45,7 +47,7 @@ export function RunDetail() {
     return <ErrorNotice error={detail.error} action="read runs" onRetry={detail.refresh} />;
   }
   const data = detail.data;
-  if (!data) return <div className="muted">Loading run...</div>;
+  if (!data) return <LoadingLine text="Loading run..." />;
   const run = data.run;
   // The live snapshot (viewer-level, pushed on every coordinator commit) wins for status, usage and task states.
   const snapshot: RunSnapshot = live.snapshot ?? {
@@ -128,26 +130,38 @@ export function RunDetail() {
                 <div className="card__header">
                   <h3>Events</h3>
                 </div>
-                <div className="table-wrap">
-                  <table className="table">
-                    <tbody>
-                      {(timeline.data ?? []).map((entry) => (
-                        <tr key={entry.seq}>
-                          <td className="small faint">{entry.seq}</td>
-                          <td className="small mono">{new Date(entry.ts).toLocaleTimeString()}</td>
-                          <td className="small">{entry.actorId}</td>
-                          <td className="small">
-                            <span className="mono">{entry.action}</span> {entry.summary}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <PolledView polled={timeline} loading="Loading events..." action="read the run's events" padded>
+                  {(entries) =>
+                    entries.length === 0 ? (
+                      <EmptyState title="No events yet." />
+                    ) : (
+                      <div className="table-wrap">
+                        <table className="table">
+                          <tbody>
+                            {entries.map((entry) => (
+                              <tr key={entry.seq}>
+                                <td className="small faint">{entry.seq}</td>
+                                <td className="small mono">{new Date(entry.ts).toLocaleTimeString()}</td>
+                                <td className="small">{entry.actorId}</td>
+                                <td className="small">
+                                  <span className="mono">{entry.action}</span> {entry.summary}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
+                  }
+                </PolledView>
               </div>
             </div>
           ) : null}
-          {tab === "calls" ? <ToolCallTrace calls={calls.data?.items ?? []} /> : null}
+          {tab === "calls" ? (
+            <PolledView polled={calls} loading="Loading tool calls..." action="read tool calls">
+              {(page) => <ToolCallTrace calls={page.items} />}
+            </PolledView>
+          ) : null}
           {tab === "approvals" ? (
             data.approvals.length === 0 ? (
               <EmptyState title="No approvals for this run." />
@@ -159,7 +173,15 @@ export function RunDetail() {
               </div>
             )
           ) : null}
-          {tab === "audit" ? canAudit ? <AuditTable events={audit.data?.events ?? []} chain={audit.data?.chain ?? null} /> : <EmptyState title="Needs audit:read." /> : null}
+          {tab === "audit" ? (
+            canAudit ? (
+              <PolledView polled={audit} loading="Loading audit events..." action="read the audit log">
+                {(trail) => <AuditTable events={trail.events} chain={trail.chain} />}
+              </PolledView>
+            ) : (
+              <EmptyState title="Needs audit:read." />
+            )
+          ) : null}
         </div>
         <div className="card run-layout__recovery">
           <div className="card__header">

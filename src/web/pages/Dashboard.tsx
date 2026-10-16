@@ -5,9 +5,23 @@ import { useCan, usePolling } from "../api/hooks.ts";
 import { AgentRolePanel } from "../components/AgentRolePanel.tsx";
 import { DlqPanel } from "../components/DlqPanel.tsx";
 import { ErrorNotice } from "../components/ErrorNotice.tsx";
+import { LoadingLine, PolledView, StaleNotice } from "../components/PolledView.tsx";
 import { RunTable } from "../components/RunTable.tsx";
 
 const STAT_ORDER = ["running", "awaiting_approval", "needs_attention", "paused", "succeeded", "rejected", "cancelled"] as const;
+
+/** A count, or a dash while the summary has never loaded (never a 0 that is not real). */
+function StatValue({ value }: { value: number | null }) {
+  if (value === null) {
+    return (
+      <div className="stat__value">
+        <span aria-hidden="true">-</span>
+        <span className="visually-hidden">not loaded</span>
+      </div>
+    );
+  }
+  return <div className="stat__value">{value}</div>;
+}
 
 export function Dashboard() {
   const canReadDlq = useCan("dlq:read");
@@ -15,10 +29,14 @@ export function Dashboard() {
   const recent = usePolling(() => api.get<Page<RunSummary>>("/api/runs?limit=10"), []);
   const attention = usePolling(() => api.get<Page<RunSummary>>("/api/runs?status=needs_attention&limit=5"), []);
   const agents = usePolling(() => api.get<AgentRolesResponse>("/api/agents"), []);
-  const dlq = usePolling(() => (canReadDlq ? api.get<Page<DlqMessageView>>("/api/dlq") : Promise.resolve({ items: [], nextCursor: null })), [canReadDlq]);
+  const dlq = usePolling(() => api.get<Page<DlqMessageView>>("/api/dlq"), [canReadDlq], { enabled: canReadDlq });
 
-  const counts = summary.data?.byStatus ?? {};
-  const active = (counts["queued"] ?? 0) + (counts["planning"] ?? 0) + (counts["running"] ?? 0);
+  const counts = summary.data?.byStatus ?? null;
+  const count = (status: (typeof STAT_ORDER)[number]): number | null => {
+    if (counts === null) return null;
+    if (status === "running") return (counts["queued"] ?? 0) + (counts["planning"] ?? 0) + (counts["running"] ?? 0);
+    return counts[status] ?? 0;
+  };
   return (
     <div className="stack">
       <div className="page-header">
@@ -27,19 +45,29 @@ export function Dashboard() {
           <p>Agent runs serving a simulated People-operations team.</p>
         </div>
         <Link to="/approvals" className="btn">
-          {summary.data?.pendingApprovals ?? 0} pending approvals
+          {summary.data ? `${summary.data.pendingApprovals} pending approvals` : "Pending approvals"}
         </Link>
       </div>
 
+      {summary.data === null ? (
+        summary.error ? (
+          <ErrorNotice error={summary.error} title="Counts are unavailable right now." action="read the run counts" onRetry={summary.refresh} />
+        ) : (
+          <LoadingLine text="Loading counts..." />
+        )
+      ) : summary.error ? (
+        <StaleNotice updatedAt={summary.updatedAt} onRetry={summary.refresh} />
+      ) : null}
+
       <div className="grid grid--stats">
         {STAT_ORDER.map((status) => (
-          <div className="card stat" key={status}>
-            <div className="stat__value">{status === "running" ? active : (counts[status] ?? 0)}</div>
+          <div className="card stat" key={status} data-testid="stat">
+            <StatValue value={count(status)} />
             <div className="stat__label">{status === "running" ? "active (queued, planning, running)" : status.replaceAll("_", " ")}</div>
           </div>
         ))}
-        <div className="card stat">
-          <div className="stat__value">{summary.data?.dlqOpen ?? 0}</div>
+        <div className="card stat" data-testid="stat">
+          <StatValue value={summary.data ? summary.data.dlqOpen : null} />
           <div className="stat__label">open dead letters</div>
         </div>
       </div>
@@ -52,8 +80,17 @@ export function Dashboard() {
               all
             </Link>
           </div>
+          {attention.error ? (
+            <div className="card__body">
+              <StaleNotice updatedAt={attention.updatedAt} onRetry={attention.refresh} />
+            </div>
+          ) : null}
           <RunTable runs={attention.data.items} />
         </div>
+      ) : attention.error && !attention.data ? (
+        <PolledView polled={attention} loading="Loading runs that need attention..." action="read runs" card="Needs attention">
+          {() => null}
+        </PolledView>
       ) : null}
 
       <div className="card">
@@ -63,18 +100,20 @@ export function Dashboard() {
             all runs
           </Link>
         </div>
-        {recent.error ? (
-          <div className="card__body">
-            <ErrorNotice error={recent.error} action="read runs" onRetry={recent.refresh} />
-          </div>
-        ) : (
-          <RunTable runs={recent.data?.items ?? []} />
-        )}
+        <PolledView polled={recent} loading="Loading runs..." action="read runs" padded>
+          {(page) => <RunTable runs={page.items} />}
+        </PolledView>
       </div>
 
       <div className="grid grid--two">
-        {agents.data ? <AgentRolePanel roles={agents.data.roles} onChange={agents.refresh} /> : null}
-        {canReadDlq ? <DlqPanel messages={dlq.data?.items ?? []} onChange={() => (dlq.refresh(), summary.refresh())} /> : null}
+        <PolledView polled={agents} loading="Loading agent roles..." action="read agent roles" card="Agent roles">
+          {(data) => <AgentRolePanel roles={data.roles} onChange={agents.refresh} />}
+        </PolledView>
+        {canReadDlq ? (
+          <PolledView polled={dlq} loading="Loading dead letters..." action="read the dead-letter queue" card="Dead-letter queue">
+            {(page) => <DlqPanel messages={page.items} onChange={() => (dlq.refresh(), summary.refresh())} />}
+          </PolledView>
+        ) : null}
       </div>
     </div>
   );
