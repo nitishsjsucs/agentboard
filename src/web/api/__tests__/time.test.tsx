@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ageMs, formatDuration, formatDurationWords, useNow } from "../time.ts";
+import { ageMs, formatDuration, formatDurationWords, formatElapsed, useNow } from "../time.ts";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -37,6 +37,22 @@ describe("formatDuration", { tags: ["ui"] }, () => {
     expect(ageMs("2026-10-16T13:00:00.000Z", now)).toBe(0);
     expect(ageMs("not a date", now)).toBe(0);
     expect(ageMs(null, now)).toBe(0);
+  });
+});
+
+describe("formatElapsed", { tags: ["ui"] }, () => {
+  it.each([
+    [0, "under 1 s"],
+    [999, "under 1 s"],
+    [1000, "1 s"],
+    [59_999, "59 s"],
+    [MIN, "1 min"],
+    [4 * MIN + 12_000, "4 min 12 s"],
+    [10 * MIN + 12_000, "10 min"],
+    [2 * HOUR + 14 * MIN, "2 h 14 min"],
+    [-1, "under 1 s"],
+  ])("%d ms reads %s", (ms, text) => {
+    expect(formatElapsed(ms)).toBe(text);
   });
 });
 
