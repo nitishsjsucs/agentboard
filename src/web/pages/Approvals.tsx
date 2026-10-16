@@ -28,18 +28,23 @@ export function Approvals() {
   const { me } = useSession();
   const [params, setParams] = useSearchParams();
   const status = statusFromParam(params.get("status"));
-  const setStatus = (next: StatusTab) => {
-    const updated = new URLSearchParams(params);
-    updated.set("status", next || "all");
-    setParams(updated, { replace: true });
-  };
   // Switching the status tab clears the previous tab's cards before the new answer arrives.
   const approvals = usePolling(() => api.get<Page<ApprovalListItem>>(`/api/approvals${query({ status, limit: 50 })}`), [status], { resetKey: status });
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  // After a decision: where focus goes once the refreshed list no longer offers that approval.
+  // After a decision or a conflict: where focus goes once the refreshed list no longer offers that approval.
   const pendingFocus = useRef<{ decidedId: string; index: number } | null>(null);
+  const setStatus = (next: StatusTab) => {
+    if (next !== status) {
+      // The status line and the pending focus describe the previous tab's list.
+      setAnnouncement(null);
+      pendingFocus.current = null;
+    }
+    const updated = new URLSearchParams(params);
+    updated.set("status", next || "all");
+    setParams(updated, { replace: true });
+  };
 
   useEffect(() => {
     const target = pendingFocus.current;
@@ -52,14 +57,20 @@ export function Approvals() {
     else statusRef.current?.focus();
   }, [approvals.data]);
 
-  const onDecided = (decision: Decision, approval: ApprovalListItem) => {
+  /** Focus the next card's note (or the status line) once the refreshed list drops this approval. */
+  const focusAfter = (approval: ApprovalListItem) => {
     const inputs = [...(listRef.current?.querySelectorAll<HTMLInputElement>(NOTE_INPUTS) ?? [])];
     const index = Math.max(0, inputs.findIndex((input) => input.closest("[data-approval-id]")?.getAttribute("data-approval-id") === approval.id));
     pendingFocus.current = { decidedId: approval.id, index };
+  };
+  const onDecided = (decision: Decision, approval: ApprovalListItem) => {
+    focusAfter(approval);
     setAnnouncement({ kind: "decided", decision, approval });
     approvals.refresh();
   };
-  const onConflict = (error: unknown) => {
+  // Someone else decided first (or it expired): the card leaves the list, so focus moves on the same way.
+  const onConflict = (error: unknown, approval: ApprovalListItem) => {
+    focusAfter(approval);
     setAnnouncement({ kind: "conflict", error });
     approvals.refresh();
   };

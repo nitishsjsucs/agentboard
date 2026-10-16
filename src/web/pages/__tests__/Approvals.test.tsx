@@ -137,6 +137,47 @@ describe("Approvals decisions", { tags: ["ui"] }, () => {
     await screen.findByText("No pending approvals.");
     expect(document.body.textContent).not.toContain("decision refused");
     expect(api.paths().filter((p) => p.startsWith("/api/approvals?")).length).toBeGreaterThanOrEqual(2);
+    // No card is left, so focus is on the status line, not the page body.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("decision-status")));
+  });
+
+  it("after a conflict, moves focus to the next card's note like a decision does", async () => {
+    let refused = false;
+    stubApi(({ method, path }) => {
+      if (method === "POST") {
+        refused = true;
+        return apiError(409, "conflict", "decision refused: already_decided", "already_decided");
+      }
+      if (path.startsWith("/api/approvals")) return reply({ items: refused ? [second] : [first, second], nextCursor: null });
+      return undefined;
+    });
+    page();
+    const [note] = await screen.findAllByLabelText("Decision note");
+    fireEvent.change(note as HTMLElement, { target: { value: "looks right" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Approve" })[0] as HTMLElement);
+    await waitFor(() => expect(screen.queryByText(first.summary, { selector: "div" })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Decision note")));
+    expect(document.activeElement?.closest("[data-approval-id]")?.getAttribute("data-approval-id")).toBe(second.id);
+  });
+
+  it("clears the status line when another status tab is chosen, since it described the previous list", async () => {
+    let refused = false;
+    stubApi(({ method, path }) => {
+      if (method === "POST") {
+        refused = true;
+        return apiError(409, "conflict", "decision refused: already_decided", "already_decided");
+      }
+      if (path.startsWith("/api/approvals")) return reply({ items: refused || !path.includes("status=pending") ? [] : [first], nextCursor: null });
+      return undefined;
+    });
+    page();
+    fireEvent.change(await screen.findByLabelText("Decision note"), { target: { value: "looks right" } });
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    const status = screen.getByTestId("decision-status");
+    await waitFor(() => expect(status.textContent).toContain("This approval was already decided or has expired."));
+    fireEvent.click(screen.getByRole("tab", { name: "rejected" }));
+    await screen.findByText("No rejected approvals.");
+    expect(status.textContent).toBe("");
   });
 });
 

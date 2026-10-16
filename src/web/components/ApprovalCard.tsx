@@ -32,7 +32,7 @@ export function ApprovalCard({
   approval: ApprovalListItem;
   onDecided: (decision: Decision, approval: ApprovalListItem) => void;
   /** Called instead of showing the refusal in the card when the approval was already decided or expired. */
-  onConflict?: (error: unknown) => void;
+  onConflict?: (error: unknown, approval: ApprovalListItem) => void;
 }) {
   const { me } = useSession();
   const mayDecide = useCan("approvals:decide");
@@ -50,7 +50,7 @@ export function ApprovalCard({
       await api.post(`/api/approvals/${approval.id}/decision`, { decision, note: note.trim() });
       onDecided(decision, approval);
     } catch (e) {
-      if (isDecisionConflict(e) && onConflict) onConflict(e);
+      if (isDecisionConflict(e) && onConflict) onConflict(e, approval);
       else setError(e);
     } finally {
       setBusy(false);
