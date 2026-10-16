@@ -29,6 +29,22 @@ describe("Runs errors", { tags: ["ui"] }, () => {
     expect(api.paths().at(-1)).toBe("/api/runs?limit=25");
   });
 
+  it("empties the search box too when Clear filters removes the query, so no search looks applied", async () => {
+    stubApi(({ path }) => {
+      if (path.includes("status=bogus")) return apiError(400, "invalid_request", ZOD);
+      if (path.startsWith("/api/runs")) return reply({ items: [], nextCursor: null });
+      return undefined;
+    });
+    render(renderAt("viewer", <Runs />, { url: "/runs?q=Halia&status=bogus", path: "/runs" }));
+    const box = screen.getByRole("searchbox", { name: "Search history" }) as HTMLInputElement;
+    expect(box.value).toBe("Halia");
+    expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Clear filters" }))[0] as HTMLElement);
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/runs"));
+    expect(box.value).toBe("");
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+  });
+
   it("shows loading lines, never 'No runs match.' or 'No matches.', while the list and the search are in flight", async () => {
     stubApi(() => pending());
     render(renderAt("viewer", <Runs />, { url: "/runs?q=Halia", path: "/runs" }));
