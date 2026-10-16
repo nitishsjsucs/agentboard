@@ -31,6 +31,15 @@ export function Approvals() {
   // Switching the status tab clears the previous tab's cards before the new answer arrives.
   const approvals = usePolling(() => api.get<Page<ApprovalListItem>>(`/api/approvals${query({ status, limit: 50 })}`), [status], { resetKey: status });
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  // Which cards have "What approving unlocks" open: kept here so it survives the 5 s list refresh.
+  const [unlocksOpen, setUnlocksOpen] = useState<ReadonlySet<string>>(new Set());
+  const toggleUnlocks = (id: string, open: boolean) =>
+    setUnlocksOpen((current) => {
+      const next = new Set(current);
+      if (open) next.add(id);
+      else next.delete(id);
+      return next;
+    });
   const statusRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   // After a decision or a conflict: where focus goes once the refreshed list no longer offers that approval.
@@ -45,6 +54,16 @@ export function Approvals() {
     updated.set("status", next || "all");
     setParams(updated, { replace: true });
   };
+
+  // An approval that left the list (decided, expired, another tab) drops its open state.
+  useEffect(() => {
+    const items = approvals.data?.items;
+    if (!items) return;
+    setUnlocksOpen((current) => {
+      const kept = [...current].filter((id) => items.some((a) => a.id === id));
+      return kept.length === current.size ? current : new Set(kept);
+    });
+  }, [approvals.data]);
 
   useEffect(() => {
     const target = pendingFocus.current;
@@ -114,7 +133,14 @@ export function Approvals() {
           ) : (
             <div className="stack" ref={listRef}>
               {page.items.map((approval) => (
-                <ApprovalCard key={approval.id} approval={approval} onDecided={onDecided} onConflict={onConflict} />
+                <ApprovalCard
+                  key={approval.id}
+                  approval={approval}
+                  onDecided={onDecided}
+                  onConflict={onConflict}
+                  unlocksOpen={unlocksOpen.has(approval.id)}
+                  onToggleUnlocks={(open) => toggleUnlocks(approval.id, open)}
+                />
               ))}
             </div>
           )

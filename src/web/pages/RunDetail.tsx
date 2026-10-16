@@ -216,7 +216,7 @@ export function RunDetail() {
             ) : (
               <div className="stack">
                 {data.approvals.map((approval) => (
-                  <ApprovalCard key={approval.id} approval={approval} onDecided={refresh} />
+                  <ApprovalCard key={approval.id} approval={approval} onDecided={refresh} tasks={snapshot.tasks} />
                 ))}
               </div>
             )}

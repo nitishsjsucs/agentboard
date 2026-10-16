@@ -253,3 +253,13 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .run-card:last-child { border-bottom: 0; }
 .run-card__title { font-weight: 560; }
 .nowrap { white-space: nowrap; }
+
+/* "What approving unlocks" on a pending approval card. */
+.unlocks { display: flex; flex-direction: column; gap: var(--space-2); }
+.unlocks__groups { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); background: var(--surface-muted); border-radius: var(--radius); }
+.unlocks__groups p { margin: 0; }
+.unlocks__group h4 { margin: 0 0 2px; font-size: var(--text-sm); font-weight: 620; }
+.unlocks__group ul { margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); }
+.unlocks__toggle { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; }
+.unlocks__chevron { transition: none; }
+.unlocks__toggle[aria-expanded="true"] .unlocks__chevron { transform: rotate(90deg); }
