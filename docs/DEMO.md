@@ -366,9 +366,9 @@ On 2026-10-15 the same requests were sent to the built worker (`npm run serve:bu
 ## Sources
 
 - `eval/results/production.json`: production verification, 2026-10-15, commit `c9130b5`
-- `eval/results/simulation.json`: 100-run local simulation, commit `0dbe380`
+- `eval/results/simulation.json`: 100-run local simulation, commit `471041c` (the counts quoted above are the same at every measurement since `0dbe380`)
 - `eval/results/planner-qwen3-1.7b-q4_0.json`: local planner eval
-- `eval/results/tests.json`: tagged test count, 109 (67 orchestration, 42 authorization), all passing
+- `eval/results/tests.json`: tagged test count, 110 (67 orchestration, 43 authorization), all passing
 - `scripts/cloudflare/env.ts`: production personas and roles
 - `src/web/`: every label quoted above
 - `docs/adr/`: design decisions; `README.md`: architecture, Free plan limits, limitations; `PROGRESS.md`: what is done and what is left
