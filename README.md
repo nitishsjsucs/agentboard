@@ -346,7 +346,7 @@ Tagged tests: 67 orchestration + 43 authorization = 110; passing: 110.
 
 ### Production (Workers Free plan)
 
-Command: `npm run cf:verify -- --env production` against https://agentboard-production.nitish-ratakonda.workers.dev through Cloudflare Access with two service tokens; every run planned by Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`). Measured 2026-10-15 at commit `c9130b5`, deployed version `9b2bf0aa-0025-41e7-867d-9874f7e3a98c`. These numbers describe the code of that commit as deployed; `results:check` does not require later code to match them, because measuring again needs a deploy.
+Command: `npm run cf:verify -- --env production` against https://agentboard-production.nitish-ratakonda.workers.dev through Cloudflare Access with two service tokens; every run planned by Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`). Measured 2026-10-16 at commit `507b6e0`, deployed version `79e04dd3-893f-48f7-b400-d2b728e8ce2d`. These numbers describe the code of that commit as deployed; `results:check` does not require later code to match them, because measuring again needs a deploy.
 
 | Metric | Value |
 |---|---|
@@ -356,15 +356,15 @@ Command: `npm run cf:verify -- --env production` against https://agentboard-prod
 | Runs the verifier cancelled (needs attention or timed out) | 0 |
 | Runs with a valid audit hash chain | 4/4 |
 | Duplicate side effects per idempotency key; per run and step | 0; 0 (6 ledger rows) |
-| Tool calls | 14 |
-| Planner tokens; Workers AI neurons (bounds) | 3577; 17 to 109 |
+| Tool calls | 15 |
+| Planner tokens; Workers AI neurons (bounds) | 3609; 17 to 110 |
 | Unauthenticated request | 302 to the Access login: Access protects the hostname |
 | HTTP 5xx responses | 0 |
 | Invocations that exceeded a CPU or memory limit (wrangler tail) | not observed (wrangler tail delivered no events) |
 | Worker fetch invocations (Free plan limit: 10 ms CPU) | not observed |
 | Worker queue invocations | not observed |
-| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | 92 requests (success 92); p50 4.8 ms, p99 40.6 ms |
-| Run duration p50; p95 (production wall clock) | 46939 ms; 88291 ms |
+| Worker CPU per request from the Analytics API, this run's window (Free plan limit: 10 ms; requests over it were not stopped) | 50 requests (success 50); p50 3.1 ms, p99 35.0 ms |
+| Run duration p50; p95 (production wall clock) | 14868 ms; 20381 ms |
 
 <!-- RESULTS:END -->
 
