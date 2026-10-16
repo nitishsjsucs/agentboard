@@ -72,6 +72,16 @@ Console workflows (2026-10-15; `docs/USER-WORKFLOWS.md` describes each persona's
 - A skip link, per-page titles, focus on the heading after navigation, real tabs with arrow keys kept in `?tab=` and `?status=`, a keyboard button for tool-call details, meters with values and announced status changes.
 - Viewers see when the request text is hidden and what redaction changed in tool calls.
 
+Console workflow fixes after a review of that round (2026-10-15; `docs/USER-WORKFLOWS.md`, "Fixed after review"):
+
+- An expired Access session is detected: production answers it with a 302 to the team's cross-origin login page, which the console followed into a CORS failure ("Could not reach AgentBoard", no banner). Requests no longer follow redirects, so a redirect raises the Reload banner; a 5xx HTML page reads as a server failure instead of a possible session end. The session item above did not hold behind Access until this fix.
+- The launch form keeps its unsent request, with its idempotency key, in the tab's sessionStorage for the signed-in principal, so "Sign in again" and "Reload" no longer lose it; a successful launch, Clear form and Sign out remove it. Before this, "keeps typed text" held only while the banner was on screen.
+- Edit request after a lost launch keeps the idempotency key (it minted a new one, so an edit of a launch that had arrived started a second run); the server's conflict answer is explained instead.
+- After a confirmed recovery command or DLQ replay, focus moves to the outcome line instead of falling to the page body when the command replaced or removed its own button; a refused replay reads as a sentence.
+- The postcondition notice names the Recovery row that runs the write again, execute rows come before verify rows, and each task button's accessible name includes its task.
+- The budget dialog counts an untouched field as its current limit, so minute rounding of active time can no longer block a raise or send one nobody made.
+- The approval queue moves focus on after a conflict and clears its status line when the tab changes; Clear filters on Runs also empties the search box; dialogs scroll inside on short screens; nav focus rings are no longer clipped.
+
 History note: commit `7ff7a92` ("docs: README with status, architecture, design decisions, local setup and roadmap") and the README part of `b7a3199` were written by a parallel session working in the same tree, not by this build's commit sequence; read them as AI-assisted like the rest. The README it wrote was later replaced entirely, and the history was left as it is (rewriting it would also move the four milestone tags). In the working repository the build commits to, every commit except that README commit carries a `Co-Authored-By: Claude` trailer. The GitHub history is copied from that repository by a separate publish step that removes those trailers, so no commit on GitHub carries one.
 
 ## v0.4.0: Evaluation and release

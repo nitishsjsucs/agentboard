@@ -1,6 +1,6 @@
 # User workflows
 
-How each kind of user moves through the AgentBoard console, as the code in this repository works now. Labels in quotes are the console's own text from `src/web`. The production deployment was built from commit `c9130b5` and does not have the changes listed under "Changed on 2026-10-15" until it is redeployed.
+How each kind of user moves through the AgentBoard console, as the code in this repository works now. Labels in quotes are the console's own text from `src/web`. The production deployment was built from commit `c9130b5` and does not have the changes listed under "Changed on 2026-10-15" and "Fixed after review (2026-10-15)" until it is redeployed.
 
 Everything People-related is simulated: the employees, the HRIS, ITSM, access-management and notification systems are seeded tables, not real systems.
 
@@ -30,7 +30,9 @@ Behind Cloudflare Access (production):
 1. Open the app's URL; Access asks for an allowed email and a one-time PIN.
 2. To change persona, click "Sign out" in the nav (it opens `/cdn-cgi/access/logout`), then sign in with another email.
 
-If a session ends while you work (a request comes back 401, or Access answers with its login page), a banner appears and the page stays where it is, so typed text is kept: "Your dev session ended." with "Sign in again" (back to the same page after signing in), or "Your Cloudflare Access session may have ended. Reload to sign in again." with "Reload".
+If a session ends while you work, a banner appears and the page stays where it is: "Your dev session ended." with "Sign in again" (back to the same page after signing in), or "Your Cloudflare Access session may have ended. Reload to sign in again." with "Reload". The console treats these answers as a possible session end: a 401; behind Access, a redirect (production answers an expired session with a 302 to the team's login page, which the console does not follow) or an HTML page with a status below 500. An HTML page with a 5xx status (a gateway or resource-limit page) reads as a server failure instead, with no banner.
+
+An unsent launch request survives signing in again: the Launch page keeps it in this browser tab (sessionStorage) for the signed-in principal, with its idempotency key, and shows it again with "Restored the request you had not launched yet." and "Clear form". Another principal never sees it, and a successful launch, "Clear form" and "Sign out" remove it. Other pages keep their typed text only while the banner is on screen.
 
 A principal without a role binding sees one page: "You are signed in as <email>, but you have no AgentBoard role. Ask an admin to add a role binding for this email." with Sign out or switch user. No other request is made.
 
@@ -49,7 +51,7 @@ Search the history:
 
 1. On Runs, type a query (for example an employee name and a request type) and press Search, or use the status, type and date filters.
 2. While results load, the page says "Searching..." and "Loading runs..."; an empty answer says "No matches." or "No runs match.".
-3. A filter the server rejects shows "Some values were not accepted." with "Clear filters".
+3. A filter the server rejects shows "Some values were not accepted." with "Clear filters", which also empties the search box. Back and Forward keep the box in step with the query in the URL.
 
 On the approval queue a viewer sees "Approvers and admins decide approvals." instead of a note field and buttons.
 
@@ -62,17 +64,18 @@ Launch a run:
 3. Choose the request type, the subject employee and "Request text". Until the form is complete, a hint under "Launch run" says what is missing ("Choose a subject employee." or "Request text needs at least 10 characters (n of 10).").
 4. With the local stub planner, text that matches no sample gets a warning that it will probably fail planning. It does not block the launch.
 5. Click "Launch run". The page moves to the new run.
-6. If the answer was lost (network failure), the fields lock and "The launch may not have reached AgentBoard." offers "Try again" (the same request with the same key, so it cannot start a second run) or "Edit request" (a new request with a new key).
-7. If the server says the form's key was already used for a different request, the page explains it with a link to Runs and "Start a new request".
+6. If the answer was lost (network failure or a gateway page), the fields lock and "The launch may not have reached AgentBoard." offers "Try again" (the same request with the same key) or "Edit request" (unlocks the fields and keeps the key). Neither can start a second run: if the lost launch did arrive, Try again opens that run and an edited request is refused as below.
+7. If the server says the form's key was already used for a different request, the page explains it with a link to Runs and "Start a new request", the only action that gives the form a new key.
+8. If you leave the page or sign in again before launching, the request is restored as described under "Signing in".
 
 If an agent role is disabled, the Launch page says so with the reason and who disabled it, because new runs will wait.
 
 Recover a run that needs attention:
 
-1. Open the run. The notice under the header names the cause and the next step for an operator (for example, with the stub planner: "The planner failed on every attempt." and "Cancel this run and launch a sample.").
+1. Open the run. The notice under the header names the cause and the next step for an operator (for example, with the stub planner: "The planner failed on every attempt." and "Cancel this run and launch a sample."; for a write the verifier found missing: "Retry s2 execute (hris.update_address) in Recovery to run the write again; retrying s2 verify only reads the record again.").
 2. On a phone-width screen the Recovery card comes before the tabs when the run needs attention or is paused.
-3. Click a recovery button ("Pause run", "Cancel run", "Retry", "Release lease"). The dialog asks for "Reason (recorded in the audit log)"; Escape closes it, Tab stays inside it, and focus returns to the button afterwards.
-4. Click "Confirm". The Recovery card says what happened ("Paused the run.", "Retry of the plan task requested.") or why the coordinator refused, in plain words.
+3. Click a recovery button ("Pause run", "Cancel run", "Retry", "Release lease"). Task rows list a step's execute task before its verify task, and each task button's name for screen readers includes its task ("Retry s2 execute (hris.update_address)"). The dialog asks for "Reason (recorded in the audit log)"; Escape closes it, Tab stays inside it, and after Escape or Cancel focus returns to the button.
+4. Click "Confirm". The Recovery card says what happened ("Paused the run.", "Retry of the plan task requested.") or why the coordinator refused, in plain words, and focus moves to that line, because the command often replaces or removes its own button (Pause becomes Resume).
 5. An operator cannot raise a budget: on an exhausted budget the notice says "Ask an admin to raise the budget."
 
 On their own runs an operator sees "You requested this run, so you cannot decide its approval." with the note field and buttons disabled.
@@ -85,22 +88,23 @@ Decide approvals:
 2. Each card shows the risk, the tool, the summary and a link named after the run's title.
 3. Type a note in "Decision note (required)" (the hint says "At least 3 characters"), then click "Approve" or "Reject".
 4. A status line confirms the decision ("Approved: <summary>. <run title> continues." or "Rejected: <summary>. The run ends as rejected; no writes ran.") with a link to the run, and focus moves to the next card's note.
-5. If someone else decided first, or the approval expired, the list refreshes and the status line says "This approval was already decided or has expired. The list now shows its current state."
+5. If someone else decided first, or the approval expired, the list refreshes, the status line says "This approval was already decided or has expired. The list now shows its current state.", and focus moves to the next card's note as after a decision.
 6. Decided and expired cards show who decided and their note, or why the approval expired (for example "expired: run cancelled"), and no expiry date.
+7. Choosing another status tab clears the status line, since it described the previous tab's list.
 
 ## Admin
 
 Control agents and the dead-letter queue:
 
 1. On the Dashboard, "Agent roles" offers "Disable" and "Enable" with an audited reason. While a role is disabled, runs that reach it show "Tasks are held because the executor role is disabled. An admin can enable it on the Dashboard."
-2. "Dead-letter queue" offers "Replay" for open dead letters.
+2. "Dead-letter queue" offers "Replay" for open dead letters. After a replay the panel says "Replayed <id>." or why it was refused, in plain words, and focus moves to that line (the replayed row loses its button).
 3. If a panel cannot load, it shows its own error card with "Try again" instead of disappearing.
 
 Raise a budget:
 
 1. Open a run whose notice says "The run is out of budget: ..." (it names the meter, for example "tool calls are at 24 of 24") and "Use Raise budget in Recovery.".
 2. Click "Raise budget". The fields start at the current limits and read "Tool calls (used U of N)", "LLM tokens (used U of N)", "Attempts per task (now N)" and "Active time in minutes (used U of N)"; the exhausted one is marked.
-3. Raise at least one value. Until then, "Raise at least one value above its current limit, and lower none." explains why Confirm is disabled.
+3. Raise at least one value. A field left as it was shown counts as its current limit, and only the fields you changed are sent (active time is shown rounded to 0.01 minute, so converting the shown value back could otherwise read as a change). Until something is raised, "Raise at least one value above its current limit, and lower none." explains why Confirm is disabled.
 4. Give a reason and confirm. "Raised the budget." appears and the blocked task runs again.
 
 Admins also hold every operator and approver workflow above, except deciding approvals on runs they launched.
@@ -111,7 +115,7 @@ Admins also hold every operator and approver workflow above, except deciding app
 - Each page has its own browser title ("Runs | AgentBoard", "Run: <title> | AgentBoard"), and after moving to another page focus is on its heading.
 - Loading data shows a "Loading ..." line, a failed load shows a plain message with "Try again", and data from an earlier load stays visible with "Showing data from <time>; the last refresh failed." when a refresh fails. Empty states appear only for empty answers.
 - Errors never show server internals (permission names, refusal codes, validation output). Server failures show a request id to quote.
-- Layouts work at 375 px wide: the nav wraps to a second, scrolling row of links, forms stack to one column and wide tables scroll inside their card.
+- Layouts work at 375 px wide: the nav wraps to a second, scrolling row of links, forms stack to one column and wide tables scroll inside their card. A dialog is never taller than the window and scrolls inside, so its buttons stay reachable on a phone in landscape. Nav links show their whole keyboard focus ring.
 
 ## Changed on 2026-10-15
 
@@ -128,4 +132,20 @@ What this round improved, and why. Each item is a commit in this repository with
 9. **Keyboard and screen-reader basics.** There was no skip link, every page was titled "AgentBoard", tool-call details opened only on a mouse click, tabs had no tabpanels or arrow keys and were lost on reload, and status changes were silent. Now there is a skip link, per-page titles, focus on the heading after navigation, a details button, real tabs kept in the URL, meters with values and a status announcement.
 10. **Viewers learn what is hidden.** The request text and redacted tool-call data looked absent or complete. Viewers now see a sentence for each, matching what the server's redaction does.
 
+Three claims above were not fully true as first shipped and are fixed under "Fixed after review": item 4's expiry banner never appeared behind Access (production redirects an expired session, which the browser reported as a network failure), item 4's "keeps typed text" held only until the banner's own "Sign in again" or "Reload" was used, and item 8's focus return worked only when the dialog was cancelled.
+
 Server changes in this round are limited to two read paths: the Events summaries in `src/worker/api/routes/timeline.ts`, and the run title and request type added to approval list items (`src/worker/api/routes/approvals.ts`, `runs.ts`). Authorization, approvals, idempotency, budgets and redaction are unchanged.
+
+## Fixed after review (2026-10-15)
+
+A review of the round above drove each persona through the console with Playwright against `npm run serve:built` and found these problems. Each is a commit with its tests; none changes a server rule.
+
+1. **Access session expiry.** Production answers an expired Access session with a 302 to the team's cross-origin login page. The console followed it, the browser failed it as CORS, and the user saw "Could not reach AgentBoard" or a stale-data line with no banner, while a gateway's 5xx HTML page did raise the banner. Requests no longer follow redirects: a redirect raises the banner and reads "Your session may have ended: the request was sent to a sign-in page. Reload the page to sign in again.", and a 5xx HTML page reads as a server failure.
+2. **Launch draft through sign-in.** The banner's own "Sign in again" or "Reload" threw the typed request away. The Launch page now restores it, with its key, for the same principal ("Restored the request you had not launched yet.", "Clear form").
+3. **Edit request after a lost answer.** It minted a new idempotency key, so if the lost launch had arrived, the edited resubmit started a second run of the same People operation. It now keeps the key, and the server's conflict answer is explained instead.
+4. **Focus after a confirmed recovery command.** Focus returned to the opener only on a cancel; after a confirm the opener was usually replaced (Pause by Resume) or removed, and focus fell to the page body. It now moves to the outcome line, which also takes focus when a live update removed the opener before a cancel. The dead-letter panel's Replay works the same way, and a refused replay is a sentence instead of its code.
+5. **Recovery rows.** The postcondition notice said "Retry step s2", but Recovery lists s2's verify and execute rows and only the execute retry runs the write again; the notice now names the row, and execute rows come first. Task buttons announced only "Retry", "Skip" or "Release lease"; each name now includes its task.
+6. **Budget dialog rounding.** Active time is shown rounded to 0.01 minute and was compared with the stored milliseconds, so on some runs an admin could raise nothing (50000 ms shows as 0.83) or sent an active-time raise they did not make (1000 ms shows as 0.02). An untouched field now counts as its current limit.
+7. **Approval queue.** After a conflict focus fell to the page body; it now moves to the next card's note. The status line stayed after switching tabs; it is now cleared.
+8. **Runs search box.** "Clear filters" left the old query in the box with no Clear button; the box now follows the query in the URL.
+9. **Short screens and focus rings.** A dialog taller than the window could not be scrolled, so the budget dialog's buttons were off screen at 812x375; dialogs now scroll inside. Nav link focus rings were clipped by the scrolling link row; they are drawn inside the link.
