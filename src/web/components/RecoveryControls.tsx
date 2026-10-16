@@ -141,7 +141,7 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
         >
           {action.kind === "task" && cascadeNote(action) ? <p className="notice">{cascadeNote(action)}</p> : null}
           {action.kind === "budget" ? (
-            <div className="grid grid--two" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <div className="form-two">
               {budgetFields.map((field) => (
                 <div className="field" key={field}>
                   <label htmlFor={`budget-${field}`}>

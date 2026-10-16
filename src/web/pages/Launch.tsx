@@ -108,7 +108,7 @@ export function Launch() {
             </select>
           </div>
         ) : null}
-        <div className="grid grid--two" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="form-two">
           <div className="field">
             <label htmlFor="type">Request type</label>
             <select id="type" className="select" value={requestType} onChange={(e) => setRequestType(e.target.value as RequestType)}>
@@ -137,7 +137,7 @@ export function Launch() {
           <textarea id="text" className="textarea" value={text} onChange={(e) => setText(e.target.value)} minLength={10} maxLength={4000} required />
           <span className="hint">Treated as untrusted data: the planner is told to ignore instructions inside it.</span>
         </div>
-        <div className="grid grid--two" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="form-two">
           <div className="field">
             <label htmlFor="priority">Priority</label>
             <select id="priority" className="select" value={priority} onChange={(e) => setPriority(e.target.value as (typeof PRIORITIES)[number])}>

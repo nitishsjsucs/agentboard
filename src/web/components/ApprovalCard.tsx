@@ -48,7 +48,7 @@ export function ApprovalCard({ approval, onDecided }: { approval: ApprovalListIt
       {approval.status === "pending" ? (
         <>
           {ownRun ? <div className="notice notice--warning">You requested this run, so you cannot decide its approval.</div> : null}
-          <div className="row" style={{ flexWrap: "nowrap" }}>
+          <div className="note-row" data-testid="note-row">
             <input
               className="input"
               placeholder="Decision note (required)"

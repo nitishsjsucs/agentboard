@@ -39,6 +39,17 @@ h3 { font-size: var(--text-md); margin: 0; font-weight: 620; }
 .grid { display: grid; gap: var(--space-4); }
 .grid--stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .grid--two { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+/* Grid items may shrink below their content; wide tables scroll inside .table-wrap instead of widening the page. */
+.grid > * { min-width: 0; }
+/* Run detail: the tabs and the Recovery card side by side on wide screens, stacked on narrow ones. */
+.run-layout { display: grid; gap: var(--space-4); align-items: start; grid-template-columns: minmax(0, 1fr); }
+.run-layout > * { min-width: 0; }
+@media (min-width: 721px) {
+  .run-layout { grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); }
+}
+/* Two form fields per row on wide screens, one per row on narrow ones. */
+.form-two { display: grid; gap: var(--space-4); grid-template-columns: 1fr 1fr; }
+.note-row { display: flex; align-items: center; gap: var(--space-2); }
 .stack { display: flex; flex-direction: column; gap: var(--space-4); }
 .row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .spacer { flex: 1; }
@@ -110,8 +121,16 @@ pre.json { margin: 0; padding: var(--space-3); background: var(--surface-muted);
 .login-option:hover { border-color: var(--accent); }
 
 @media (max-width: 720px) {
-  .nav { padding: 0 var(--space-4); gap: var(--space-2); }
+  /* Two rows: the brand and who-block, then every nav link on a full-width row that scrolls sideways. */
+  .nav { flex-wrap: wrap; height: auto; padding: var(--space-2) var(--space-4); gap: var(--space-1) var(--space-2); }
+  .nav__who { margin-left: auto; }
+  .nav__links { order: 1; flex: none; width: 100%; }
   .nav__who span.principal { display: none; }
+  .nav__link, .nav__switch, .breadcrumb a { display: inline-flex; align-items: center; min-height: 32px; }
   .main { padding: var(--space-4); }
   .grid--two { grid-template-columns: 1fr; }
+  .form-two { grid-template-columns: minmax(0, 1fr); }
+  .run-layout--recovery-first .run-layout__recovery { order: -1; }
+  .note-row { flex-wrap: wrap; }
+  .note-row .input { flex-basis: 100%; }
 }

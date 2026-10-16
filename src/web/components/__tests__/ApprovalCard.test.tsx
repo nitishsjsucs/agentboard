@@ -38,4 +38,11 @@ describe("ApprovalCard", { tags: ["ui"] }, () => {
     fireEvent.change(screen.getByLabelText("Decision note"), { target: { value: "checked with the manager" } });
     expect(approve.disabled).toBe(false);
   });
+
+  it("lets the note row wrap on narrow screens (no inline nowrap)", () => {
+    render(withSession("approver", <ApprovalCard approval={approval} onDecided={() => undefined} />, "approver.lee@agentboard.test"));
+    const row = screen.getByTestId("note-row");
+    expect(row.style.flexWrap).toBe("");
+    expect(row.classList.contains("note-row")).toBe(true);
+  });
 });

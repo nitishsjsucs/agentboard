@@ -57,7 +57,7 @@ export function RunDetail() {
     <div className="stack">
       <div className="page-header">
         <div>
-          <div className="row small muted">
+          <div className="row small muted breadcrumb">
             <Link to="/runs">Runs</Link>
             <span>/</span>
             <span className="mono">{run.id}</span>
@@ -91,7 +91,8 @@ export function RunDetail() {
         ) : null}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(260px, 1fr)", alignItems: "start" }}>
+      {/* Stacked on narrow screens; the Recovery card comes first when recovery is the next step. */}
+      <div className={`run-layout${snapshot.status === "needs_attention" || snapshot.status === "paused" ? " run-layout--recovery-first" : ""}`} data-testid="run-layout">
         <div>
           <div className="tabs" role="tablist">
             {(
@@ -147,7 +148,7 @@ export function RunDetail() {
           ) : null}
           {tab === "audit" ? canAudit ? <AuditTable events={audit.data?.events ?? []} chain={audit.data?.chain ?? null} /> : <EmptyState title="Needs audit:read." /> : null}
         </div>
-        <div className="card">
+        <div className="card run-layout__recovery">
           <div className="card__header">
             <h3>Recovery</h3>
           </div>

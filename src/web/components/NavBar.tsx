@@ -31,7 +31,7 @@ export function NavBar() {
           </>
         ) : null}
         {health?.authMode === "dev" ? (
-          <Link to="/dev/login" className="small">
+          <Link to="/dev/login" className="small nav__switch">
             switch user
           </Link>
         ) : null}

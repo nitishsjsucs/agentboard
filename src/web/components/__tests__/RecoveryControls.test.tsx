@@ -52,4 +52,13 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     fireEvent.change(toolCalls, { target: { value: String(Number(toolCalls.min) + 10) } });
     expect(raise.disabled).toBe(false);
   });
+
+  it("lays out the budget fields in a form-two grid with no inline column template", () => {
+    render(withSession("admin", <RecoveryControls runId="run_x" snapshot={snapshot()} onDone={() => undefined} />));
+    fireEvent.click(screen.getByRole("button", { name: "Raise budget" }));
+    const grid = screen.getByRole("dialog").querySelector(".form-two") as HTMLElement;
+    expect(grid).not.toBeNull();
+    expect(grid.style.gridTemplateColumns).toBe("");
+    expect(grid.querySelectorAll("input")).toHaveLength(4);
+  });
 });
