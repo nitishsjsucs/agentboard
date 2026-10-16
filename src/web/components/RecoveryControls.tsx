@@ -42,6 +42,13 @@ function label(task: TaskView): string {
   return task.kind === "plan" ? "the plan task" : `${task.stepId} ${task.kind} (${task.tool})`;
 }
 
+const KIND_ORDER: Record<TaskView["kind"], number> = { plan: 0, execute: 1, verify: 2 };
+
+/** The visible verb of a task button; its accessible name adds the task, so each button is unique. */
+function taskVerb(command: "retry" | "release-lease" | "skip"): string {
+  return command === "release-lease" ? "Release lease" : command === "retry" ? "Retry" : "Skip";
+}
+
 const SUCCESS: Record<"pause" | "resume" | "cancel", string> = { pause: "Paused the run.", resume: "Resumed the run.", cancel: "Cancelled the run." };
 
 /** Plain sentences for the coordinator's refusal codes; anything else shows its code. */
@@ -119,11 +126,19 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
     { command: "resume", show: canControl && status === "paused" },
     { command: "cancel", show: canControl && !terminal },
   ];
-  const taskButtons = tasks.flatMap((task) => [
-    ...(canRetryTasks && !terminal && canRetry(tasks, task) ? [{ command: "retry" as const, task }] : []),
-    ...(canRelease && !terminal && task.status === "leased" ? [{ command: "release-lease" as const, task }] : []),
-    ...(canSkipTasks && !terminal && canSkip(task) ? [{ command: "skip" as const, task }] : []),
-  ]);
+  // Steps in the order the run lists them, and within a step its execute before its verify: retrying the
+  // execute task runs the write again, retrying the verify task only reads the record again.
+  const stepOrder = new Map<string, number>();
+  tasks.forEach((task, index) => {
+    if (!stepOrder.has(task.stepId ?? "")) stepOrder.set(task.stepId ?? "", index);
+  });
+  const taskButtons = tasks
+    .flatMap((task) => [
+      ...(canRetryTasks && !terminal && canRetry(tasks, task) ? [{ command: "retry" as const, task }] : []),
+      ...(canRelease && !terminal && task.status === "leased" ? [{ command: "release-lease" as const, task }] : []),
+      ...(canSkipTasks && !terminal && canSkip(task) ? [{ command: "skip" as const, task }] : []),
+    ])
+    .sort((a, b) => (stepOrder.get(a.task.stepId ?? "") ?? 0) - (stepOrder.get(b.task.stepId ?? "") ?? 0) || KIND_ORDER[a.task.kind] - KIND_ORDER[b.task.kind]);
   const showBudget = canBudget && !terminal;
 
   // A raise must increase at least one field and lower none (the coordinator refuses anything else).
@@ -216,8 +231,13 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
             <div className="stack" style={{ gap: "var(--space-2)" }}>
               {taskButtons.map((b) => (
                 <div key={`${b.command}-${b.task.id}`} className="row small">
-                  <button type="button" className={`btn btn--small${b.command === "skip" ? " btn--danger" : ""}`} onClick={() => open({ kind: "task", command: b.command, task: b.task })}>
-                    {b.command === "release-lease" ? "Release lease" : b.command === "retry" ? "Retry" : "Skip"}
+                  <button
+                    type="button"
+                    className={`btn btn--small${b.command === "skip" ? " btn--danger" : ""}`}
+                    aria-label={`${taskVerb(b.command)}${b.command === "release-lease" ? " of" : ""} ${label(b.task)}`}
+                    onClick={() => open({ kind: "task", command: b.command, task: b.task })}
+                  >
+                    {taskVerb(b.command)}
                   </button>
                   <span>{label(b.task)}</span>
                 </div>

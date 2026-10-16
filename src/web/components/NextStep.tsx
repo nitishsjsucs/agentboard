@@ -75,7 +75,18 @@ export function describeNextStep(input: NextStepInput): NextStepNotice | null {
         return { tone: "warning", lines };
       }
       if (code === "plan_invalid") return { tone: "warning", lines: ["The plan did not pass validation, so no step ran. The Events table lists the issues.", retry("the plan task", ", or cancel the run")] };
-      if (code === "postcondition_failed") return { tone: "warning", lines: [`The verifier found that the write of ${failed ? taskLabel({ ...failed, kind: "execute" }) : "a step"} did not take effect.`, retry(failed?.stepId ? `step ${failed.stepId}` : "the step", " to run the write again")] };
+      if (code === "postcondition_failed") {
+        // Recovery lists two rows for the step; name the one that runs the write again, as Recovery labels it.
+        const step = failed?.stepId ?? "?";
+        const row = `${step} execute${failed?.tool ? ` (${failed.tool})` : ""}`;
+        return {
+          tone: "warning",
+          lines: [
+            `The verifier found that the write of ${failed ? taskLabel({ ...failed, kind: "execute" }) : "a step"} did not take effect.`,
+            can("tasks:retry") ? `Retry ${row} in Recovery to run the write again; retrying ${step} verify only reads the record again.` : `An operator or an admin can retry ${row} to run the write again.`,
+          ],
+        };
+      }
       if (code === "attempts_exhausted") return { tone: "warning", lines: [`${capitalize(label)} used every attempt it was allowed.`, retry("it")] };
       if (code === "timeout") return { tone: "warning", lines: [`${capitalize(label)} timed out on every attempt.`, retry("it")] };
       const which = failed?.kind === "plan" ? "The plan task" : `Step ${failed?.stepId ?? "?"}`;

@@ -57,8 +57,7 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     const visible = buttons();
     expect(visible).toEqual(expect.arrayContaining(["Skip", "Raise budget", "Retry", "Release lease"]));
     // Retry is offered for the s2 write whose verification failed (and for that verify task itself).
-    const retries = screen.getAllByRole("button", { name: "Retry" });
-    fireEvent.click(retries[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Retry s2 execute (hris.update_address)" }));
     const dialog = screen.getByRole("dialog");
     expect(dialog.textContent).toContain("Retry s2 execute (hris.update_address)");
     expect(dialog.textContent).toContain("Also resets its verify task (s2 verify) to pending at generation 1.");
@@ -108,15 +107,15 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
       view.unmount();
     }
     const tasks = controls("admin");
-    fireEvent.click(screen.getAllByRole("button", { name: "Retry" })[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Retry s2 execute (hris.update_address)" }));
     await confirmWith();
     expect(outcome().textContent).toBe("Retry of s2 execute (hris.update_address) requested.");
-    fireEvent.click(screen.getByRole("button", { name: "Release lease" }));
+    fireEvent.click(screen.getByRole("button", { name: "Release lease of s3 execute (notify.send)" }));
     await confirmWith();
     expect(outcome().textContent).toBe("Released the lease of s3 execute (notify.send).");
     tasks.unmount();
     controls("admin", snapshot({ tasks: [task({ id: "x", kind: "execute", stepId: "s4", tool: "itsm.create_ticket", status: "failed" })] }));
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip s4 execute (itsm.create_ticket)" }));
     await confirmWith();
     expect(outcome().textContent).toBe("Skipped s4 execute (itsm.create_ticket).");
   });
@@ -184,8 +183,7 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     serve();
     const paused = snapshot({ status: "paused", statusReason: "paused" });
     const byName = (name: string) => () => screen.getByRole("button", { name });
-    // The fixture lists s2's execute task before its verify task.
-    const verifyRetry = () => screen.getAllByRole("button", { name: /^Retry/ })[1] as HTMLElement;
+    const verifyRetry = byName("Retry s2 verify (hris.update_address)");
     const cases: [Role, RunSnapshot, RunSnapshot, () => HTMLElement, string][] = [
       ["operator", snapshot(), paused, byName("Pause run"), "Paused the run."],
       ["operator", paused, snapshot(), byName("Resume run"), "Resumed the run."],
@@ -224,13 +222,29 @@ describe("RecoveryControls", { tags: ["ui"] }, () => {
     expect(document.activeElement).toBe(outcome());
   });
 
+  it("names each task button after its task, and lists a step's execute row before its verify row", () => {
+    // The run lists s2's verify task before its execute task (as a real run can); Recovery does not.
+    const base = snapshot();
+    const verifyFirst = snapshot({ tasks: [base.tasks[0], base.tasks[1], base.tasks[3], base.tasks[2], base.tasks[4]].filter((t) => t !== undefined) });
+    controls("admin", verifyFirst);
+    const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent?.trim());
+    expect(names.filter((n) => n && /^(Retry|Skip|Release lease)/.test(n))).toEqual([
+      "Retry s2 execute (hris.update_address)",
+      "Retry s2 verify (hris.update_address)",
+      "Skip s2 verify (hris.update_address)",
+      "Release lease of s3 execute (notify.send)",
+    ]);
+    // The visible text stays the short verb, at the start of each name.
+    expect(screen.getByRole("button", { name: "Retry s2 verify (hris.update_address)" }).textContent).toBe("Retry");
+  });
+
   it("says that retrying a rejected approval-gated task asks for a new approval", () => {
     const gated = snapshot({
       statusReason: "approval_expired",
       tasks: [task({ id: "g", kind: "execute", stepId: "s2", tool: "hris.update_manager", status: "rejected", requiresApproval: true, lastError: "approval_expired" })],
     });
     controls("operator", gated);
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry s2 execute (hris.update_manager)" }));
     expect(screen.getByRole("dialog").textContent).toContain("Retrying asks for a new approval.");
   });
 });

@@ -35,7 +35,11 @@ describe("NextStep", { tags: ["ui"] }, () => {
   it("explains the other task failures with the failed step", () => {
     expect(lines({ snapshot: failedPlan("plan_invalid") })[0]).toBe("The plan did not pass validation, so no step ran. The Events table lists the issues.");
     // The fixture's s2 verification failed its postcondition.
-    expect(lines()).toEqual(["The verifier found that the write of step s2 (hris.update_address) did not take effect.", "Retry step s2 in Recovery to run the write again."]);
+    expect(lines()).toEqual([
+      "The verifier found that the write of step s2 (hris.update_address) did not take effect.",
+      "Retry s2 execute (hris.update_address) in Recovery to run the write again; retrying s2 verify only reads the record again.",
+    ]);
+    expect(lines({ role: "viewer" })[1]).toBe("An operator or an admin can retry s2 execute (hris.update_address) to run the write again.");
     const timedOut = snapshot({ statusReason: "task_failed:timeout", tasks: [task({ id: "x", kind: "execute", stepId: "s3", tool: "notify.send", status: "failed", lastError: "timeout" })] });
     expect(lines({ snapshot: timedOut })[0]).toBe("Step s3 (notify.send) timed out on every attempt.");
     const exhausted = snapshot({ statusReason: "task_failed:attempts_exhausted", tasks: [task({ id: "x", kind: "execute", stepId: "s1", tool: "hris.get_employee", status: "failed" })] });
