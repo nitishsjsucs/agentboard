@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { ErrorNotice } from "./ErrorNotice.tsx";
 
 export interface ConfirmDialogProps {
   title: string;
@@ -11,12 +12,14 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
   /** Extra condition from the dialog's own fields (for example a budget raise with no field set). */
   confirmDisabled?: boolean;
+  /** What the command does, completing "Your role cannot ..." in a refusal message (for example "pause runs"). */
+  action?: string;
 }
 
-export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, children, confirmLabel, danger = false, onConfirm, onCancel, confirmDisabled = false, action }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const valid = reason.trim().length >= 3 && reason.trim().length <= 500;
   const submit = async () => {
     setBusy(true);
@@ -24,7 +27,7 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
     try {
       await onConfirm(reason.trim());
     } catch (e) {
-      setError((e as Error).message);
+      setError(e);
       setBusy(false);
     }
   };
@@ -37,7 +40,7 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, o
           <label htmlFor="confirm-reason">Reason (recorded in the audit log)</label>
           <textarea id="confirm-reason" className="textarea" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} autoFocus />
         </div>
-        {error ? <div className="error-text">{error}</div> : null}
+        {error ? <ErrorNotice error={error} action={action} /> : null}
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <button type="button" className="btn" onClick={onCancel} disabled={busy}>
             Cancel

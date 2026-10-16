@@ -4,6 +4,7 @@ import { api, query } from "../api/client.ts";
 import { usePolling } from "../api/hooks.ts";
 import { ApprovalCard } from "../components/ApprovalCard.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
+import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
 const STATUSES = ["pending", "approved", "rejected", "expired", ""] as const;
 
@@ -26,7 +27,7 @@ export function Approvals() {
           ))}
         </div>
       </div>
-      {approvals.error ? <div className="notice notice--danger">{approvals.error.message}</div> : null}
+      {approvals.error ? <ErrorNotice error={approvals.error} action="read approvals" onRetry={approvals.refresh} /> : null}
       {items.length === 0 ? (
         <EmptyState title={status ? `No ${status} approvals.` : "No approvals yet."} />
       ) : (

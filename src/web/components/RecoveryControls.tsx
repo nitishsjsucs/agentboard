@@ -134,6 +134,7 @@ export function RecoveryControls({ runId, snapshot, onDone }: { runId: string; s
                 : `${action.command === "release-lease" ? "Release the lease of" : action.command === "retry" ? "Retry" : "Skip"} ${label(action.task)}`
           }
           confirmLabel="Confirm"
+          action={action.kind === "run" ? "pause, resume or cancel runs" : action.kind === "budget" ? "raise budgets" : action.command === "skip" ? "skip tasks" : action.command === "retry" ? "retry tasks" : "release leases"}
           danger={action.kind === "run" ? action.command === "cancel" : action.kind === "task" && action.command === "skip"}
           confirmDisabled={action.kind === "budget" && !isRaise}
           onCancel={() => setAction(null)}

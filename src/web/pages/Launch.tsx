@@ -4,6 +4,7 @@ import type { LaunchRunResponse } from "../../shared/api-types.ts";
 import { PRIORITIES, REQUEST_TYPES, type RequestType } from "../../shared/domain.ts";
 import { api } from "../api/client.ts";
 import { useCan, useSession } from "../api/hooks.ts";
+import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
 interface Employee {
   id: string;
@@ -30,7 +31,7 @@ export function Launch() {
   const [text, setText] = useState("");
   const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>("normal");
   const [maxToolCalls, setMaxToolCalls] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   // One idempotency key per form: resubmitting the same request returns the same run.
   const clientRequestId = useMemo(() => `web-${crypto.randomUUID()}`, []);
@@ -39,7 +40,7 @@ export function Launch() {
     api
       .get<{ employees: Employee[] }>("/api/people/directory")
       .then((r) => setEmployees(r.employees))
-      .catch((e: Error) => setError(e.message));
+      .catch((e: unknown) => setError(e));
   }, []);
   useEffect(() => {
     if (health?.authMode !== "dev") return;
@@ -64,7 +65,7 @@ export function Launch() {
       });
       navigate(`/runs/${response.runId}`);
     } catch (e) {
-      setError((e as Error).message);
+      setError(e);
       setBusy(false);
     }
   };
@@ -155,7 +156,7 @@ export function Launch() {
             </div>
           ) : null}
         </div>
-        {error ? <div className="error-text">{error}</div> : null}
+        {error ? <ErrorNotice error={error} action="launch runs" /> : null}
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <button type="submit" className="btn btn--primary" disabled={busy || !subject || text.trim().length < 10}>
             Launch run

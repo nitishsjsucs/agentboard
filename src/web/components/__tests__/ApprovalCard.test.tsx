@@ -1,10 +1,14 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApprovalListItem } from "../../../shared/api-types.ts";
 import { ApprovalCard } from "../ApprovalCard.tsx";
+import { apiError, stubApi } from "./api.ts";
 import { withSession } from "./session.tsx";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const approval: ApprovalListItem = {
   id: "apr_01J00000000000000000000000",
@@ -44,5 +48,14 @@ describe("ApprovalCard", { tags: ["ui"] }, () => {
     const row = screen.getByTestId("note-row");
     expect(row.style.flexWrap).toBe("");
     expect(row.classList.contains("note-row")).toBe(true);
+  });
+
+  it("explains a decision refused because someone else decided first, without the raw refusal code", async () => {
+    stubApi(() => apiError(409, "conflict", "decision refused: already_decided", "already_decided"));
+    render(withSession("approver", <ApprovalCard approval={approval} onDecided={() => undefined} />, "approver.lee@agentboard.test"));
+    fireEvent.change(screen.getByLabelText("Decision note"), { target: { value: "checked with the manager" } });
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("This approval was already decided or has expired.");
+    expect(document.body.textContent).not.toContain("decision refused");
   });
 });

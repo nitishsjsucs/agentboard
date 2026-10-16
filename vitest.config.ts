@@ -145,7 +145,7 @@ export default defineConfig({
         test: {
           name: "web",
           environment: "happy-dom",
-          include: ["src/web/**/*.test.tsx"],
+          include: ["src/web/**/*.test.{ts,tsx}"],
         },
       },
       {

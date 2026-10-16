@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { ApprovalListItem } from "../../shared/api-types.ts";
 import { api } from "../api/client.ts";
 import { useSession } from "../api/hooks.ts";
+import { ErrorNotice } from "./ErrorNotice.tsx";
 import { formatTime } from "./RunTable.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
@@ -14,7 +15,7 @@ export function ApprovalCard({ approval, onDecided }: { approval: ApprovalListIt
   const { me } = useSession();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const ownRun = me !== null && approval.requester.toLowerCase() === me.principal.id;
   const canAct = approval.canDecide && !ownRun && approval.status === "pending";
   const decide = async (decision: "approve" | "reject") => {
@@ -24,7 +25,7 @@ export function ApprovalCard({ approval, onDecided }: { approval: ApprovalListIt
       await api.post(`/api/approvals/${approval.id}/decision`, { decision, note: note.trim() });
       onDecided();
     } catch (e) {
-      setError((e as Error).message);
+      setError(e);
     } finally {
       setBusy(false);
     }
@@ -67,7 +68,7 @@ export function ApprovalCard({ approval, onDecided }: { approval: ApprovalListIt
           </div>
         </>
       ) : null}
-      {error ? <div className="error-text">{error}</div> : null}
+      {error ? <ErrorNotice error={error} action="decide approvals" /> : null}
     </div>
   );
 }

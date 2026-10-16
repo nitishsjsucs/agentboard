@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import type { AuditEventView, Page, RunDetailResponse, RunSnapshot, TimelineEntry, ToolCallView } from "../../shared/api-types.ts";
-import { api } from "../api/client.ts";
+import { api, ApiRequestError, query } from "../api/client.ts";
 import { useCan, usePolling } from "../api/hooks.ts";
 import { useRunLive } from "../api/useRunLive.ts";
 import { ApprovalCard } from "../components/ApprovalCard.tsx";
 import { AuditTable } from "../components/AuditTable.tsx";
 import { BudgetMeter } from "../components/BudgetMeter.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
+import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { RecoveryControls } from "../components/RecoveryControls.tsx";
 import { formatTime } from "../components/RunTable.tsx";
@@ -30,7 +31,19 @@ export function RunDetail() {
     [id, tab, canAudit],
   );
 
-  if (detail.error && !detail.data) return <EmptyState title="Run not found or not visible.">{detail.error.message}</EmptyState>;
+  if (detail.error && !detail.data) {
+    if (detail.error instanceof ApiRequestError && detail.error.status === 404) {
+      return (
+        <EmptyState title={`No run with id ${id}.`}>
+          <span>
+            It may have been mistyped, or it belongs to another environment. <Link to="/runs">Browse all runs</Link> or{" "}
+            <Link to={`/runs${query({ q: id })}`}>search the history for it</Link>.
+          </span>
+        </EmptyState>
+      );
+    }
+    return <ErrorNotice error={detail.error} action="read runs" onRetry={detail.refresh} />;
+  }
   const data = detail.data;
   if (!data) return <div className="muted">Loading run...</div>;
   const run = data.run;

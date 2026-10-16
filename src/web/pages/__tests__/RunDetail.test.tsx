@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunDetailResponse } from "../../../shared/api-types.ts";
-import { reply, stubApi } from "../../components/__tests__/api.ts";
+import { apiError, reply, stubApi } from "../../components/__tests__/api.ts";
 import { runDetail } from "../../components/__tests__/fixtures.ts";
 import { renderAt } from "../../components/__tests__/session.tsx";
 import { RunDetail } from "../RunDetail.tsx";
@@ -46,5 +46,16 @@ describe("RunDetail layout", { tags: ["ui"] }, () => {
     const layout = screen.getByTestId("run-layout");
     expect(layout.classList.contains("run-layout")).toBe(true);
     expect(layout.classList.contains("run-layout--recovery-first")).toBe(false);
+  });
+});
+
+describe("RunDetail errors", { tags: ["ui"] }, () => {
+  it("says which run id was not found and links to the run list and a history search, instead of the server's message", async () => {
+    stubApi(({ path }) => (path.startsWith("/api/runs/run_missing") ? apiError(404, "not_found", "no such run") : undefined));
+    page("operator", "/runs/run_missing");
+    expect(await screen.findByText("No run with id run_missing.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Browse all runs" }).getAttribute("href")).toBe("/runs");
+    expect(screen.getByRole("link", { name: "search the history for it" }).getAttribute("href")).toBe("/runs?q=run_missing");
+    expect(document.body.textContent).not.toContain("no such run");
   });
 });

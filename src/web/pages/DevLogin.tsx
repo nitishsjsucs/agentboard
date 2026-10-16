@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../api/client.ts";
 import { useSession } from "../api/hooks.ts";
+import { ErrorNotice } from "../components/ErrorNotice.tsx";
 
 interface DevUser {
   principal: string;
@@ -14,14 +15,14 @@ export function DevLogin() {
   const { health, reload } = useSession();
   const navigate = useNavigate();
   const [users, setUsers] = useState<DevUser[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     if (health?.authMode !== "dev") return;
     api
       .get<{ users: DevUser[] }>("/api/dev/users")
       .then((r) => setUsers(r.users))
-      .catch((e: Error) => setError(e.message));
+      .catch((e: unknown) => setError(e));
   }, [health?.authMode]);
 
   if (health && health.authMode !== "dev") {
@@ -35,7 +36,7 @@ export function DevLogin() {
       await reload();
       navigate("/");
     } catch (e) {
-      setError((e as Error).message);
+      setError(e);
     }
   };
 
@@ -47,7 +48,7 @@ export function DevLogin() {
           <p>Local development only. Pick a seeded principal; the worker signs a 12-hour JWT with the local dev key.</p>
         </div>
       </div>
-      {error ? <div className="notice notice--danger">{error}</div> : null}
+      {error ? <ErrorNotice error={error} /> : null}
       <div className="login-list">
         {users.map((user) => (
           <button key={user.principal} type="button" className="login-option" onClick={() => void login(user.principal)}>

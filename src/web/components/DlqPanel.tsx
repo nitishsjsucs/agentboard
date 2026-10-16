@@ -66,6 +66,7 @@ export function DlqPanel({ messages, onChange }: { messages: DlqMessageView[]; o
         <ConfirmDialog
           title="Replay dead-lettered task"
           confirmLabel="Replay"
+          action="replay dead letters"
           onCancel={() => setReplaying(null)}
           onConfirm={async (reason) => {
             // A refused replay answers 409 with { accepted: false, reason } (for example when the task was recovered meanwhile).

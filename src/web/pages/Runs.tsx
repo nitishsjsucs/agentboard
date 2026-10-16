@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import type { Page, RunSummary, SearchHit } from "../../shared/api-types.ts";
 import { REQUEST_TYPES, RUN_STATUSES } from "../../shared/domain.ts";
-import { api, query } from "../api/client.ts";
+import { api, ApiRequestError, query } from "../api/client.ts";
 import { usePolling } from "../api/hooks.ts";
+import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { RunTable } from "../components/RunTable.tsx";
 import { SearchBar } from "../components/SearchBar.tsx";
 import { SearchResults } from "../components/SearchResults.tsx";
@@ -25,6 +26,20 @@ export function Runs() {
     setParams(next);
     setCursors([]);
   };
+  const clearFilters = () => {
+    setParams(new URLSearchParams());
+    setCursors([]);
+  };
+  // A rejected filter (for example a hand-edited ?status=) is fixed by clearing the filters.
+  const filterError = (error: Error) => (
+    <ErrorNotice error={error} action="read runs" onRetry={error instanceof ApiRequestError && error.status === 400 ? undefined : runs.refresh}>
+      {error instanceof ApiRequestError && error.status === 400 ? (
+        <button type="button" className="btn btn--small" onClick={clearFilters}>
+          Clear filters
+        </button>
+      ) : null}
+    </ErrorNotice>
+  );
   const isoDay = (day: string, end = false) => (day ? new Date(`${day}T${end ? "23:59:59.999" : "00:00:00.000"}Z`).toISOString() : undefined);
 
   const runs = usePolling(
@@ -74,7 +89,7 @@ export function Runs() {
       {q ? (
         <div className="stack">
           <h2>Search results</h2>
-          {hits.error ? <div className="error-text">{hits.error.message}</div> : <SearchResults hits={hits.data?.items ?? []} />}
+          {hits.error ? filterError(hits.error) : <SearchResults hits={hits.data?.items ?? []} />}
         </div>
       ) : null}
 
@@ -95,7 +110,7 @@ export function Runs() {
             </button>
           </div>
         </div>
-        {runs.error ? <div className="card__body error-text">{runs.error.message}</div> : <RunTable runs={runs.data?.items ?? []} empty="No runs match." />}
+        {runs.error ? <div className="card__body">{filterError(runs.error)}</div> : <RunTable runs={runs.data?.items ?? []} empty="No runs match." />}
       </div>
     </div>
   );

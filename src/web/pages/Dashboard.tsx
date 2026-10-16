@@ -4,6 +4,7 @@ import { api } from "../api/client.ts";
 import { useCan, usePolling } from "../api/hooks.ts";
 import { AgentRolePanel } from "../components/AgentRolePanel.tsx";
 import { DlqPanel } from "../components/DlqPanel.tsx";
+import { ErrorNotice } from "../components/ErrorNotice.tsx";
 import { RunTable } from "../components/RunTable.tsx";
 
 const STAT_ORDER = ["running", "awaiting_approval", "needs_attention", "paused", "succeeded", "rejected", "cancelled"] as const;
@@ -62,7 +63,13 @@ export function Dashboard() {
             all runs
           </Link>
         </div>
-        {recent.error ? <div className="card__body error-text">{recent.error.message}</div> : <RunTable runs={recent.data?.items ?? []} />}
+        {recent.error ? (
+          <div className="card__body">
+            <ErrorNotice error={recent.error} action="read runs" onRetry={recent.refresh} />
+          </div>
+        ) : (
+          <RunTable runs={recent.data?.items ?? []} />
+        )}
       </div>
 
       <div className="grid grid--two">
